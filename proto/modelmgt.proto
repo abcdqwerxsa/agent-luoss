@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package agentluoss.v1.modelmgt;
+
+option go_package = "agentluoss/proto/gen/modelmgt;modelmgtpb";
+
+service ModelMgt {
+  // ---- admin ----
+  rpc UpsertProvider(UpsertProviderRequest) returns (UpsertProviderResponse);
+  rpc DeleteProvider(DeleteProviderRequest) returns (DeleteProviderResponse);
+  rpc UpsertModel(UpsertModelRequest) returns (UpsertModelResponse);
+  rpc DeleteModel(DeleteModelRequest) returns (DeleteModelResponse);
+  rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse);
+
+  // ---- user-facing (via gateway) ----
+  rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
+}
+
+message Provider {
+  string id = 1;          // slug, e.g. "my-gateway"
+  string name = 2;
+  string base_url = 3;    // e.g. https://gw.internal/v1
+  string api_type = 4;    // "openai-completions" | "anthropic-messages" | ...
+  string api_key = 5;     // write-only, never returned populated
+  bool enabled = 6;
+  int64 updated_at = 7;
+}
+
+message Model {
+  string id = 1;          // provider-local model id, e.g. "gpt-4o"
+  string provider_id = 2;
+  string display_name = 3;
+  int64 context_window = 4;
+  int64 max_tokens = 5;
+  double input_cost = 6;  // per 1M tokens, USD
+  double output_cost = 7;
+  bool reasoning = 8;
+  bool enabled = 9;
+}
+
+message UpsertProviderRequest {
+  Provider provider = 1;
+}
+
+message UpsertProviderResponse {}
+
+message DeleteProviderRequest {
+  string provider_id = 1;
+}
+
+message DeleteProviderResponse {}
+
+message UpsertModelRequest {
+  Model model = 1;
+}
+
+message UpsertModelResponse {}
+
+message DeleteModelRequest {
+  string provider_id = 1;
+  string model_id = 2;
+}
+
+message DeleteModelResponse {}
+
+message ListProvidersRequest {}
+
+message ListProvidersResponse {
+  repeated Provider providers = 1; // api_key masked
+}
+
+message ListModelsRequest {}
+
+message ListModelsResponse {
+  repeated Model models = 1; // enabled only
+}

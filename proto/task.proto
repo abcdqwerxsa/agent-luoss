@@ -1,0 +1,176 @@
+syntax = "proto3";
+
+package agentluoss.v1.task;
+
+option go_package = "agentluoss/proto/gen/task;taskpb";
+
+import "runtime.proto";
+
+// Task is the core orchestration service. Gateway calls it for user actions;
+// agent-runtime calls RegisterRuntime/RuntimeHeartbeat/PushEvents.
+service Task {
+  // ---- user-facing (via gateway) ----
+  rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse);
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse);
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  rpc UpdateTask(UpdateTaskRequest) returns (UpdateTaskResponse);
+  rpc DeleteTask(DeleteTaskRequest) returns (DeleteTaskResponse);
+  rpc SendPrompt(SendPromptRequest) returns (SendPromptResponse);
+  rpc SteerTask(SteerTaskRequest) returns (SteerTaskResponse);
+  rpc AbortTask(AbortTaskRequest) returns (AbortTaskResponse);
+  // SSE backing store: server-streaming events with replay from since_seq.
+  rpc StreamEvents(StreamEventsRequest) returns (stream AgentEvent);
+
+  // ---- runtime-facing ----
+  rpc RegisterRuntime(RegisterRuntimeRequest) returns (RegisterRuntimeResponse);
+  rpc RuntimeHeartbeat(RuntimeHeartbeatRequest) returns (RuntimeHeartbeatResponse);
+  rpc PushEvents(stream AgentEvent) returns (PushEventsResponse);
+
+  // ---- history ----
+  rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
+}
+
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_PENDING = 1;  // created, no runtime yet / never prompted
+  TASK_STATUS_RUNNING = 2;  // agent streaming
+  TASK_STATUS_IDLE = 3;     // waiting for next user message
+  TASK_STATUS_FAILED = 4;
+  TASK_STATUS_ARCHIVED = 5;
+}
+
+message TaskInfo {
+  string id = 1;
+  string user_id = 2;
+  string title = 3;
+  agentluoss.v1.runtime.TaskMode mode = 4;
+  agentluoss.v1.runtime.ModelRef model = 5;
+  TaskStatus status = 6;
+  string runtime_id = 7;
+  string session_path = 8;
+  string first_message = 9; // preview for task list
+  int64 created_at = 10;    // unix ms
+  int64 updated_at = 11;
+}
+
+message CreateTaskRequest {
+  string user_id = 1;
+  string title = 2;
+  agentluoss.v1.runtime.TaskMode mode = 3;
+  agentluoss.v1.runtime.ModelRef model = 4;
+  string first_message = 5; // optional: immediately send first prompt
+}
+
+message CreateTaskResponse {
+  TaskInfo task = 1;
+}
+
+message GetTaskRequest {
+  string task_id = 1;
+}
+
+message GetTaskResponse {
+  TaskInfo task = 1;
+}
+
+message ListTasksRequest {
+  string user_id = 1; // empty + role=admin lists all
+  string query = 2;   // substring on title
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+message ListTasksResponse {
+  repeated TaskInfo tasks = 1;
+  int32 total = 2;
+}
+
+message UpdateTaskRequest {
+  string task_id = 1;
+  string title = 2;
+  bool archive = 3;
+}
+
+message UpdateTaskResponse {
+  TaskInfo task = 1;
+}
+
+message DeleteTaskRequest {
+  string task_id = 1;
+}
+
+message DeleteTaskResponse {}
+
+message SendPromptRequest {
+  string task_id = 1;
+  string user_id = 2; // for ownership check
+  string message = 3;
+  repeated agentluoss.v1.runtime.ImageContent images = 4;
+  string streaming_behavior = 5;
+}
+
+message SendPromptResponse {
+  bool accepted = 1;
+  string error = 2;
+}
+
+message SteerTaskRequest {
+  string task_id = 1;
+  string user_id = 2;
+  string message = 3;
+}
+
+message SteerTaskResponse {}
+
+message AbortTaskRequest {
+  string task_id = 1;
+  string user_id = 2;
+}
+
+message AbortTaskResponse {}
+
+message StreamEventsRequest {
+  string task_id = 1;
+  string user_id = 2; // ownership check
+  int64 since_seq = 3; // 0 = from now; Last-Event-ID replay otherwise
+}
+
+// Generic event envelope. payload is the pi event JSON (or task-svc synthetic
+// event); task-svc assigns seq and persists to a Redis Stream for replay.
+message AgentEvent {
+  string task_id = 1;
+  string session_id = 2;
+  string type = 3;      // message_update | tool_execution_start | agent_start | agent_settled | queue_update | auto_retry_start | compaction_start | task_status | error | usage ...
+  string payload = 4;   // JSON, event-specific body
+  int64 seq = 5;        // assigned by task-svc
+  int64 timestamp = 6;  // unix ms
+}
+
+message RegisterRuntimeRequest {
+  string runtime_id = 1;
+  string address = 2; // host:port for task-svc to dial back
+}
+
+message RegisterRuntimeResponse {}
+
+message RuntimeHeartbeatRequest {
+  string runtime_id = 1;
+  int32 active_sessions = 2;
+  int32 max_sessions = 3;
+}
+
+message RuntimeHeartbeatResponse {}
+
+message PushEventsResponse {
+  int32 accepted = 1;
+}
+
+message GetMessagesRequest {
+  string task_id = 1;
+  string user_id = 2;
+}
+
+message GetMessagesResponse {
+  // JSON array of AgentMessage (pi format: user/assistant/toolResult roles).
+  string messages_json = 1;
+}

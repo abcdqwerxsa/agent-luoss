@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package agentluoss.v1.usage;
+
+option go_package = "agentluoss/proto/gen/usage;usagepb";
+
+service Usage {
+  // ---- internal (task-svc funnels agent usage) ----
+  rpc ReportUsage(ReportUsageRequest) returns (ReportUsageResponse);
+  rpc CheckQuota(CheckQuotaRequest) returns (CheckQuotaResponse);
+
+  // ---- admin-facing (via gateway) ----
+  rpc SetQuota(SetQuotaRequest) returns (SetQuotaResponse);
+  rpc GetUsageSummary(GetUsageSummaryRequest) returns (GetUsageSummaryResponse);
+  rpc ListAuditLogs(ListAuditLogsRequest) returns (ListAuditLogsResponse);
+  // ---- user-facing ----
+  rpc GetMyUsage(GetMyUsageRequest) returns (GetMyUsageResponse);
+}
+
+message ReportUsageRequest {
+  string task_id = 1;
+  string user_id = 2;
+  string provider = 3;
+  string model_id = 4;
+  int64 input_tokens = 5;
+  int64 output_tokens = 6;
+  int64 cache_read_tokens = 7;
+  int64 cache_write_tokens = 8;
+  double cost_usd = 9;
+  int64 ts = 10; // unix ms
+}
+
+message ReportUsageResponse {}
+
+message CheckQuotaRequest {
+  string user_id = 1;
+}
+
+message CheckQuotaResponse {
+  bool allowed = 1;
+  string reason = 2;
+  double used_usd = 3;
+  double limit_usd = 4;
+}
+
+message SetQuotaRequest {
+  string user_id = 1;
+  double monthly_limit_usd = 2; // <=0 removes custom quota (falls back to default)
+}
+
+message SetQuotaResponse {}
+
+message GetUsageSummaryRequest {
+  string user_id = 1; // empty = all users (admin)
+  int32 days = 2;     // lookback window, default 30
+}
+
+message UsageRow {
+  string day = 1;       // YYYY-MM-DD
+  string user_id = 2;
+  int64 input_tokens = 3;
+  int64 output_tokens = 4;
+  int64 total_tokens = 5;
+  double cost_usd = 6;
+  int32 task_count = 7;
+}
+
+message GetUsageSummaryResponse {
+  repeated UsageRow rows = 1;
+}
+
+message GetMyUsageRequest {
+  string user_id = 1;
+}
+
+message GetMyUsageResponse {
+  double month_used_usd = 1;
+  double month_limit_usd = 2;
+  repeated UsageRow recent_days = 3;
+}
+
+message ListAuditLogsRequest {
+  string actor = 1;    // filter by user id/username
+  string action = 2;   // filter by action, e.g. "task.create"
+  int64 from_ts = 3;
+  int64 to_ts = 4;
+  int32 limit = 5;
+  int32 offset = 6;
+}
+
+message AuditLog {
+  string id = 1;
+  string actor = 2;
+  string action = 3;
+  string resource = 4;  // e.g. "task/<id>"
+  string detail = 5;    // JSON
+  string ip = 6;
+  int64 ts = 7;
+}
+
+message ListAuditLogsResponse {
+  repeated AuditLog logs = 1;
+  int32 total = 2;
+}

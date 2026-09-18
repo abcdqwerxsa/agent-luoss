@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package agentluoss.v1.artifact;
+
+option go_package = "agentluoss/proto/gen/artifact;artifactpb";
+
+service Artifact {
+  rpc ListDir(ListDirRequest) returns (ListDirResponse);
+  rpc Download(DownloadRequest) returns (stream FileChunk);
+  rpc Upload(stream UploadChunk) returns (UploadResponse);
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+}
+
+message FileNode {
+  string name = 1;
+  bool is_dir = 2;
+  int64 size = 3;
+  int64 modified_at = 4; // unix ms
+}
+
+message ListDirRequest {
+  string user_id = 1;
+  string path = 2; // "" or "." = workspace root; always relative
+}
+
+message ListDirResponse {
+  string path = 1;
+  repeated FileNode nodes = 2;
+}
+
+message DownloadRequest {
+  string user_id = 1;
+  string path = 2;
+}
+
+message FileChunk {
+  bytes data = 1;
+}
+
+message UploadChunk {
+  oneof part {
+    UploadMeta meta = 1;
+    bytes data = 2;
+  }
+}
+
+message UploadMeta {
+  string user_id = 1;
+  string path = 2; // target relative path, e.g. inputs/report.pdf
+}
+
+message UploadResponse {
+  string path = 1;
+  int64 size = 2;
+}
+
+message DeleteRequest {
+  string user_id = 1;
+  string path = 2;
+}
+
+message DeleteResponse {}

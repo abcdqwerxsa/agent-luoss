@@ -1,0 +1,111 @@
+syntax = "proto3";
+
+package agentluoss.v1.runtime;
+
+option go_package = "agentluoss/proto/gen/runtime;runtimpb";
+
+// AgentRuntime is implemented by the Node sidecar (pi SDK).
+// One session == one platform task.
+service AgentRuntime {
+  // Create or resume a session. Empty session_path creates a new one.
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  rpc Prompt(PromptRequest) returns (PromptResponse);
+  rpc Steer(SteerRequest) returns (SteerResponse);
+  rpc Abort(AbortRequest) returns (AbortResponse);
+  rpc GetSessionState(GetSessionStateRequest) returns (GetSessionStateResponse);
+  rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  // Recreate ModelRuntime from the rendered models.json/auth.json; affects new sessions.
+  rpc ReloadConfig(ReloadConfigRequest) returns (ReloadConfigResponse);
+}
+
+message ModelRef {
+  string provider = 1;
+  string model_id = 2;
+}
+
+enum TaskMode {
+  TASK_MODE_UNSPECIFIED = 0;
+  TASK_MODE_ASK = 1;    // read-only tools
+  TASK_MODE_CRAFT = 2;  // full tools
+  TASK_MODE_PLAN = 3;   // full tools, plan-first prompt
+}
+
+message CreateSessionRequest {
+  string task_id = 1;
+  string user_id = 2;
+  TaskMode mode = 3;
+  ModelRef model = 4;
+  string workspace_path = 5;  // cwd, e.g. /data/workspaces/u123
+  string session_path = 6;    // empty = new session file
+}
+
+message CreateSessionResponse {
+  string session_id = 1;
+  string session_path = 2; // resolved path of the session jsonl
+  bool resumed = 3;        // true if restored from file
+}
+
+message ImageContent {
+  string data = 1;      // base64
+  string media_type = 2; // e.g. image/png
+}
+
+message PromptRequest {
+  string task_id = 1;
+  string message = 2;
+  repeated ImageContent images = 3;
+  // "default" | "steer" | "follow_up"; required when agent is streaming.
+  string streaming_behavior = 4;
+}
+
+message PromptResponse {
+  bool accepted = 1; // preflight result
+}
+
+message SteerRequest {
+  string task_id = 1;
+  string message = 2;
+  repeated ImageContent images = 3;
+}
+
+message SteerResponse {}
+
+message AbortRequest {
+  string task_id = 1;
+}
+
+message AbortResponse {}
+
+message GetSessionStateRequest {
+  string task_id = 1;
+}
+
+message GetSessionStateResponse {
+  bool exists = 1;
+  bool is_streaming = 2;
+  string model_id = 3;
+  string session_id = 4;
+  int64 message_count = 5;
+}
+
+message CloseSessionRequest {
+  string task_id = 1;
+}
+
+message CloseSessionResponse {}
+
+message HeartbeatRequest {}
+
+message HeartbeatResponse {
+  string runtime_id = 1;
+  int32 active_sessions = 2;
+  int32 max_sessions = 3; // capacity hint for scheduler
+}
+
+message ReloadConfigRequest {}
+
+message ReloadConfigResponse {
+  bool ok = 1;
+  string error = 2;
+}
