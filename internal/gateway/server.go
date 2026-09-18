@@ -11,6 +11,7 @@ import (
 	"agentluoss/internal/auditx"
 	"agentluoss/internal/jwtx"
 	artifactpb "agentluoss/proto/gen/artifact"
+	modelmgtpb "agentluoss/proto/gen/modelmgt"
 	iampb "agentluoss/proto/gen/iam"
 	taskpb "agentluoss/proto/gen/task"
 	runtimpb "agentluoss/proto/gen/runtime"
@@ -28,11 +29,12 @@ type App struct {
 	iam       iampb.IAMClient
 	task      taskpb.TaskClient
 	artifact  artifactpb.ArtifactClient
+	modelmgt  modelmgtpb.ModelMgtClient
 	audit     *auditx.Event
 	router    *gin.Engine
 }
 
-func New(jwtSecret, iamAddr, taskAddr, artifactAddr string) *App {
+func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr string) *App {
 	iamConn, err := grpc.NewClient(iamAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("dial iam: %v", err)
@@ -43,6 +45,13 @@ func New(jwtSecret, iamAddr, taskAddr, artifactAddr string) *App {
 		artifactConn, err = grpc.NewClient(artifactAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Fatalf("dial artifact: %v", err)
+		}
+	}
+	var modelmgtConn *grpc.ClientConn
+	if modelmgtAddr != "" {
+		modelmgtConn, err = grpc.NewClient(modelmgtAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("dial modelmgt: %v", err)
 		}
 	}
 	if taskAddr != "" {
@@ -56,6 +65,7 @@ func New(jwtSecret, iamAddr, taskAddr, artifactAddr string) *App {
 		iam:       iampb.NewIAMClient(iamConn),
 		task:      taskpb.NewTaskClient(taskConn),
 		artifact:  artifactpb.NewArtifactClient(artifactConn),
+		modelmgt:  modelmgtpb.NewModelMgtClient(modelmgtConn),
 		router:    nil,
 	}
 	a.router = a.build()
@@ -90,6 +100,9 @@ func (a *App) build() *gin.Engine {
 	}
 	if a.artifact != nil {
 		a.registerArtifactRoutes(authed)
+	}
+	if a.modelmgt != nil {
+		a.registerModelRoutes(authed, admin)
 	}
 
 	r.GET("/healthz", func(c *gin.Context) { c.String(200, "ok") })

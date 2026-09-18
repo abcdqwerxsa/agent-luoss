@@ -14,7 +14,8 @@ func main() {
 	app := gateway.New(envOr("JWT_SECRET", "dev-secret"),
 		envOr("IAM_ADDR", "127.0.0.1:9091"),
 		envOr("TASK_ADDR", "127.0.0.1:9092"),
-		envOr("ARTIFACT_ADDR", "127.0.0.1:9093"))
+		envOr("ARTIFACT_ADDR", "127.0.0.1:9093"),
+		envOr("MODELMGT_ADDR", "127.0.0.1:9094"))
 	addr := ":" + port
 	log.Printf("gateway listening on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, app.Handler()))

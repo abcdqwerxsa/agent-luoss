@@ -564,3 +564,6 @@ func statusEnum(s string) taskpb.TaskStatus {
 }
 
 var _ = fmt.Sprintf
+
+// MDGet exposes metadata lookup for other services (modelmgt reuse).
+func MDGet(ctx context.Context, k string) string { return mdGet(ctx, k) }
