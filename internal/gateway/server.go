@@ -11,6 +11,8 @@ import (
 	"agentluoss/internal/auditx"
 	"agentluoss/internal/jwtx"
 	iampb "agentluoss/proto/gen/iam"
+	taskpb "agentluoss/proto/gen/task"
+	runtimpb "agentluoss/proto/gen/runtime"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
@@ -23,18 +25,28 @@ import (
 type App struct {
 	jwtSecret string
 	iam       iampb.IAMClient
+	task      taskpb.TaskClient
 	audit     *auditx.Event
 	router    *gin.Engine
 }
 
-func New(jwtSecret, iamAddr string) *App {
-	conn, err := grpc.NewClient(iamAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+func New(jwtSecret, iamAddr, taskAddr string) *App {
+	iamConn, err := grpc.NewClient(iamAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("dial iam: %v", err)
 	}
+	var taskConn *grpc.ClientConn
+	if taskAddr != "" {
+		taskConn, err = grpc.NewClient(taskAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("dial task: %v", err)
+		}
+	}
 	a := &App{
 		jwtSecret: jwtSecret,
-		iam:       iampb.NewIAMClient(conn),
+		iam:       iampb.NewIAMClient(iamConn),
+		task:      taskpb.NewTaskClient(taskConn),
+		router:    nil,
 	}
 	a.router = a.build()
 	return a
@@ -62,6 +74,10 @@ func (a *App) build() *gin.Engine {
 	admin.POST("/users", a.createUser)
 	admin.PATCH("/users/:id", a.updateUser)
 	admin.DELETE("/users/:id", a.deleteUser)
+
+	if a.task != nil {
+		a.registerTaskRoutes(authed)
+	}
 
 	r.GET("/healthz", func(c *gin.Context) { c.String(200, "ok") })
 	return r
@@ -249,3 +265,9 @@ func pbUserJSON(u *iampb.User) gin.H {
 		"role": u.GetRole(), "status": u.GetStatus(), "created_at": u.GetCreatedAt(),
 	}
 }
+
+// type aliases so tasks.go reads like the proto types
+type (
+	taskModel    = runtimpb.ModelRef
+	imageContent = runtimpb.ImageContent
+)

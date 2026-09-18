@@ -139,7 +139,7 @@ agent-luoss/
 - [x] **S1 脚手架**：buf + proto 六个服务定义与代码生成；单 go.mod 多 cmd；Makefile（build/gen/up）；compose 起 postgres+redis；PG 各 schema 迁移文件
 - [x] **S2 iam + gateway 骨架**：用户表/角色/JWT（access+refresh）；登录、用户 CRUD；gateway JWT 中间件与路由透传用户声明；审计拦截器（生产 `stream:audit`）
 - [x] **S3 agent-runtime**：gRPC server；pi 集成（CreateSession 带模式/工具白名单/ResourceLoader）；Prompt/Steer/Abort/PushEvents；会话池 + 空闲驱逐 + 文件恢复；Heartbeat；本地用官方 API Key 冒烟（models.json 手写）
-- [ ] **S4 task 编排**：任务 CRUD；runtime 注册/心跳/粘性分配/失联重调度；事件管道（Redis Stream + 订阅 fan-out）；会话锁；配额前置接口（先直通）
+- [x] **S4 task 编排**：任务 CRUD；runtime 注册/心跳/粘性分配/失联重调度；事件管道（Redis Stream + 订阅 fan-out）；会话锁；配额前置接口（先直通）
 - [ ] **S5 gateway 任务 API + SSE**：`POST /tasks`、`GET /tasks/:id/events`(SSE, Last-Event-ID 回放)、`POST /tasks/:id/messages`、`POST /tasks/:id/abort`
 - [ ] **S6 artifact**：文件树/下载/上传 + 路径穿越防护；图片附件接入 prompt
 - [ ] **S7 modelmgt**：provider/model CRUD + Key 加密；models.json/auth.json 渲染下发 + runtime ReloadConfig

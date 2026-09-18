@@ -41,7 +41,7 @@ export class EventBus {
   // register once + heartbeat loop (interval ms). Never throws; logs failures.
   startRegistry(intervalMs: number): void {
     this.client.registerRuntime(
-      { runtime_id: this.runtimeId, address: this.advertiseAddr },
+      { runtimeId: this.runtimeId, address: this.advertiseAddr },
       (err: any) => {
         if (err) console.warn("[registry] register failed:", err.message);
       },
@@ -58,7 +58,7 @@ export class EventBus {
   heartbeatOnce(): void {
     const { active, max } = this.getActive();
     this.client.runtimeHeartbeat(
-      { runtime_id: this.runtimeId, active_sessions: active, max_sessions: max },
+      { runtimeId: this.runtimeId, activeSessions: active, maxSessions: max },
       (err: any) => {
         if (err) console.warn("[registry] heartbeat failed:", err.message);
       },
