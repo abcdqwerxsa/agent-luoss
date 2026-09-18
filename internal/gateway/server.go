@@ -10,6 +10,7 @@ import (
 
 	"agentluoss/internal/auditx"
 	"agentluoss/internal/jwtx"
+	artifactpb "agentluoss/proto/gen/artifact"
 	iampb "agentluoss/proto/gen/iam"
 	taskpb "agentluoss/proto/gen/task"
 	runtimpb "agentluoss/proto/gen/runtime"
@@ -26,16 +27,24 @@ type App struct {
 	jwtSecret string
 	iam       iampb.IAMClient
 	task      taskpb.TaskClient
+	artifact  artifactpb.ArtifactClient
 	audit     *auditx.Event
 	router    *gin.Engine
 }
 
-func New(jwtSecret, iamAddr, taskAddr string) *App {
+func New(jwtSecret, iamAddr, taskAddr, artifactAddr string) *App {
 	iamConn, err := grpc.NewClient(iamAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("dial iam: %v", err)
 	}
 	var taskConn *grpc.ClientConn
+	var artifactConn *grpc.ClientConn
+	if artifactAddr != "" {
+		artifactConn, err = grpc.NewClient(artifactAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("dial artifact: %v", err)
+		}
+	}
 	if taskAddr != "" {
 		taskConn, err = grpc.NewClient(taskAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
@@ -46,6 +55,7 @@ func New(jwtSecret, iamAddr, taskAddr string) *App {
 		jwtSecret: jwtSecret,
 		iam:       iampb.NewIAMClient(iamConn),
 		task:      taskpb.NewTaskClient(taskConn),
+		artifact:  artifactpb.NewArtifactClient(artifactConn),
 		router:    nil,
 	}
 	a.router = a.build()
@@ -77,6 +87,9 @@ func (a *App) build() *gin.Engine {
 
 	if a.task != nil {
 		a.registerTaskRoutes(authed)
+	}
+	if a.artifact != nil {
+		a.registerArtifactRoutes(authed)
 	}
 
 	r.GET("/healthz", func(c *gin.Context) { c.String(200, "ok") })
