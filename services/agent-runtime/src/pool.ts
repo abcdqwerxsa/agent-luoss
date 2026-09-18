@@ -1,0 +1,149 @@
+// Session pool: one pi AgentSession per task, idle eviction to bound memory.
+import {
+  createAgentSession,
+  ModelRuntime,
+  SessionManager,
+  type AgentSession,
+} from "@earendil-works/pi-coding-agent";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { loaderFor } from "./loader.js";
+import type { Mode } from "./prompts.js";
+import { TOOLS } from "./prompts.js";
+import type { EventBus, OutEvent } from "./eventbus.js";
+
+export interface SessionSpec {
+  taskId: string;
+  userId: string;
+  mode: Mode;
+  provider: string;
+  modelId: string;
+  workspacePath: string;
+  sessionPath: string; // "" = new
+}
+
+export class SessionPool {
+  private sessions = new Map<string, { s: AgentSession; lastActive: number; unsub: () => void }>();
+  modelRuntime: ModelRuntime | null = null;
+
+  constructor(
+    private opts: {
+      modelsPath: string;
+      authPath: string;
+      sessionsDir: string;
+      agentDir: string;
+      maxSessions: number;
+      idleTtlMs: number;
+      bus: EventBus;
+    },
+  ) {}
+
+  async initModelRuntime(): Promise<void> {
+    this.modelRuntime = await ModelRuntime.create({
+      authPath: this.opts.authPath,
+      modelsPath: this.opts.modelsPath,
+    });
+  }
+
+  count(): number {
+    return this.sessions.size;
+  }
+
+  max(): number {
+    return this.opts.maxSessions;
+  }
+
+  has(taskId: string): boolean {
+    return this.sessions.has(taskId);
+  }
+
+  get(taskId: string): AgentSession | undefined {
+    const e = this.sessions.get(taskId);
+    if (e) e.lastActive = Date.now();
+    return e?.s;
+  }
+
+  async create(spec: SessionSpec): Promise<{ sessionId: string; sessionPath: string; resumed: boolean }> {
+    if (this.sessions.has(spec.taskId)) {
+      throw new Error(`session exists: ${spec.taskId}`);
+    }
+    if (this.sessions.size >= this.opts.maxSessions) {
+      throw new Error(`runtime at capacity (${this.opts.maxSessions})`);
+    }
+    if (!this.modelRuntime) throw new Error("model runtime not initialized");
+
+    fs.mkdirSync(spec.workspacePath, { recursive: true });
+    fs.mkdirSync(this.opts.sessionsDir, { recursive: true });
+    fs.mkdirSync(this.opts.agentDir, { recursive: true });
+
+    const model = this.modelRuntime.getModel(spec.provider, spec.modelId);
+    if (!model) throw new Error(`model not found: ${spec.provider}/${spec.modelId}`);
+
+    const sessionManager = spec.sessionPath
+      ? SessionManager.open(spec.sessionPath, this.opts.sessionsDir, spec.workspacePath)
+      : SessionManager.create(spec.workspacePath, this.opts.sessionsDir);
+
+    const { session } = await createAgentSession({
+      cwd: spec.workspacePath,
+      agentDir: this.opts.agentDir,
+      model,
+      modelRuntime: this.modelRuntime,
+      resourceLoader: loaderFor(spec.mode),
+      tools: TOOLS[spec.mode],
+      sessionManager,
+    });
+
+    const unsub = session.subscribe((event: any) => {
+      const out: OutEvent = {
+        taskId: spec.taskId,
+        sessionId: session.sessionId,
+        type: event.type,
+        payload: safeJson(event),
+        timestamp: Date.now(),
+      };
+      this.opts.bus.push(out);
+    });
+
+    this.sessions.set(spec.taskId, { s: session, lastActive: Date.now(), unsub });
+    return {
+      sessionId: session.sessionId,
+      sessionPath: session.sessionFile ?? path.join(this.opts.sessionsDir, `${session.sessionId}.jsonl`),
+      resumed: Boolean(spec.sessionPath),
+    };
+  }
+
+  close(taskId: string): boolean {
+    const e = this.sessions.get(taskId);
+    if (!e) return false;
+    e.unsub();
+    e.s.dispose();
+    this.sessions.delete(taskId);
+    return true;
+  }
+
+  // Sweep evicts idle sessions; task-svc re-creates them on next prompt
+  // (CreateSession with the stored session_path resumes from file).
+  startSweep(intervalMs: number): void {
+    setInterval(() => {
+      const now = Date.now();
+      for (const [taskId, e] of this.sessions) {
+        if (!e.s.isStreaming && now - e.lastActive > this.opts.idleTtlMs) {
+          console.log(`[pool] evicting idle session ${taskId}`);
+          this.close(taskId);
+        }
+      }
+    }, intervalMs);
+  }
+
+  disposeAll(): void {
+    for (const taskId of this.sessions.keys()) this.close(taskId);
+  }
+}
+
+function safeJson(v: unknown): string {
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return "{}";
+  }
+}

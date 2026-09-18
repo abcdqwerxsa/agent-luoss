@@ -20,3 +20,6 @@ __pycache__/
 # IDE
 .idea/
 .vscode/
+
+# agent-runtime
+services/agent-runtime/dist/
