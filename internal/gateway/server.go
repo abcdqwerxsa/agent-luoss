@@ -6,6 +6,8 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"agentluoss/internal/auditx"
@@ -119,7 +121,33 @@ func (a *App) build() *gin.Engine {
 	}
 
 	r.GET("/healthz", func(c *gin.Context) { c.String(200, "ok") })
+
+	// static frontend (web/dist) with SPA fallback
+	staticDir := envOr("WEB_DIR", "")
+	if staticDir != "" {
+		r.Use(func(c *gin.Context) {
+			if strings.HasPrefix(c.Request.URL.Path, "/api") {
+				c.Next()
+				return
+			}
+			p := filepath.Join(staticDir, filepath.Clean("/"+c.Request.URL.Path))
+			if st, err := os.Stat(p); err == nil && !st.IsDir() {
+				c.File(p)
+				c.Abort()
+				return
+			}
+			c.File(filepath.Join(staticDir, "index.html"))
+			c.Abort()
+		})
+	}
 	return r
+}
+
+func envOr(k, d string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return d
 }
 
 // ---- middleware ----
@@ -127,11 +155,16 @@ func (a *App) build() *gin.Engine {
 func (a *App) authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h := c.GetHeader("Authorization")
-		if !strings.HasPrefix(h, "Bearer ") {
+		token := strings.TrimPrefix(h, "Bearer ")
+		if token == "" && strings.HasSuffix(c.Request.URL.Path, "/events") {
+			// EventSource cannot send headers; SSE endpoint accepts query token
+			token = c.Query("access_token")
+		}
+		if token == "" {
 			c.AbortWithStatusJSON(401, gin.H{"error": "missing bearer token"})
 			return
 		}
-		claims, err := jwtx.Verify(a.jwtSecret, strings.TrimPrefix(h, "Bearer "))
+		claims, err := jwtx.Verify(a.jwtSecret, token)
 		if err != nil {
 			c.AbortWithStatusJSON(401, gin.H{"error": "invalid token"})
 			return
