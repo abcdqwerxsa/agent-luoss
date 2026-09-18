@@ -39,10 +39,23 @@ export class SessionPool {
   ) {}
 
   async initModelRuntime(): Promise<void> {
-    this.modelRuntime = await ModelRuntime.create({
+    const rt = await ModelRuntime.create({
       authPath: this.opts.authPath,
       modelsPath: this.opts.modelsPath,
     });
+    // Inline apiKey entries in models.json are not reliably resolved after a
+    // reload; register them as runtime overrides explicitly (never persisted).
+    try {
+      const cfg = JSON.parse(fs.readFileSync(this.opts.modelsPath, "utf8"));
+      for (const [id, p] of Object.entries<any>(cfg.providers ?? {})) {
+        if (typeof p?.apiKey === "string" && p.apiKey && !p.apiKey.startsWith("$")) {
+          await rt.setRuntimeApiKey(id, p.apiKey);
+        }
+      }
+    } catch {
+      /* config file optional at boot */
+    }
+    this.modelRuntime = rt;
   }
 
   count(): number {

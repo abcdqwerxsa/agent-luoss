@@ -36,6 +36,12 @@ type Server struct {
 	rdb       *redis.Client
 	workspacesDir string
 	usage     UsageReporter
+	quota     QuotaChecker
+}
+
+// QuotaChecker gates prompts on user quota (nil = always allow).
+type QuotaChecker interface {
+	Allowed(ctx context.Context, userID string) error
 }
 
 // UsageReporter receives per-message token/cost reports (implemented by the
@@ -53,7 +59,7 @@ type noopUsage struct{}
 
 func (noopUsage) Report(context.Context, string, string, string, string, usageDelta) {}
 
-func NewServer(db *pgxpool.Pool, rdb *redis.Client, workspacesDir string, usage UsageReporter) *Server {
+func NewServer(db *pgxpool.Pool, rdb *redis.Client, workspacesDir string, usage UsageReporter, quota QuotaChecker) *Server {
 	if usage == nil {
 		usage = noopUsage{}
 	}
@@ -65,6 +71,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, workspacesDir string, usage 
 		rdb:       rdb,
 		workspacesDir: workspacesDir,
 		usage:     usage,
+		quota:     quota,
 	}
 }
 
@@ -280,6 +287,11 @@ func (s *Server) SendPrompt(ctx context.Context, req *taskpb.SendPromptRequest) 
 	}
 	if req.GetMessage() == "" {
 		return nil, status.Error(codes.InvalidArgument, "message required")
+	}
+	if s.quota != nil {
+		if err := s.quota.Allowed(ctx, t.UserID); err != nil {
+			return nil, status.Error(codes.ResourceExhausted, err.Error())
+		}
 	}
 	if !s.registry.AcquireSessionLock(ctx, t.ID, 15*time.Minute) {
 		return nil, status.Error(codes.ResourceExhausted, "task busy")

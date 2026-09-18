@@ -27,7 +27,16 @@ func main() {
 	rdb := redis.NewClient(&redis.Options{Addr: envOr("REDIS_ADDR", "127.0.0.1:6379")})
 	defer rdb.Close()
 
-	srv := task.NewServer(pool, rdb, envOr("WORKSPACES_DIR", "/data/workspaces"), nil)
+	var reporter task.UsageReporter
+	var quota task.QuotaChecker
+	if addr := envOr("USAGE_ADDR", ""); addr != "" {
+		ad, err := task.NewUsageAdapter(addr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		reporter, quota = ad, ad
+	}
+	srv := task.NewServer(pool, rdb, envOr("WORKSPACES_DIR", "/data/workspaces"), reporter, quota)
 	log.Fatal(grpcx.Serve(mustAtoi(envOr("PORT", "9092")), srv.Register))
 }
 
