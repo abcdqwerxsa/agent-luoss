@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  agent-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agent-luoss:latest
+    container_name: agent-luoss-platform
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - WORKSPACES_ROOT=/data/workspaces
+      - DEFAULT_HARD_QUOTA_BYTES=524288000   # 500 MB
+      - DEFAULT_SOFT_QUOTA_BYTES=419430400   # 400 MB
+      - BASH_TIMEOUT_SECONDS=60
+      - DEBUG=false
+    volumes:
+      # 持久化挂载本地工作区目录
+      - ./data/workspaces:/data/workspaces
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 4096M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
