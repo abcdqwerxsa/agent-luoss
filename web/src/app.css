@@ -682,3 +682,12 @@ input[type="file"]::file-selector-button {
 .eb-meta { display: flex; gap: 8px; }
 .eb-meta .chip { display: inline-flex; align-items: center; gap: 4px; color: var(--text-2); }
 .eb-use { align-self: flex-start; }
+
+/* empty conversation state */
+.chat-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  margin: 12vh auto 0; color: var(--text-3); text-align: center;
+}
+.chat-empty b { color: var(--text-2); font-size: 15px; }
+.chat-empty .icon { color: var(--accent); }
+.chat-empty span { font-size: 13px; }

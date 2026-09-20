@@ -1,21 +1,35 @@
 import React, { useEffect, useState } from "react";
-import { api, auth } from "../lib/api";
+import { api, auth, ModelOpt } from "../lib/api";
 import { Icon } from "../lib/icons";
 
 interface Expert { id: string; name: string; description: string; skill_ids?: string[]; mcp_ids?: string[] }
 
 export function Experts() {
   const [experts, setExperts] = useState<Expert[]>([]);
+  const [models, setModels] = useState<ModelOpt[]>([]);
   const [err, setErr] = useState("");
-  const [used, setUsed] = useState<Record<string, "go">>({});
+  const [busyId, setBusyId] = useState("");
 
   useEffect(() => {
     api.experts().then((r) => setExperts(r.experts || [])).catch((e) => setErr(e.message));
+    api.models().then((r) => setModels(r.models || [])).catch(() => {});
   }, []);
 
-  const use = (ex: Expert) => {
-    setUsed((u) => ({ ...u, [ex.id]: "go" }));
-    location.hash = `#/tasks?expert=${encodeURIComponent(ex.id)}`;
+  // Start an empty task bound to the expert: skills/MCP are loaded into the
+  // session, the conversation UI opens and the user sends the first message
+  // themselves — same interaction as a normal task, just pre-equipped.
+  const start = async (ex: Expert) => {
+    if (!models.length) { setErr("暂无可用模型，请联系管理员配置"); return; }
+    setBusyId(ex.id); setErr("");
+    try {
+      const m = models[0];
+      const r = await api.tasks.create({
+        title: ex.name, mode: "craft",
+        provider: m.provider_id, model_id: m.model_id,
+        first_message: "", expert_id: ex.id,
+      });
+      location.hash = `#/task/${r.task.id}`;
+    } catch (e: any) { setErr(e.message); setBusyId(""); }
   };
 
   return (
@@ -44,8 +58,8 @@ export function Experts() {
               <span className="chip"><Icon name="sparkles" size={11} />技能 ×{ex.skill_ids?.length || 0}</span>
               <span className="chip"><Icon name="plug" size={11} />MCP ×{ex.mcp_ids?.length || 0}</span>
             </div>
-            <button className="btn primary eb-use" disabled={used[ex.id] === "go"} onClick={() => use(ex)}>
-              <Icon name="play" size={13} />{used[ex.id] === "go" ? "正在跳转…" : "开始任务"}
+            <button className="btn primary eb-use" disabled={busyId === ex.id} onClick={() => start(ex)}>
+              <Icon name="play" size={13} />{busyId === ex.id ? "创建中…" : "开始对话"}
             </button>
           </div>
         ))}

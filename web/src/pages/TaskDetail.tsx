@@ -48,6 +48,14 @@ export function TaskDetail({ taskId }: { taskId: string }) {
       setTask(r.task);
       const cw = r.context_window || 0; if (cw) setCtxUse({ tokens: r.context_tokens || 0, window: cw });
     }).catch(() => {});
+    // first_message race: the user message event can land after the initial
+    // history fetch; retry once if the thread is still blank and idle
+    setTimeout(() => {
+      setBubbles((prev) => {
+        if (prev.length === 0) { loadHistory(); }
+        return prev;
+      });
+    }, 3000);
     loadUsage();
     api.experts().then((r) => setExperts(r.experts || [])).catch(() => {});
     loadHistory();
@@ -326,6 +334,13 @@ export function TaskDetail({ taskId }: { taskId: string }) {
         {notice && <div className="notice"><Icon name="triangle-alert" size={14} />{notice}</div>}
 
         <div className="bubbles">
+          {bubbles.length === 0 && !running && (
+            <div className="chat-empty">
+              <Icon name="sparkles" size={22} />
+              <b>{task?.expert_id ? "专家已就绪" : "任务已就绪"}</b>
+              <span>{task?.expert_id ? "技能与工具已加载，输入你的需求开始" : "在下方输入消息开始任务"}</span>
+            </div>
+          )}
           {bubbles.map((b, i) => (
             <div key={i} id={b.n ? `um-${b.n}` : undefined} className={`bubble ${b.role} ${b.n && b.n === flashN ? "flash" : ""}`}>
               {b.role === "user" && b.n && <span className="msg-ord mono">#{b.n}</span>}

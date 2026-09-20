@@ -32,18 +32,6 @@ export function Tasks() {
 
   useEffect(() => { refresh(); }, [q]);
 
-  // deep link from the Experts page: #/tasks?expert=<id>
-  useEffect(() => {
-    const qIdx = location.hash.indexOf("?");
-    if (qIdx < 0) return;
-    const params = new URLSearchParams(location.hash.slice(qIdx + 1));
-    const ex = params.get("expert");
-    if (ex) {
-      setExpertId(ex);
-      setCreating(true);
-      history.replaceState(null, "", "#/tasks");
-    }
-  }, []);
   useEffect(() => {
     api.models().then((r) => {
       setModels(r.models);
