@@ -20,7 +20,8 @@ Web (React) ──HTTPS/SSE──► gateway (Go :8080) ──gRPC──┬─�
 
 ```bash
 cp .env.example .env   # 改 JWT_SECRET / KEY_MASTER
-cd deploy && docker compose up -d
+cd deploy && docker compose -f docker-compose.standard.yml up -d
+# （本开发机内核受限环境才用默认 docker-compose.yml）
 ```
 
 初始化管理员 `admin/admin12345`（环境变量可覆盖），登录 `gateway:8080`（浏览器需能路由到 compose 网络；本仓库开发者环境因宿主内核限制无端口发布，见下）。
