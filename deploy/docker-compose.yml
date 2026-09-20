@@ -1,3 +1,20 @@
+name: agentluoss
+
+# This host kernel lacks iptables DNAT + docker embedded DNS support:
+# no host port publishing, and services address each other by static IPs.
+x-go-env: &goenv
+  # neutralize docker-config proxy injection (dead loopback proxy)
+  http_proxy: ""
+  https_proxy: ""
+  HTTP_PROXY: ""
+  HTTPS_PROXY: ""
+  no_proxy: "*"
+  NO_PROXY: "*"
+  PG_DSN: postgres://agent:${POSTGRES_PASSWORD:-agentdev}@172.28.0.2:5432/agentluoss
+  REDIS_ADDR: 172.28.0.3:6379
+  JWT_SECRET: ${JWT_SECRET:-dev-secret}
+  KEY_MASTER: ${KEY_MASTER:-dev-master}
+
 services:
   postgres:
     image: ${REG:-docker.m.daocloud.io}/library/postgres:17-alpine
@@ -12,7 +29,8 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
-    networks: [backend]
+    networks:
+      backend: { ipv4_address: 172.28.0.2 }
 
   redis:
     image: ${REG:-docker.m.daocloud.io}/library/redis:7-alpine
@@ -24,11 +42,160 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
-    networks: [backend]
+    networks:
+      backend: { ipv4_address: 172.28.0.3 }
+
+  iam:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["iam"]
+    environment:
+      <<: *goenv
+      PORT: "9091"
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin12345}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      backend: { ipv4_address: 172.28.0.4 }
+
+  task:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["task"]
+    environment:
+      <<: *goenv
+      PORT: "9092"
+      USAGE_ADDR: 172.28.0.8:9095
+      WORKSPACES_DIR: /data/workspaces
+    volumes:
+      - workspaces:/data/workspaces
+      - sessions:/data/sessions
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      backend: { ipv4_address: 172.28.0.5 }
+
+  artifact:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["artifact"]
+    environment:
+      <<: *goenv
+      PORT: "9093"
+      WORKSPACES_DIR: /data/workspaces
+    volumes:
+      - workspaces:/data/workspaces
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks:
+      backend: { ipv4_address: 172.28.0.6 }
+
+  modelmgt:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["modelmgt"]
+    environment:
+      <<: *goenv
+      PORT: "9094"
+      CONFIG_DIR: /data/config
+    volumes:
+      - config:/data/config
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      backend: { ipv4_address: 172.28.0.7 }
+
+  usage:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["usage"]
+    environment:
+      <<: *goenv
+      PORT: "9095"
+      DEFAULT_MONTHLY_LIMIT_USD: ${DEFAULT_MONTHLY_LIMIT_USD:-100}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      backend: { ipv4_address: 172.28.0.8 }
+
+  runtime1: &rt
+    build: { context: .., dockerfile: deploy/Dockerfile.runtime }
+    # host networking: this kernel has broken docker embedded DNS + iptables DNAT;
+    # host resolv/outbound work and bridge IPs (172.28.x) stay reachable.
+    network_mode: host
+    environment: &rtenv
+      # neutralize docker-config proxy injection (dead loopback proxy)
+      http_proxy: ""
+      https_proxy: ""
+      HTTP_PROXY: ""
+      HTTPS_PROXY: ""
+      no_proxy: "*"
+      NO_PROXY: "*"
+      PORT: "9100"
+      RUNTIME_ID: runtime-1
+      ADVERTISE_ADDR: 172.28.0.1:9100
+      TASK_ADDR: 172.28.0.5:9092
+      MODELS_PATH: /data/config/models.json
+      AUTH_PATH: /data/config/auth.json
+      SESSIONS_DIR: /data/sessions
+      AGENT_DIR: /data/agent
+      WORKSPACES_DIR: /data/workspaces
+      MAX_SESSIONS: ${RUNTIME_MAX_SESSIONS:-200}
+    volumes:
+      - workspaces:/data/workspaces
+      - sessions:/data/sessions
+      - config:/data/config
+      - agent1:/data/agent
+    depends_on:
+      redis: { condition: service_healthy }
+      task: { condition: service_started }
+
+  runtime2:
+    <<: *rt
+    environment:
+      <<: *rtenv
+      RUNTIME_ID: runtime-2
+      PORT: "9101"
+      ADVERTISE_ADDR: 172.28.0.1:9101
+    volumes:
+      - workspaces:/data/workspaces
+      - sessions:/data/sessions
+      - config:/data/config
+      - agent2:/data/agent
+
+  gateway:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["gateway"]
+    environment:
+      <<: *goenv
+      PORT: "8080"
+      IAM_ADDR: 172.28.0.4:9091
+      TASK_ADDR: 172.28.0.5:9092
+      ARTIFACT_ADDR: 172.28.0.6:9093
+      MODELMGT_ADDR: 172.28.0.7:9094
+      USAGE_ADDR: 172.28.0.8:9095
+      WEB_DIR: /app/web
+    depends_on:
+      - iam
+      - task
+      - artifact
+      - modelmgt
+      - usage
+    networks:
+      backend: { ipv4_address: 172.28.0.11 }
 
 volumes:
   pgdata:
   redisdata:
+  workspaces:
+  sessions:
+  config:
+  agent1:
+  agent2:
 
 networks:
   backend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24

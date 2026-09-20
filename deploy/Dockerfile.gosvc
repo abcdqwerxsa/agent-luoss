@@ -1,0 +1,32 @@
+# Multi-stage: build all Go services + web into one image.
+# Entrypoint: service name (iam|task|artifact|modelmgt|usage|gateway).
+
+FROM docker.m.daocloud.io/library/node:24-bookworm-slim AS webbuild
+WORKDIR /web
+COPY web/package.json ./
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && npm install --registry=https://registry.npmmirror.com
+COPY web/ ./
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && npm run build
+
+FROM docker.m.daocloud.io/library/golang:1.27-bookworm AS gobuild
+ENV GOPROXY=https://goproxy.cn,direct
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && go mod download
+COPY . .
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && CGO_ENABLED=0 go build -o /out/iam ./cmd/iam \
+    && CGO_ENABLED=0 go build -o /out/task ./cmd/task \
+    && CGO_ENABLED=0 go build -o /out/artifact ./cmd/artifact \
+    && CGO_ENABLED=0 go build -o /out/modelmgt ./cmd/modelmgt \
+    && CGO_ENABLED=0 go build -o /out/usage ./cmd/usage \
+    && CGO_ENABLED=0 go build -o /out/gateway ./cmd/gateway
+
+FROM docker.m.daocloud.io/library/debian:bookworm-slim
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=gobuild /out/ /app/
+COPY --from=webbuild /web/dist /app/web
+WORKDIR /app
+ENV WEB_DIR=/app/web
+RUN printf '#!/bin/sh\nexec /app/"$1"\n' > /entry.sh && chmod +x /entry.sh
+ENTRYPOINT ["/entry.sh"]
+CMD ["gateway"]

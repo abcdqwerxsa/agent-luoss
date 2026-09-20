@@ -1,0 +1,13 @@
+# agent-runtime: Node sidecar hosting pi AgentSessions.
+FROM docker.m.daocloud.io/library/node:24-bookworm-slim
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && apt-get update && apt-get install -y --no-install-recommends bash git ripgrep && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY services/agent-runtime/package.json services/agent-runtime/package-lock.json* ./
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && npm install --registry=https://registry.npmmirror.com
+COPY services/agent-runtime/ ./
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && npm run build
+# protos are loaded at runtime from PROTO_DIR
+COPY proto/ /app/proto/
+ENV PROTO_DIR=/app/proto
+EXPOSE 9100
+CMD ["node", "dist/index.js"]

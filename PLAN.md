@@ -144,8 +144,8 @@ agent-luoss/
 - [x] **S6 artifact**：文件树/下载/上传 + 路径穿越防护；图片附件接入 prompt
 - [x] **S7 modelmgt**：provider/model CRUD + Key 加密；models.json/auth.json 渲染下发 + runtime ReloadConfig
 - [x] **S8 usage**：用量事件消费与聚合（日/月）、配额与扣减、审计消费落库、用量/审计查询 API；接线 task 配额前置
-- [ ] **S9 web 前端**：登录/任务列表/任务详情（SSE 流式渲染：文本增量、工具卡片、思考折叠、追问、中止）/产物面板/管理后台四页
-- [ ] **S10 集成与验收**：compose 全栈 e2e；100 并发任务压测脚本；限流与安全加固
+- [x] **S9 web 前端**：登录/任务列表/任务详情（SSE 流式渲染：文本增量、工具卡片、思考折叠、追问、中止）/产物面板/管理后台四页
+- [x] **S10 集成与验收**：compose 全栈 e2e；100 并发任务压测脚本；限流与安全加固
 
 ## Verification
 

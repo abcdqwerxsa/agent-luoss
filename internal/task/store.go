@@ -56,8 +56,11 @@ func (s *Store) Get(ctx context.Context, id string) (*Task, error) {
 }
 
 func (s *Store) List(ctx context.Context, userID, query string, limit, offset int) ([]*Task, int, error) {
-	if limit <= 0 || limit > 100 {
+	if limit <= 0 {
 		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
 	}
 	where := "WHERE user_id = $1"
 	args := []any{userID}

@@ -87,8 +87,10 @@ func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr str
 func (a *App) Handler() http.Handler { return a.router }
 
 func (a *App) build() *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-	r.Use(gin.Recovery())
+	r.SetTrustedProxies(nil)
+	r.Use(gin.Recovery(), a.rateLimit(), securityHeaders())
 
 	api := r.Group("/api/v1")
 
@@ -343,3 +345,12 @@ type (
 	taskModel    = runtimpb.ModelRef
 	imageContent = runtimpb.ImageContent
 )
+
+func securityHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Referrer-Policy", "no-referrer")
+		c.Next()
+	}
+}
