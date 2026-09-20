@@ -133,6 +133,8 @@ type CreateSessionRequest struct {
 	Model         *ModelRef              `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
 	WorkspacePath string                 `protobuf:"bytes,5,opt,name=workspace_path,json=workspacePath,proto3" json:"workspace_path,omitempty"` // cwd, e.g. /data/workspaces/u123
 	SessionPath   string                 `protobuf:"bytes,6,opt,name=session_path,json=sessionPath,proto3" json:"session_path,omitempty"`       // empty = new session file
+	McpServers    []*McpServer           `protobuf:"bytes,7,rep,name=mcp_servers,json=mcpServers,proto3" json:"mcp_servers,omitempty"`          // effective MCP servers (caps-svc)
+	Skills        []*Skill               `protobuf:"bytes,8,rep,name=skills,proto3" json:"skills,omitempty"`                                    // effective skills (caps-svc)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -209,6 +211,172 @@ func (x *CreateSessionRequest) GetSessionPath() string {
 	return ""
 }
 
+func (x *CreateSessionRequest) GetMcpServers() []*McpServer {
+	if x != nil {
+		return x.McpServers
+	}
+	return nil
+}
+
+func (x *CreateSessionRequest) GetSkills() []*Skill {
+	if x != nil {
+		return x.Skills
+	}
+	return nil
+}
+
+type McpServer struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Transport     string                 `protobuf:"bytes,3,opt,name=transport,proto3" json:"transport,omitempty"`                                                               // "stdio" | "http" | "sse"
+	Command       string                 `protobuf:"bytes,4,opt,name=command,proto3" json:"command,omitempty"`                                                                   // stdio
+	Args          []string               `protobuf:"bytes,5,rep,name=args,proto3" json:"args,omitempty"`                                                                         // stdio
+	Env           map[string]string      `protobuf:"bytes,6,rep,name=env,proto3" json:"env,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // stdio, secrets decrypted
+	Url           string                 `protobuf:"bytes,7,opt,name=url,proto3" json:"url,omitempty"`                                                                           // http/sse
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *McpServer) Reset() {
+	*x = McpServer{}
+	mi := &file_runtime_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *McpServer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*McpServer) ProtoMessage() {}
+
+func (x *McpServer) ProtoReflect() protoreflect.Message {
+	mi := &file_runtime_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use McpServer.ProtoReflect.Descriptor instead.
+func (*McpServer) Descriptor() ([]byte, []int) {
+	return file_runtime_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *McpServer) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *McpServer) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *McpServer) GetTransport() string {
+	if x != nil {
+		return x.Transport
+	}
+	return ""
+}
+
+func (x *McpServer) GetCommand() string {
+	if x != nil {
+		return x.Command
+	}
+	return ""
+}
+
+func (x *McpServer) GetArgs() []string {
+	if x != nil {
+		return x.Args
+	}
+	return nil
+}
+
+func (x *McpServer) GetEnv() map[string]string {
+	if x != nil {
+		return x.Env
+	}
+	return nil
+}
+
+func (x *McpServer) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type Skill struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"` // on-disk dir containing SKILL.md
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Skill) Reset() {
+	*x = Skill{}
+	mi := &file_runtime_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Skill) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Skill) ProtoMessage() {}
+
+func (x *Skill) ProtoReflect() protoreflect.Message {
+	mi := &file_runtime_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Skill.ProtoReflect.Descriptor instead.
+func (*Skill) Descriptor() ([]byte, []int) {
+	return file_runtime_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Skill) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Skill) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *Skill) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
 type CreateSessionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -220,7 +388,7 @@ type CreateSessionResponse struct {
 
 func (x *CreateSessionResponse) Reset() {
 	*x = CreateSessionResponse{}
-	mi := &file_runtime_proto_msgTypes[2]
+	mi := &file_runtime_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -232,7 +400,7 @@ func (x *CreateSessionResponse) String() string {
 func (*CreateSessionResponse) ProtoMessage() {}
 
 func (x *CreateSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[2]
+	mi := &file_runtime_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -245,7 +413,7 @@ func (x *CreateSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSessionResponse.ProtoReflect.Descriptor instead.
 func (*CreateSessionResponse) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{2}
+	return file_runtime_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CreateSessionResponse) GetSessionId() string {
@@ -279,7 +447,7 @@ type ImageContent struct {
 
 func (x *ImageContent) Reset() {
 	*x = ImageContent{}
-	mi := &file_runtime_proto_msgTypes[3]
+	mi := &file_runtime_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -291,7 +459,7 @@ func (x *ImageContent) String() string {
 func (*ImageContent) ProtoMessage() {}
 
 func (x *ImageContent) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[3]
+	mi := &file_runtime_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -304,7 +472,7 @@ func (x *ImageContent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImageContent.ProtoReflect.Descriptor instead.
 func (*ImageContent) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{3}
+	return file_runtime_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ImageContent) GetData() string {
@@ -334,7 +502,7 @@ type PromptRequest struct {
 
 func (x *PromptRequest) Reset() {
 	*x = PromptRequest{}
-	mi := &file_runtime_proto_msgTypes[4]
+	mi := &file_runtime_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -346,7 +514,7 @@ func (x *PromptRequest) String() string {
 func (*PromptRequest) ProtoMessage() {}
 
 func (x *PromptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[4]
+	mi := &file_runtime_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -359,7 +527,7 @@ func (x *PromptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromptRequest.ProtoReflect.Descriptor instead.
 func (*PromptRequest) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{4}
+	return file_runtime_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *PromptRequest) GetTaskId() string {
@@ -399,7 +567,7 @@ type PromptResponse struct {
 
 func (x *PromptResponse) Reset() {
 	*x = PromptResponse{}
-	mi := &file_runtime_proto_msgTypes[5]
+	mi := &file_runtime_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -411,7 +579,7 @@ func (x *PromptResponse) String() string {
 func (*PromptResponse) ProtoMessage() {}
 
 func (x *PromptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[5]
+	mi := &file_runtime_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -424,7 +592,7 @@ func (x *PromptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromptResponse.ProtoReflect.Descriptor instead.
 func (*PromptResponse) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{5}
+	return file_runtime_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PromptResponse) GetAccepted() bool {
@@ -445,7 +613,7 @@ type SteerRequest struct {
 
 func (x *SteerRequest) Reset() {
 	*x = SteerRequest{}
-	mi := &file_runtime_proto_msgTypes[6]
+	mi := &file_runtime_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -457,7 +625,7 @@ func (x *SteerRequest) String() string {
 func (*SteerRequest) ProtoMessage() {}
 
 func (x *SteerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[6]
+	mi := &file_runtime_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -470,7 +638,7 @@ func (x *SteerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SteerRequest.ProtoReflect.Descriptor instead.
 func (*SteerRequest) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{6}
+	return file_runtime_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SteerRequest) GetTaskId() string {
@@ -502,7 +670,7 @@ type SteerResponse struct {
 
 func (x *SteerResponse) Reset() {
 	*x = SteerResponse{}
-	mi := &file_runtime_proto_msgTypes[7]
+	mi := &file_runtime_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -514,7 +682,7 @@ func (x *SteerResponse) String() string {
 func (*SteerResponse) ProtoMessage() {}
 
 func (x *SteerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[7]
+	mi := &file_runtime_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -527,7 +695,7 @@ func (x *SteerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SteerResponse.ProtoReflect.Descriptor instead.
 func (*SteerResponse) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{7}
+	return file_runtime_proto_rawDescGZIP(), []int{9}
 }
 
 type AbortRequest struct {
@@ -539,7 +707,7 @@ type AbortRequest struct {
 
 func (x *AbortRequest) Reset() {
 	*x = AbortRequest{}
-	mi := &file_runtime_proto_msgTypes[8]
+	mi := &file_runtime_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -551,7 +719,7 @@ func (x *AbortRequest) String() string {
 func (*AbortRequest) ProtoMessage() {}
 
 func (x *AbortRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[8]
+	mi := &file_runtime_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -564,7 +732,7 @@ func (x *AbortRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbortRequest.ProtoReflect.Descriptor instead.
 func (*AbortRequest) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{8}
+	return file_runtime_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AbortRequest) GetTaskId() string {
@@ -582,7 +750,7 @@ type AbortResponse struct {
 
 func (x *AbortResponse) Reset() {
 	*x = AbortResponse{}
-	mi := &file_runtime_proto_msgTypes[9]
+	mi := &file_runtime_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -594,7 +762,7 @@ func (x *AbortResponse) String() string {
 func (*AbortResponse) ProtoMessage() {}
 
 func (x *AbortResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[9]
+	mi := &file_runtime_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -607,7 +775,7 @@ func (x *AbortResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbortResponse.ProtoReflect.Descriptor instead.
 func (*AbortResponse) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{9}
+	return file_runtime_proto_rawDescGZIP(), []int{11}
 }
 
 type GetSessionStateRequest struct {
@@ -619,7 +787,7 @@ type GetSessionStateRequest struct {
 
 func (x *GetSessionStateRequest) Reset() {
 	*x = GetSessionStateRequest{}
-	mi := &file_runtime_proto_msgTypes[10]
+	mi := &file_runtime_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -631,7 +799,7 @@ func (x *GetSessionStateRequest) String() string {
 func (*GetSessionStateRequest) ProtoMessage() {}
 
 func (x *GetSessionStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[10]
+	mi := &file_runtime_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -644,7 +812,7 @@ func (x *GetSessionStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSessionStateRequest.ProtoReflect.Descriptor instead.
 func (*GetSessionStateRequest) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{10}
+	return file_runtime_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetSessionStateRequest) GetTaskId() string {
@@ -667,7 +835,7 @@ type GetSessionStateResponse struct {
 
 func (x *GetSessionStateResponse) Reset() {
 	*x = GetSessionStateResponse{}
-	mi := &file_runtime_proto_msgTypes[11]
+	mi := &file_runtime_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -679,7 +847,7 @@ func (x *GetSessionStateResponse) String() string {
 func (*GetSessionStateResponse) ProtoMessage() {}
 
 func (x *GetSessionStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[11]
+	mi := &file_runtime_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -692,7 +860,7 @@ func (x *GetSessionStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSessionStateResponse.ProtoReflect.Descriptor instead.
 func (*GetSessionStateResponse) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{11}
+	return file_runtime_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetSessionStateResponse) GetExists() bool {
@@ -739,7 +907,7 @@ type CloseSessionRequest struct {
 
 func (x *CloseSessionRequest) Reset() {
 	*x = CloseSessionRequest{}
-	mi := &file_runtime_proto_msgTypes[12]
+	mi := &file_runtime_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -751,7 +919,7 @@ func (x *CloseSessionRequest) String() string {
 func (*CloseSessionRequest) ProtoMessage() {}
 
 func (x *CloseSessionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[12]
+	mi := &file_runtime_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -764,7 +932,7 @@ func (x *CloseSessionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseSessionRequest.ProtoReflect.Descriptor instead.
 func (*CloseSessionRequest) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{12}
+	return file_runtime_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CloseSessionRequest) GetTaskId() string {
@@ -782,7 +950,7 @@ type CloseSessionResponse struct {
 
 func (x *CloseSessionResponse) Reset() {
 	*x = CloseSessionResponse{}
-	mi := &file_runtime_proto_msgTypes[13]
+	mi := &file_runtime_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -794,7 +962,7 @@ func (x *CloseSessionResponse) String() string {
 func (*CloseSessionResponse) ProtoMessage() {}
 
 func (x *CloseSessionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[13]
+	mi := &file_runtime_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -807,7 +975,7 @@ func (x *CloseSessionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseSessionResponse.ProtoReflect.Descriptor instead.
 func (*CloseSessionResponse) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{13}
+	return file_runtime_proto_rawDescGZIP(), []int{15}
 }
 
 type HeartbeatRequest struct {
@@ -818,7 +986,7 @@ type HeartbeatRequest struct {
 
 func (x *HeartbeatRequest) Reset() {
 	*x = HeartbeatRequest{}
-	mi := &file_runtime_proto_msgTypes[14]
+	mi := &file_runtime_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -830,7 +998,7 @@ func (x *HeartbeatRequest) String() string {
 func (*HeartbeatRequest) ProtoMessage() {}
 
 func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[14]
+	mi := &file_runtime_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -843,7 +1011,7 @@ func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatRequest.ProtoReflect.Descriptor instead.
 func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{14}
+	return file_runtime_proto_rawDescGZIP(), []int{16}
 }
 
 type HeartbeatResponse struct {
@@ -857,7 +1025,7 @@ type HeartbeatResponse struct {
 
 func (x *HeartbeatResponse) Reset() {
 	*x = HeartbeatResponse{}
-	mi := &file_runtime_proto_msgTypes[15]
+	mi := &file_runtime_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -869,7 +1037,7 @@ func (x *HeartbeatResponse) String() string {
 func (*HeartbeatResponse) ProtoMessage() {}
 
 func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[15]
+	mi := &file_runtime_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -882,7 +1050,7 @@ func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
 func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{15}
+	return file_runtime_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *HeartbeatResponse) GetRuntimeId() string {
@@ -914,7 +1082,7 @@ type ReloadConfigRequest struct {
 
 func (x *ReloadConfigRequest) Reset() {
 	*x = ReloadConfigRequest{}
-	mi := &file_runtime_proto_msgTypes[16]
+	mi := &file_runtime_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -926,7 +1094,7 @@ func (x *ReloadConfigRequest) String() string {
 func (*ReloadConfigRequest) ProtoMessage() {}
 
 func (x *ReloadConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[16]
+	mi := &file_runtime_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -939,7 +1107,7 @@ func (x *ReloadConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReloadConfigRequest.ProtoReflect.Descriptor instead.
 func (*ReloadConfigRequest) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{16}
+	return file_runtime_proto_rawDescGZIP(), []int{18}
 }
 
 type ReloadConfigResponse struct {
@@ -952,7 +1120,7 @@ type ReloadConfigResponse struct {
 
 func (x *ReloadConfigResponse) Reset() {
 	*x = ReloadConfigResponse{}
-	mi := &file_runtime_proto_msgTypes[17]
+	mi := &file_runtime_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -964,7 +1132,7 @@ func (x *ReloadConfigResponse) String() string {
 func (*ReloadConfigResponse) ProtoMessage() {}
 
 func (x *ReloadConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_runtime_proto_msgTypes[17]
+	mi := &file_runtime_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -977,7 +1145,7 @@ func (x *ReloadConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReloadConfigResponse.ProtoReflect.Descriptor instead.
 func (*ReloadConfigResponse) Descriptor() ([]byte, []int) {
-	return file_runtime_proto_rawDescGZIP(), []int{17}
+	return file_runtime_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ReloadConfigResponse) GetOk() bool {
@@ -1001,14 +1169,32 @@ const file_runtime_proto_rawDesc = "" +
 	"\rruntime.proto\x12\x15agentluoss.v1.runtime\"A\n" +
 	"\bModelRef\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x19\n" +
-	"\bmodel_id\x18\x02 \x01(\tR\amodelId\"\xfe\x01\n" +
+	"\bmodel_id\x18\x02 \x01(\tR\amodelId\"\xf7\x02\n" +
 	"\x14CreateSessionRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x123\n" +
 	"\x04mode\x18\x03 \x01(\x0e2\x1f.agentluoss.v1.runtime.TaskModeR\x04mode\x125\n" +
 	"\x05model\x18\x04 \x01(\v2\x1f.agentluoss.v1.runtime.ModelRefR\x05model\x12%\n" +
 	"\x0eworkspace_path\x18\x05 \x01(\tR\rworkspacePath\x12!\n" +
-	"\fsession_path\x18\x06 \x01(\tR\vsessionPath\"s\n" +
+	"\fsession_path\x18\x06 \x01(\tR\vsessionPath\x12A\n" +
+	"\vmcp_servers\x18\a \x03(\v2 .agentluoss.v1.runtime.McpServerR\n" +
+	"mcpServers\x124\n" +
+	"\x06skills\x18\b \x03(\v2\x1c.agentluoss.v1.runtime.SkillR\x06skills\"\x82\x02\n" +
+	"\tMcpServer\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1c\n" +
+	"\ttransport\x18\x03 \x01(\tR\ttransport\x12\x18\n" +
+	"\acommand\x18\x04 \x01(\tR\acommand\x12\x12\n" +
+	"\x04args\x18\x05 \x03(\tR\x04args\x12;\n" +
+	"\x03env\x18\x06 \x03(\v2).agentluoss.v1.runtime.McpServer.EnvEntryR\x03env\x12\x10\n" +
+	"\x03url\x18\a \x01(\tR\x03url\x1a6\n" +
+	"\bEnvEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Q\n" +
+	"\x05Skill\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\"s\n" +
 	"\x15CreateSessionResponse\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12!\n" +
@@ -1083,54 +1269,60 @@ func file_runtime_proto_rawDescGZIP() []byte {
 }
 
 var file_runtime_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_runtime_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_runtime_proto_goTypes = []any{
 	(TaskMode)(0),                   // 0: agentluoss.v1.runtime.TaskMode
 	(*ModelRef)(nil),                // 1: agentluoss.v1.runtime.ModelRef
 	(*CreateSessionRequest)(nil),    // 2: agentluoss.v1.runtime.CreateSessionRequest
-	(*CreateSessionResponse)(nil),   // 3: agentluoss.v1.runtime.CreateSessionResponse
-	(*ImageContent)(nil),            // 4: agentluoss.v1.runtime.ImageContent
-	(*PromptRequest)(nil),           // 5: agentluoss.v1.runtime.PromptRequest
-	(*PromptResponse)(nil),          // 6: agentluoss.v1.runtime.PromptResponse
-	(*SteerRequest)(nil),            // 7: agentluoss.v1.runtime.SteerRequest
-	(*SteerResponse)(nil),           // 8: agentluoss.v1.runtime.SteerResponse
-	(*AbortRequest)(nil),            // 9: agentluoss.v1.runtime.AbortRequest
-	(*AbortResponse)(nil),           // 10: agentluoss.v1.runtime.AbortResponse
-	(*GetSessionStateRequest)(nil),  // 11: agentluoss.v1.runtime.GetSessionStateRequest
-	(*GetSessionStateResponse)(nil), // 12: agentluoss.v1.runtime.GetSessionStateResponse
-	(*CloseSessionRequest)(nil),     // 13: agentluoss.v1.runtime.CloseSessionRequest
-	(*CloseSessionResponse)(nil),    // 14: agentluoss.v1.runtime.CloseSessionResponse
-	(*HeartbeatRequest)(nil),        // 15: agentluoss.v1.runtime.HeartbeatRequest
-	(*HeartbeatResponse)(nil),       // 16: agentluoss.v1.runtime.HeartbeatResponse
-	(*ReloadConfigRequest)(nil),     // 17: agentluoss.v1.runtime.ReloadConfigRequest
-	(*ReloadConfigResponse)(nil),    // 18: agentluoss.v1.runtime.ReloadConfigResponse
+	(*McpServer)(nil),               // 3: agentluoss.v1.runtime.McpServer
+	(*Skill)(nil),                   // 4: agentluoss.v1.runtime.Skill
+	(*CreateSessionResponse)(nil),   // 5: agentluoss.v1.runtime.CreateSessionResponse
+	(*ImageContent)(nil),            // 6: agentluoss.v1.runtime.ImageContent
+	(*PromptRequest)(nil),           // 7: agentluoss.v1.runtime.PromptRequest
+	(*PromptResponse)(nil),          // 8: agentluoss.v1.runtime.PromptResponse
+	(*SteerRequest)(nil),            // 9: agentluoss.v1.runtime.SteerRequest
+	(*SteerResponse)(nil),           // 10: agentluoss.v1.runtime.SteerResponse
+	(*AbortRequest)(nil),            // 11: agentluoss.v1.runtime.AbortRequest
+	(*AbortResponse)(nil),           // 12: agentluoss.v1.runtime.AbortResponse
+	(*GetSessionStateRequest)(nil),  // 13: agentluoss.v1.runtime.GetSessionStateRequest
+	(*GetSessionStateResponse)(nil), // 14: agentluoss.v1.runtime.GetSessionStateResponse
+	(*CloseSessionRequest)(nil),     // 15: agentluoss.v1.runtime.CloseSessionRequest
+	(*CloseSessionResponse)(nil),    // 16: agentluoss.v1.runtime.CloseSessionResponse
+	(*HeartbeatRequest)(nil),        // 17: agentluoss.v1.runtime.HeartbeatRequest
+	(*HeartbeatResponse)(nil),       // 18: agentluoss.v1.runtime.HeartbeatResponse
+	(*ReloadConfigRequest)(nil),     // 19: agentluoss.v1.runtime.ReloadConfigRequest
+	(*ReloadConfigResponse)(nil),    // 20: agentluoss.v1.runtime.ReloadConfigResponse
+	nil,                             // 21: agentluoss.v1.runtime.McpServer.EnvEntry
 }
 var file_runtime_proto_depIdxs = []int32{
 	0,  // 0: agentluoss.v1.runtime.CreateSessionRequest.mode:type_name -> agentluoss.v1.runtime.TaskMode
 	1,  // 1: agentluoss.v1.runtime.CreateSessionRequest.model:type_name -> agentluoss.v1.runtime.ModelRef
-	4,  // 2: agentluoss.v1.runtime.PromptRequest.images:type_name -> agentluoss.v1.runtime.ImageContent
-	4,  // 3: agentluoss.v1.runtime.SteerRequest.images:type_name -> agentluoss.v1.runtime.ImageContent
-	2,  // 4: agentluoss.v1.runtime.AgentRuntime.CreateSession:input_type -> agentluoss.v1.runtime.CreateSessionRequest
-	5,  // 5: agentluoss.v1.runtime.AgentRuntime.Prompt:input_type -> agentluoss.v1.runtime.PromptRequest
-	7,  // 6: agentluoss.v1.runtime.AgentRuntime.Steer:input_type -> agentluoss.v1.runtime.SteerRequest
-	9,  // 7: agentluoss.v1.runtime.AgentRuntime.Abort:input_type -> agentluoss.v1.runtime.AbortRequest
-	11, // 8: agentluoss.v1.runtime.AgentRuntime.GetSessionState:input_type -> agentluoss.v1.runtime.GetSessionStateRequest
-	13, // 9: agentluoss.v1.runtime.AgentRuntime.CloseSession:input_type -> agentluoss.v1.runtime.CloseSessionRequest
-	15, // 10: agentluoss.v1.runtime.AgentRuntime.Heartbeat:input_type -> agentluoss.v1.runtime.HeartbeatRequest
-	17, // 11: agentluoss.v1.runtime.AgentRuntime.ReloadConfig:input_type -> agentluoss.v1.runtime.ReloadConfigRequest
-	3,  // 12: agentluoss.v1.runtime.AgentRuntime.CreateSession:output_type -> agentluoss.v1.runtime.CreateSessionResponse
-	6,  // 13: agentluoss.v1.runtime.AgentRuntime.Prompt:output_type -> agentluoss.v1.runtime.PromptResponse
-	8,  // 14: agentluoss.v1.runtime.AgentRuntime.Steer:output_type -> agentluoss.v1.runtime.SteerResponse
-	10, // 15: agentluoss.v1.runtime.AgentRuntime.Abort:output_type -> agentluoss.v1.runtime.AbortResponse
-	12, // 16: agentluoss.v1.runtime.AgentRuntime.GetSessionState:output_type -> agentluoss.v1.runtime.GetSessionStateResponse
-	14, // 17: agentluoss.v1.runtime.AgentRuntime.CloseSession:output_type -> agentluoss.v1.runtime.CloseSessionResponse
-	16, // 18: agentluoss.v1.runtime.AgentRuntime.Heartbeat:output_type -> agentluoss.v1.runtime.HeartbeatResponse
-	18, // 19: agentluoss.v1.runtime.AgentRuntime.ReloadConfig:output_type -> agentluoss.v1.runtime.ReloadConfigResponse
-	12, // [12:20] is the sub-list for method output_type
-	4,  // [4:12] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	3,  // 2: agentluoss.v1.runtime.CreateSessionRequest.mcp_servers:type_name -> agentluoss.v1.runtime.McpServer
+	4,  // 3: agentluoss.v1.runtime.CreateSessionRequest.skills:type_name -> agentluoss.v1.runtime.Skill
+	21, // 4: agentluoss.v1.runtime.McpServer.env:type_name -> agentluoss.v1.runtime.McpServer.EnvEntry
+	6,  // 5: agentluoss.v1.runtime.PromptRequest.images:type_name -> agentluoss.v1.runtime.ImageContent
+	6,  // 6: agentluoss.v1.runtime.SteerRequest.images:type_name -> agentluoss.v1.runtime.ImageContent
+	2,  // 7: agentluoss.v1.runtime.AgentRuntime.CreateSession:input_type -> agentluoss.v1.runtime.CreateSessionRequest
+	7,  // 8: agentluoss.v1.runtime.AgentRuntime.Prompt:input_type -> agentluoss.v1.runtime.PromptRequest
+	9,  // 9: agentluoss.v1.runtime.AgentRuntime.Steer:input_type -> agentluoss.v1.runtime.SteerRequest
+	11, // 10: agentluoss.v1.runtime.AgentRuntime.Abort:input_type -> agentluoss.v1.runtime.AbortRequest
+	13, // 11: agentluoss.v1.runtime.AgentRuntime.GetSessionState:input_type -> agentluoss.v1.runtime.GetSessionStateRequest
+	15, // 12: agentluoss.v1.runtime.AgentRuntime.CloseSession:input_type -> agentluoss.v1.runtime.CloseSessionRequest
+	17, // 13: agentluoss.v1.runtime.AgentRuntime.Heartbeat:input_type -> agentluoss.v1.runtime.HeartbeatRequest
+	19, // 14: agentluoss.v1.runtime.AgentRuntime.ReloadConfig:input_type -> agentluoss.v1.runtime.ReloadConfigRequest
+	5,  // 15: agentluoss.v1.runtime.AgentRuntime.CreateSession:output_type -> agentluoss.v1.runtime.CreateSessionResponse
+	8,  // 16: agentluoss.v1.runtime.AgentRuntime.Prompt:output_type -> agentluoss.v1.runtime.PromptResponse
+	10, // 17: agentluoss.v1.runtime.AgentRuntime.Steer:output_type -> agentluoss.v1.runtime.SteerResponse
+	12, // 18: agentluoss.v1.runtime.AgentRuntime.Abort:output_type -> agentluoss.v1.runtime.AbortResponse
+	14, // 19: agentluoss.v1.runtime.AgentRuntime.GetSessionState:output_type -> agentluoss.v1.runtime.GetSessionStateResponse
+	16, // 20: agentluoss.v1.runtime.AgentRuntime.CloseSession:output_type -> agentluoss.v1.runtime.CloseSessionResponse
+	18, // 21: agentluoss.v1.runtime.AgentRuntime.Heartbeat:output_type -> agentluoss.v1.runtime.HeartbeatResponse
+	20, // 22: agentluoss.v1.runtime.AgentRuntime.ReloadConfig:output_type -> agentluoss.v1.runtime.ReloadConfigResponse
+	15, // [15:23] is the sub-list for method output_type
+	7,  // [7:15] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_runtime_proto_init() }
@@ -1144,7 +1336,7 @@ func file_runtime_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_runtime_proto_rawDesc), len(file_runtime_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   18,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

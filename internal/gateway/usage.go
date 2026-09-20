@@ -2,15 +2,22 @@
 package gateway
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 
+	taskpb "agentluoss/proto/gen/task"
 	usagepb "agentluoss/proto/gen/usage"
 )
 
 func (a *App) registerUsageRoutes(authed, admin *gin.RouterGroup) {
 	authed.GET("/usage/me", a.myUsage)
+	authed.GET("/tasks/:id/usage", a.taskUsage)
 
 	admin.GET("/admin/usage", a.usageSummary)
+	admin.GET("/admin/usage/export", a.usageExport)
 	admin.GET("/admin/audit", a.auditLogs)
 	admin.PUT("/admin/quota", a.setQuota)
 }
@@ -29,16 +36,86 @@ func (a *App) myUsage(c *gin.Context) {
 
 func (a *App) usageSummary(c *gin.Context) {
 	userID := c.Query("user_id")
-	days := int32(30)
+	req := &usagepb.GetUsageSummaryRequest{UserId: userID}
 	if v := c.Query("days"); v != "" {
-		_ = vScanInt32(v, &days)
+		_ = vScanInt32(v, &req.Days)
 	}
-	resp, err := a.usage.GetUsageSummary(outCtx(c), &usagepb.GetUsageSummaryRequest{UserId: userID, Days: days})
+	if v := c.Query("from"); v != "" {
+		if ms, err := strconv.ParseInt(v, 10, 64); err == nil {
+			req.FromTs = ms
+		}
+	}
+	if v := c.Query("to"); v != "" {
+		if ms, err := strconv.ParseInt(v, 10, 64); err == nil {
+			req.ToTs = ms
+		}
+	}
+	resp, err := a.usage.GetUsageSummary(outCtx(c), req)
 	if err != nil {
 		grpcStatus(c, err)
 		return
 	}
-	c.JSON(200, gin.H{"rows": resp.Rows})
+	c.JSON(200, gin.H{
+		"rows": resp.Rows, "by_model": resp.ByModel, "top_users": resp.TopUsers,
+	})
+}
+
+// usageExport streams the same summary window as CSV (admin only).
+func (a *App) usageExport(c *gin.Context) {
+	req := &usagepb.GetUsageSummaryRequest{UserId: c.Query("user_id")}
+	if v := c.Query("days"); v != "" {
+		_ = vScanInt32(v, &req.Days)
+	}
+	if v := c.Query("from"); v != "" {
+		if ms, err := strconv.ParseInt(v, 10, 64); err == nil {
+			req.FromTs = ms
+		}
+	}
+	if v := c.Query("to"); v != "" {
+		if ms, err := strconv.ParseInt(v, 10, 64); err == nil {
+			req.ToTs = ms
+		}
+	}
+	resp, err := a.usage.GetUsageSummary(outCtx(c), req)
+	if err != nil {
+		grpcStatus(c, err)
+		return
+	}
+	c.Header("Content-Disposition", "attachment; filename=usage.csv")
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	var b strings.Builder
+	b.WriteString("day,user_id,input_tokens,output_tokens,total_tokens,cost_usd,task_count\n")
+	for _, r := range resp.Rows {
+		fmt.Fprintf(&b, "%s,%s,%d,%d,%d,%.6f,%d\n",
+			r.Day, r.UserId, r.InputTokens, r.OutputTokens, r.TotalTokens, r.CostUsd, r.TaskCount)
+	}
+	b.WriteString("\nprovider,model_id,input_tokens,output_tokens,cache_read,cache_write,total_tokens,cost_usd,task_count\n")
+	for _, m := range resp.ByModel {
+		fmt.Fprintf(&b, "%s,%s,%d,%d,%d,%d,%d,%.6f,%d\n",
+			m.Provider, m.ModelId, m.InputTokens, m.OutputTokens, m.CacheReadTokens, m.CacheWriteTokens,
+			m.TotalTokens, m.CostUsd, m.TaskCount)
+	}
+	c.String(200, b.String())
+}
+
+// taskUsage reports token/cost consumption of one task. Owners and admins only.
+func (a *App) taskUsage(c *gin.Context) {
+	taskID := c.Param("id")
+	t, err := a.task.GetTask(outCtx(c), &taskpb.GetTaskRequest{TaskId: taskID})
+	if err != nil {
+		grpcStatus(c, err)
+		return
+	}
+	if t.GetTask().GetUserId() != c.GetString("user_id") && c.GetString("role") != "admin" {
+		c.JSON(403, gin.H{"error": "forbidden"})
+		return
+	}
+	resp, err := a.usage.GetTaskUsage(outCtx(c), &usagepb.GetTaskUsageRequest{TaskId: taskID})
+	if err != nil {
+		grpcStatus(c, err)
+		return
+	}
+	c.JSON(200, gin.H{"by_model": resp.ByModel, "total_tokens": resp.TotalTokens, "cost_usd": resp.CostUsd})
 }
 
 func (a *App) auditLogs(c *gin.Context) {

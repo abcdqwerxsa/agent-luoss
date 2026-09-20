@@ -22,6 +22,7 @@ type Task struct {
 	RuntimeID    string
 	SessionPath  string
 	FirstMessage string
+	ExpertID     string
 	CreatedAt    int64
 	UpdatedAt    int64
 }
@@ -32,10 +33,10 @@ func NewStore(db *pgxpool.Pool) *Store { return &Store{db: db} }
 
 func (s *Store) Create(ctx context.Context, t *Task) error {
 	return s.db.QueryRow(ctx, `
-		INSERT INTO task.tasks (id, user_id, title, mode, provider, model_id, status, first_message)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+		INSERT INTO task.tasks (id, user_id, title, mode, provider, model_id, status, first_message, expert_id)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 		RETURNING (extract(epoch from created_at)*1000)::bigint, (extract(epoch from updated_at)*1000)::bigint`,
-		t.ID, t.UserID, t.Title, t.Mode, t.Provider, t.ModelID, t.Status, t.FirstMessage,
+		t.ID, t.UserID, t.Title, t.Mode, t.Provider, t.ModelID, t.Status, t.FirstMessage, t.ExpertID,
 	).Scan(&t.CreatedAt, &t.UpdatedAt)
 }
 
@@ -43,9 +44,9 @@ func (s *Store) Get(ctx context.Context, id string) (*Task, error) {
 	var t Task
 	err := s.db.QueryRow(ctx, `
 		SELECT id, user_id, title, mode, provider, model_id, status, runtime_id, session_path,
-		       first_message, (extract(epoch from created_at)*1000)::bigint, (extract(epoch from updated_at)*1000)::bigint
+		       first_message, coalesce(expert_id,''), (extract(epoch from created_at)*1000)::bigint, (extract(epoch from updated_at)*1000)::bigint
 		FROM task.tasks WHERE id = $1`, id,
-	).Scan(&t.ID, &t.UserID, &t.Title, &t.Mode, &t.Provider, &t.ModelID, &t.Status, &t.RuntimeID, &t.SessionPath, &t.FirstMessage, &t.CreatedAt, &t.UpdatedAt)
+	).Scan(&t.ID, &t.UserID, &t.Title, &t.Mode, &t.Provider, &t.ModelID, &t.Status, &t.RuntimeID, &t.SessionPath, &t.FirstMessage, &t.ExpertID, &t.CreatedAt, &t.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -82,7 +83,7 @@ func (s *Store) List(ctx context.Context, userID, query string, limit, offset in
 	args = append(args, limit, offset)
 	rows, err := s.db.Query(ctx, `
 		SELECT id, user_id, title, mode, provider, model_id, status, runtime_id, session_path,
-		       first_message, (extract(epoch from created_at)*1000)::bigint, (extract(epoch from updated_at)*1000)::bigint
+		       first_message, coalesce(expert_id,''), (extract(epoch from created_at)*1000)::bigint, (extract(epoch from updated_at)*1000)::bigint
 		FROM task.tasks `+where+`
 		ORDER BY updated_at DESC LIMIT $`+itoa(len(args)-1)+" OFFSET $"+itoa(len(args)), args...)
 	if err != nil {
@@ -92,7 +93,7 @@ func (s *Store) List(ctx context.Context, userID, query string, limit, offset in
 	var out []*Task
 	for rows.Next() {
 		var t Task
-		if err := rows.Scan(&t.ID, &t.UserID, &t.Title, &t.Mode, &t.Provider, &t.ModelID, &t.Status, &t.RuntimeID, &t.SessionPath, &t.FirstMessage, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.UserID, &t.Title, &t.Mode, &t.Provider, &t.ModelID, &t.Status, &t.RuntimeID, &t.SessionPath, &t.FirstMessage, &t.ExpertID, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, 0, err
 		}
 		out = append(out, &t)

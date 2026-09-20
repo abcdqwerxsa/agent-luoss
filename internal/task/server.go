@@ -23,6 +23,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"agentluoss/internal/auditx"
+	capspb "agentluoss/proto/gen/caps"
 	runtimpb "agentluoss/proto/gen/runtime"
 	taskpb "agentluoss/proto/gen/task"
 )
@@ -37,6 +38,7 @@ type Server struct {
 	workspacesDir string
 	usage     UsageReporter
 	quota     QuotaChecker
+	caps      CapsResolver
 }
 
 // QuotaChecker gates prompts on user quota (nil = always allow).
@@ -59,9 +61,24 @@ type noopUsage struct{}
 
 func (noopUsage) Report(context.Context, string, string, string, string, usageDelta) {}
 
-func NewServer(db *pgxpool.Pool, rdb *redis.Client, workspacesDir string, usage UsageReporter, quota QuotaChecker) *Server {
+// CapsResolver fetches the effective MCP servers/skills for a user
+// (implemented by the caps service client; fail-open when nil/unavailable).
+type CapsResolver interface {
+	EffectiveCaps(ctx context.Context, userID, expertID string) (*capspb.GetEffectiveCapsResponse, error)
+}
+
+type noopCaps struct{}
+
+func (noopCaps) EffectiveCaps(context.Context, string, string) (*capspb.GetEffectiveCapsResponse, error) {
+	return &capspb.GetEffectiveCapsResponse{}, nil
+}
+
+func NewServer(db *pgxpool.Pool, rdb *redis.Client, workspacesDir string, usage UsageReporter, quota QuotaChecker, caps CapsResolver) *Server {
 	if usage == nil {
 		usage = noopUsage{}
+	}
+	if caps == nil {
+		caps = noopCaps{}
 	}
 	return &Server{
 		store:     NewStore(db),
@@ -72,6 +89,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, workspacesDir string, usage 
 		workspacesDir: workspacesDir,
 		usage:     usage,
 		quota:     quota,
+		caps:      caps,
 	}
 }
 
@@ -110,7 +128,7 @@ func (s *Server) CreateTask(ctx context.Context, req *taskpb.CreateTaskRequest) 
 	t := &Task{
 		ID: newTaskID(), UserID: req.GetUserId(), Title: req.GetTitle(),
 		Mode: mode, Provider: req.GetModel().GetProvider(), ModelID: req.GetModel().GetModelId(),
-		Status: "pending", FirstMessage: req.GetFirstMessage(),
+		Status: "pending", FirstMessage: req.GetFirstMessage(), ExpertID: req.GetExpertId(),
 	}
 	if err := s.store.Create(ctx, t); err != nil {
 		return nil, errCode(err)
@@ -161,7 +179,18 @@ func (s *Server) GetTask(ctx context.Context, req *taskpb.GetTaskRequest) (*task
 	if err != nil {
 		return nil, errCode(err)
 	}
-	return &taskpb.GetTaskResponse{Task: toPb(t)}, nil
+	resp := &taskpb.GetTaskResponse{Task: toPb(t)}
+	// best-effort context occupancy (written by onEvent from runtime events)
+	if raw, err := s.rdb.Get(ctx, "task:ctx:"+t.ID).Result(); err == nil {
+		var cu struct {
+			Tokens        int64 `json:"tokens"`
+			ContextWindow int64 `json:"contextWindow"`
+		}
+		if json.Unmarshal([]byte(raw), &cu) == nil {
+			resp.ContextTokens, resp.ContextWindow = cu.Tokens, cu.ContextWindow
+		}
+	}
+	return resp, nil
 }
 
 func (s *Server) ListTasks(ctx context.Context, req *taskpb.ListTasksRequest) (*taskpb.ListTasksResponse, error) {
@@ -224,6 +253,29 @@ func (s *Server) ensureSession(ctx context.Context, t *Task) (runtimpb.AgentRunt
 		tryIDs = append([]string{rt.ID}, tryIDs...)
 	}
 
+	// Effective caps resolved per session creation (new + failover resume).
+	// Fail-open: caps outage degrades to no extensions, never blocks tasks.
+	var mcps []*runtimpb.McpServer
+	var skills []*runtimpb.Skill
+	if s.caps != nil {
+		cc, err := s.caps.EffectiveCaps(ctx, t.UserID, t.ExpertID)
+		if err != nil {
+			log.Printf("caps resolve for %s failed (fail-open): %v", t.UserID, err)
+		} else if cc != nil {
+			for _, m := range cc.GetMcpServers() {
+				mcps = append(mcps, &runtimpb.McpServer{
+					Id: m.GetId(), Name: m.GetName(), Transport: m.GetTransport(),
+					Command: m.GetCommand(), Args: m.GetArgs(), Env: m.GetEnv(), Url: m.GetUrl(),
+				})
+			}
+			for _, k := range cc.GetSkills() {
+				skills = append(skills, &runtimpb.Skill{
+					Name: k.GetName(), Description: k.GetDescription(), Path: k.GetPath(),
+				})
+			}
+		}
+	}
+
 	for _, id := range tryIDs {
 		info, err := s.registry.Get(ctx, id)
 		if err != nil {
@@ -248,6 +300,8 @@ func (s *Server) ensureSession(ctx context.Context, t *Task) (runtimpb.AgentRunt
 			Model:      &runtimpb.ModelRef{Provider: t.Provider, ModelId: t.ModelID},
 			WorkspacePath: s.workspaceFor(t.UserID),
 			SessionPath: t.SessionPath,
+			McpServers: mcps,
+			Skills:     skills,
 		})
 		if err != nil {
 			log.Printf("createSession on %s failed: %v", info.ID, err)
@@ -459,6 +513,8 @@ func (s *Server) onEvent(ctx context.Context, ev *taskpb.AgentEvent) {
 		s.registry.ReleaseSessionLock(ctx, ev.GetTaskId())
 	case "message_end":
 		s.reportUsage(ctx, ev)
+	case "context_usage":
+		s.rdb.Set(ctx, "task:ctx:"+ev.GetTaskId(), ev.GetPayload(), 0)
 	case "error":
 		_ = s.store.SetStatus(ctx, ev.GetTaskId(), "idle")
 		s.registry.ReleaseSessionLock(ctx, ev.GetTaskId())
@@ -557,6 +613,7 @@ func toPb(t *Task) *taskpb.TaskInfo {
 		RuntimeId:   t.RuntimeID,
 		SessionPath: t.SessionPath,
 		FirstMessage: t.FirstMessage,
+		ExpertId:    t.ExpertID,
 		CreatedAt:   t.CreatedAt, UpdatedAt: t.UpdatedAt,
 	}
 }

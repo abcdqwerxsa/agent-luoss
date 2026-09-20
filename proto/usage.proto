@@ -13,6 +13,7 @@ service Usage {
   rpc SetQuota(SetQuotaRequest) returns (SetQuotaResponse);
   rpc GetUsageSummary(GetUsageSummaryRequest) returns (GetUsageSummaryResponse);
   rpc ListAuditLogs(ListAuditLogsRequest) returns (ListAuditLogsResponse);
+  rpc GetTaskUsage(GetTaskUsageRequest) returns (GetTaskUsageResponse);
   // ---- user-facing ----
   rpc GetMyUsage(GetMyUsageRequest) returns (GetMyUsageResponse);
 }
@@ -52,7 +53,9 @@ message SetQuotaResponse {}
 
 message GetUsageSummaryRequest {
   string user_id = 1; // empty = all users (admin)
-  int32 days = 2;     // lookback window, default 30
+  int32 days = 2;     // lookback window, default 30; ignored when from_ts set
+  int64 from_ts = 3;  // unix ms, explicit range start
+  int64 to_ts = 4;    // unix ms, range end (0 = now)
 }
 
 message UsageRow {
@@ -67,6 +70,27 @@ message UsageRow {
 
 message GetUsageSummaryResponse {
   repeated UsageRow rows = 1;
+  repeated ModelUsageRow by_model = 2;   // aggregated over the same window
+  repeated UserUsageRow top_users = 3;  // ranked by cost, max 20
+}
+
+message ModelUsageRow {
+  string provider = 1;
+  string model_id = 2;
+  int64 input_tokens = 3;
+  int64 output_tokens = 4;
+  int64 cache_read_tokens = 5;
+  int64 cache_write_tokens = 6;
+  int64 total_tokens = 7;
+  double cost_usd = 8;
+  int32 task_count = 9; // distinct tasks touching this model
+}
+
+message UserUsageRow {
+  string user_id = 1;
+  int64 total_tokens = 2;
+  double cost_usd = 3;
+  int32 task_count = 4;
 }
 
 message GetMyUsageRequest {
@@ -77,6 +101,16 @@ message GetMyUsageResponse {
   double month_used_usd = 1;
   double month_limit_usd = 2;
   repeated UsageRow recent_days = 3;
+}
+
+message GetTaskUsageRequest {
+  string task_id = 1;
+}
+
+message GetTaskUsageResponse {
+  repeated ModelUsageRow by_model = 1;
+  int64 total_tokens = 2;
+  double cost_usd = 3;
 }
 
 message ListAuditLogsRequest {

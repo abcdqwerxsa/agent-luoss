@@ -11,6 +11,11 @@ service ModelMgt {
   rpc UpsertModel(UpsertModelRequest) returns (UpsertModelResponse);
   rpc DeleteModel(DeleteModelRequest) returns (DeleteModelResponse);
   rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse);
+  // Live-query the provider's OpenAI-compatible /models endpoint with the
+  // stored key; returns model ids (no local state change).
+  rpc FetchProviderModels(FetchProviderModelsRequest) returns (FetchProviderModelsResponse);
+  // Send a minimal completion to verify the model works; reports latency.
+  rpc TestModel(TestModelRequest) returns (TestModelResponse);
 
   // ---- user-facing (via gateway) ----
   rpc ListModels(ListModelsRequest) returns (ListModelsResponse);
@@ -69,8 +74,29 @@ message ListProvidersResponse {
   repeated Provider providers = 1; // api_key masked
 }
 
-message ListModelsRequest {}
+message ListModelsRequest {
+  bool all = 1; // include disabled models (admin only, enforced server-side)
+}
 
 message ListModelsResponse {
-  repeated Model models = 1; // enabled only
+  repeated Model models = 1; // enabled only unless all=true
+}
+
+message FetchProviderModelsRequest {
+  string provider_id = 1;
+}
+
+message FetchProviderModelsResponse {
+  repeated string model_ids = 1;
+}
+
+message TestModelRequest {
+  string provider_id = 1;
+  string model_id = 2;
+}
+
+message TestModelResponse {
+  bool ok = 1;
+  string error = 2;
+  int64 latency_ms = 3;
 }

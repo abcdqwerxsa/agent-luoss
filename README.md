@@ -5,15 +5,17 @@
 ## 架构
 
 ```
-Web (React) ──HTTPS/SSE──► gateway (Go :8080) ──gRPC──┬─► iam      (账号/RBAC/JWT)
+Web (React) ──HTTPS/SSE──► gateway (Go :8080) ──gRPC──┬─► iam      (账号/RBAC/部门/JWT)
                                                       ├─► task     (任务编排/调度/事件流)   ──gRPC──► agent-runtime ×N (Node, pi SDK)
                                                       ├─► artifact (工作区文件)                        │ cwd=/data/workspaces/<userId>
                                                       ├─► modelmgt (模型注册/密钥/models.json)          ▼
-                                                      └─► usage    (用量/配额/审计)              LLM (私有 OpenAI 兼容网关)
+                                                      ├─► caps     (MCP/技能管理:9096)          LLM (私有 OpenAI 兼容网关)
+                                                      └─► usage    (用量/配额/审计)
 ```
 
-- **agent-runtime**：Node sidecar，每任务一个 pi `AgentSession`；三模式（ask 只读 / craft 执行 / plan 先确认）；空闲会话驱逐 + 会话文件恢复；事件经 `PushEvents` 流回 task。
-- **task**：核心编排。runtime 注册/心跳/最少负载调度/粘性分配/失联重调度；会话互斥锁；事件管道（Redis Stream 序号 + SSE Last-Event-ID 回放）。
+- **agent-runtime**：Node sidecar，每任务一个 pi `AgentSession`；三模式（ask 只读 / craft 执行 / plan 先确认）；空闲会话驱逐 + 会话文件恢复；事件经 `PushEvents` 流回 task。平台 MCP 服务器经 `pi-mcp-adapter`（jiti 运行时加载）以内存态配置注入每个会话。
+- **task**：核心编排。runtime 注册/心跳/最少负载调度/粘性分配/失联重调度；会话互斥锁；事件管道（Redis Stream 序号 + SSE Last-Event-ID 回放）。每次建会话时向 caps 拉取该用户可见的 MCP/技能（fail-open：caps 不可用时降级为无扩展能力）。
+- **caps**（:9096）：管理员统一管理 MCP 服务器（stdio/http/sse，env 密钥 AES-GCM 加密）与企业技能库（zip 上传到 `/data/skills`）；按 部门/角色/全员 分配可见性。
 - 工作区：`/data/workspaces/<userId>`（目录级隔离，无沙箱——升级路径为每用户容器）。
 
 ## 快速开始
@@ -28,10 +30,12 @@ GATEWAY_PORT=18090: cd deploy && GATEWAY_PORT=18090 docker compose -f docker-com
 
 配置模型：管理后台 → 模型 → 添加 Provider（OpenAI 兼容 base_url + API Key，AES-GCM 加密存储）→ 添加模型 → 自动渲染 models.json 并热加载到 runtime。
 
+配置能力：管理后台 → 部门（建部门、用户挂部门）→ MCP（stdio 命令或 http/sse URL，env 密钥加密，按部门/角色分配）→ Skills（zip 上传，根目录或单层目录内含 `SKILL.md`，按部门/角色分配）。新会话生效（存量会话靠空闲驱逐自然过期）。
+
 ## 验收
 
 ```bash
-# 容器网络内跑全栈 e2e（14 项断言）
+# 容器网络内跑全栈 e2e（31 项断言：任务/产物/用量多维度/RBAC + 部门/MCP/技能注入）
 docker run --rm --network agentluoss_backend -v $PWD:/w -w /w \
   -e ZAI_API_KEY=<key> -e http_proxy= -e https_proxy= \
   node:24-bookworm-slim node deploy/e2e.mjs http://172.28.0.11:8080

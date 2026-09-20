@@ -36,7 +36,15 @@ func main() {
 		}
 		reporter, quota = ad, ad
 	}
-	srv := task.NewServer(pool, rdb, envOr("WORKSPACES_DIR", "/data/workspaces"), reporter, quota)
+	var caps task.CapsResolver
+	if addr := envOr("CAPS_ADDR", ""); addr != "" {
+		ad, err := task.NewCapsAdapter(addr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		caps = ad
+	}
+	srv := task.NewServer(pool, rdb, envOr("WORKSPACES_DIR", "/data/workspaces"), reporter, quota, caps)
 	log.Fatal(grpcx.Serve(mustAtoi(envOr("PORT", "9092")), srv.Register))
 }
 

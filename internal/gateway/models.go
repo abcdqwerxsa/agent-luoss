@@ -13,8 +13,11 @@ func (a *App) registerModelRoutes(authed, admin *gin.RouterGroup) {
 	admin.GET("/admin/providers", a.listProviders)
 	admin.PUT("/admin/providers", a.upsertProvider)
 	admin.DELETE("/admin/providers/:id", a.deleteProvider)
+	admin.POST("/admin/providers/:id/fetch-models", a.fetchProviderModels)
 	admin.PUT("/admin/models", a.upsertModel)
 	admin.DELETE("/admin/models", a.deleteModel)
+	admin.POST("/admin/models/test", a.testModel)
+	admin.GET("/admin/models/all", a.listAllModels)
 }
 
 func (a *App) listModels(c *gin.Context) {
@@ -121,4 +124,53 @@ func (a *App) deleteModel(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"ok": true})
+}
+
+// listAllModels returns enabled+disabled models for the admin table.
+func (a *App) listAllModels(c *gin.Context) {
+	resp, err := a.modelmgt.ListModels(outCtx(c), &modelmgtpb.ListModelsRequest{All: true})
+	if err != nil {
+		grpcStatus(c, err)
+		return
+	}
+	models := make([]gin.H, 0, len(resp.Models))
+	for _, m := range resp.Models {
+		models = append(models, gin.H{
+			"provider_id": m.GetProviderId(), "model_id": m.GetId(),
+			"display_name": m.GetDisplayName(), "context_window": m.GetContextWindow(),
+			"input_cost": m.GetInputCost(), "output_cost": m.GetOutputCost(),
+			"reasoning": m.GetReasoning(), "enabled": m.GetEnabled(),
+		})
+	}
+	c.JSON(200, gin.H{"models": models})
+}
+
+func (a *App) fetchProviderModels(c *gin.Context) {
+	resp, err := a.modelmgt.FetchProviderModels(outCtx(c), &modelmgtpb.FetchProviderModelsRequest{
+		ProviderId: c.Param("id"),
+	})
+	if err != nil {
+		grpcStatus(c, err)
+		return
+	}
+	c.JSON(200, gin.H{"model_ids": resp.GetModelIds()})
+}
+
+func (a *App) testModel(c *gin.Context) {
+	var req struct {
+		ProviderID string `json:"provider_id" binding:"required"`
+		ModelID    string `json:"model_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "provider_id and model_id required"})
+		return
+	}
+	resp, err := a.modelmgt.TestModel(outCtx(c), &modelmgtpb.TestModelRequest{
+		ProviderId: req.ProviderID, ModelId: req.ModelID,
+	})
+	if err != nil {
+		grpcStatus(c, err)
+		return
+	}
+	c.JSON(200, gin.H{"ok": resp.GetOk(), "error": resp.GetError(), "latency_ms": resp.GetLatencyMs()})
 }

@@ -163,7 +163,7 @@ func (s *Server) CreateUser(ctx context.Context, req *iampb.CreateUserRequest) (
 	if role != "admin" && role != "member" {
 		role = "member"
 	}
-	u, err := s.store.CreateUser(ctx, req.GetUsername(), req.GetPassword(), req.GetDisplayName(), role)
+	u, err := s.store.CreateUser(ctx, req.GetUsername(), req.GetPassword(), req.GetDisplayName(), role, req.GetDepartmentId())
 	if err != nil {
 		return nil, errCode(err)
 	}
@@ -196,7 +196,7 @@ func (s *Server) UpdateUser(ctx context.Context, req *iampb.UpdateUserRequest) (
 	if req.GetPassword() != "" && len(req.GetPassword()) < 8 {
 		return nil, status.Error(codes.InvalidArgument, "password >= 8 chars")
 	}
-	u, err := s.store.UpdateUser(ctx, req.GetUserId(), req.GetDisplayName(), req.GetRole(), req.GetStatus(), req.GetPassword())
+	u, err := s.store.UpdateUser(ctx, req.GetUserId(), req.GetDisplayName(), req.GetRole(), req.GetStatus(), req.GetPassword(), req.GetDepartmentId())
 	if err != nil {
 		return nil, errCode(err)
 	}
@@ -227,6 +227,84 @@ func (s *Server) DeleteUser(ctx context.Context, req *iampb.DeleteUserRequest) (
 func toPb(u *User) *iampb.User {
 	return &iampb.User{
 		Id: u.ID, Username: u.Username, DisplayName: u.DisplayName,
-		Role: u.Role, Status: u.Status, CreatedAt: u.CreatedAt,
+		Role: u.Role, Status: u.Status, DepartmentId: u.DepartmentID, CreatedAt: u.CreatedAt,
 	}
+}
+
+// GetUser is called by caps-svc to resolve a user's department/role.
+// Internal RPC: no gateway route exposes it.
+func (s *Server) GetUser(ctx context.Context, req *iampb.GetUserRequest) (*iampb.GetUserResponse, error) {
+	u, _, err := s.store.GetUserByID(ctx, req.GetUserId())
+	if err != nil {
+		return nil, errCode(err)
+	}
+	return &iampb.GetUserResponse{User: toPb(u)}, nil
+}
+
+// ---- departments ----
+
+func deptPb(d *Department) *iampb.Department {
+	return &iampb.Department{Id: d.ID, Name: d.Name, CreatedAt: d.CreatedAt}
+}
+
+func (s *Server) CreateDepartment(ctx context.Context, req *iampb.CreateDepartmentRequest) (*iampb.CreateDepartmentResponse, error) {
+	if err := s.adminOnly(ctx); err != nil {
+		return nil, err
+	}
+	if req.GetName() == "" {
+		return nil, status.Error(codes.InvalidArgument, "name required")
+	}
+	d, err := s.store.CreateDepartment(ctx, req.GetId(), req.GetName())
+	if err != nil {
+		return nil, errCode(err)
+	}
+	actorID, _ := actor(ctx)
+	s.audit.Publish(ctx, s.audit.Redis(), auditx.Event{
+		Actor: actorID, Action: "iam.dept_create", Resource: "department/" + d.ID,
+	})
+	return &iampb.CreateDepartmentResponse{Department: deptPb(d)}, nil
+}
+
+func (s *Server) UpdateDepartment(ctx context.Context, req *iampb.UpdateDepartmentRequest) (*iampb.UpdateDepartmentResponse, error) {
+	if err := s.adminOnly(ctx); err != nil {
+		return nil, err
+	}
+	d, err := s.store.UpdateDepartment(ctx, req.GetId(), req.GetName())
+	if err != nil {
+		return nil, errCode(err)
+	}
+	actorID, _ := actor(ctx)
+	s.audit.Publish(ctx, s.audit.Redis(), auditx.Event{
+		Actor: actorID, Action: "iam.dept_update", Resource: "department/" + d.ID,
+	})
+	return &iampb.UpdateDepartmentResponse{Department: deptPb(d)}, nil
+}
+
+func (s *Server) DeleteDepartment(ctx context.Context, req *iampb.DeleteDepartmentRequest) (*iampb.DeleteDepartmentResponse, error) {
+	if err := s.adminOnly(ctx); err != nil {
+		return nil, err
+	}
+	if err := s.store.DeleteDepartment(ctx, req.GetId()); err != nil {
+		return nil, errCode(err)
+	}
+	actorID, _ := actor(ctx)
+	s.audit.Publish(ctx, s.audit.Redis(), auditx.Event{
+		Actor: actorID, Action: "iam.dept_delete", Resource: "department/" + req.GetId(),
+	})
+	return &iampb.DeleteDepartmentResponse{}, nil
+}
+
+func (s *Server) ListDepartments(ctx context.Context, _ *iampb.ListDepartmentsRequest) (*iampb.ListDepartmentsResponse, error) {
+	if err := s.adminOnly(ctx); err != nil {
+		return nil, err
+	}
+	depts, err := s.store.ListDepartments(ctx)
+	if err != nil {
+		return nil, errCode(err)
+	}
+	out := &iampb.ListDepartmentsResponse{}
+	for _, d := range depts {
+		out.Departments = append(out.Departments, deptPb(d))
+	}
+	return out, nil
 }

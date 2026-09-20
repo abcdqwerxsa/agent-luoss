@@ -12,6 +12,15 @@ service IAM {
   rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
   rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+
+  // ---- internal (caps-svc resolves effective capabilities) ----
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+
+  // ---- departments ----
+  rpc CreateDepartment(CreateDepartmentRequest) returns (CreateDepartmentResponse);
+  rpc UpdateDepartment(UpdateDepartmentRequest) returns (UpdateDepartmentResponse);
+  rpc DeleteDepartment(DeleteDepartmentRequest) returns (DeleteDepartmentResponse);
+  rpc ListDepartments(ListDepartmentsRequest) returns (ListDepartmentsResponse);
 }
 
 message User {
@@ -20,6 +29,7 @@ message User {
   string display_name = 3;
   string role = 4;   // "admin" | "member"
   string status = 5; // "active" | "disabled"
+  string department_id = 7; // empty = no department
   int64 created_at = 6;
 }
 
@@ -56,6 +66,7 @@ message CreateUserRequest {
   string password = 2;
   string display_name = 3;
   string role = 4;
+  string department_id = 5;
 }
 
 message CreateUserResponse {
@@ -73,7 +84,8 @@ message UpdateUserRequest {
   string display_name = 2;
   string role = 3;
   string status = 4;
-  string password = 5; // non-empty = reset
+  string password = 5;       // non-empty = reset
+  string department_id = 6;  // "-" clears the department
 }
 
 message UpdateUserResponse {
@@ -85,3 +97,47 @@ message DeleteUserRequest {
 }
 
 message DeleteUserResponse {}
+
+message GetUserRequest {
+  string user_id = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message Department {
+  string id = 1;
+  string name = 2;
+  int64 created_at = 3;
+}
+
+message CreateDepartmentRequest {
+  string id = 1;   // slug; empty = generated
+  string name = 2;
+}
+
+message CreateDepartmentResponse {
+  Department department = 1;
+}
+
+message UpdateDepartmentRequest {
+  string id = 1;
+  string name = 2;
+}
+
+message UpdateDepartmentResponse {
+  Department department = 1;
+}
+
+message DeleteDepartmentRequest {
+  string id = 1;
+}
+
+message DeleteDepartmentResponse {}
+
+message ListDepartmentsRequest {}
+
+message ListDepartmentsResponse {
+  repeated Department departments = 1;
+}

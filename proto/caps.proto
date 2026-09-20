@@ -1,0 +1,158 @@
+syntax = "proto3";
+
+package agentluoss.v1.caps;
+
+option go_package = "agentluoss/proto/gen/caps;capspb";
+
+// Platform capability management: admin-managed MCP servers and skills,
+// assigned to departments/roles. Effective caps are resolved per user at
+// session creation time (task-svc -> GetEffectiveCaps -> runtime).
+service Caps {
+  // ---- admin ----
+  rpc UpsertMcpServer(UpsertMcpServerRequest) returns (UpsertMcpServerResponse);
+  rpc DeleteMcpServer(DeleteMcpServerRequest) returns (DeleteMcpServerResponse);
+  rpc ListMcpServers(ListMcpServersRequest) returns (ListMcpServersResponse);
+
+  rpc UpsertSkill(UpsertSkillRequest) returns (UpsertSkillResponse);
+  rpc DeleteSkill(DeleteSkillRequest) returns (DeleteSkillResponse);
+  rpc ListSkills(ListSkillsRequest) returns (ListSkillsResponse);
+  // UploadSkill receives a zip archive containing the skill directory
+  // (SKILL.md at root or under a single top-level dir). Caps extracts it to
+  // <skills_dir>/<id>/, parses frontmatter for name/description, and stores
+  // the record. Re-upload replaces content and metadata.
+  rpc UploadSkill(UploadSkillRequest) returns (UploadSkillResponse);
+
+  rpc UpsertExpert(UpsertExpertRequest) returns (UpsertExpertResponse);
+  rpc DeleteExpert(DeleteExpertRequest) returns (DeleteExpertResponse);
+  rpc ListExperts(ListExpertsRequest) returns (ListExpertsResponse);
+  // Visible experts for a user (scope applied); used by the user-facing picker.
+  rpc ListExpertsForUser(ListExpertsForUserRequest) returns (ListExpertsForUserResponse);
+
+  // ---- internal (task-svc) ----
+  // Returns enabled MCP servers (env decrypted) and skills visible to the
+  // user, honoring scope assignment. Never fails open to a caller error for
+  // unknown users: unknown users get platform-wide caps only.
+  rpc GetEffectiveCaps(GetEffectiveCapsRequest) returns (GetEffectiveCapsResponse);
+}
+
+message Scope {
+  string type = 1;  // "all" | "department" | "role"
+  string value = 2; // department id or role name; empty for "all"
+}
+
+message McpServerDef {
+  string id = 1;         // slug
+  string name = 2;
+  string transport = 3;  // "stdio" | "http" | "sse"
+  string command = 4;    // stdio only
+  repeated string args = 5;    // stdio only
+  map<string, string> env = 6; // stdio only; write-only, never returned populated
+  string url = 7;        // http/sse only
+  bool enabled = 8;
+  repeated Scope scopes = 9;
+  int64 updated_at = 10;
+}
+
+message SkillDef {
+  string id = 1;         // slug
+  string name = 2;       // from SKILL.md frontmatter
+  string description = 3;
+  string path = 4;       // on-disk dir under /data/skills/<id>
+  bool enabled = 5;
+  repeated Scope scopes = 6;
+  int64 updated_at = 7;
+}
+
+message UpsertMcpServerRequest {
+  McpServerDef server = 1;
+}
+
+message UpsertMcpServerResponse {}
+
+message DeleteMcpServerRequest {
+  string id = 1;
+}
+
+message DeleteMcpServerResponse {}
+
+message ListMcpServersRequest {}
+
+message ListMcpServersResponse {
+  repeated McpServerDef servers = 1; // env masked
+}
+
+message UpsertSkillRequest {
+  SkillDef skill = 1; // path/name/description managed by upload; only enabled/scopes honored here
+}
+
+message UpsertSkillResponse {}
+
+message DeleteSkillRequest {
+  string id = 1;
+}
+
+message DeleteSkillResponse {}
+
+message ListSkillsRequest {}
+
+message ListSkillsResponse {
+  repeated SkillDef skills = 1;
+}
+
+message UploadSkillRequest {
+  string id = 1;   // slug; empty = derived from skill name
+  bytes zip = 2;   // zip archive with SKILL.md
+  repeated Scope scopes = 3;
+  bool enabled = 4;
+}
+
+message UploadSkillResponse {
+  SkillDef skill = 1;
+}
+
+message GetEffectiveCapsRequest {
+  string user_id = 1;
+  string expert_id = 2; // optional: union in this expert's member caps
+}
+
+message ExpertDef {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bool enabled = 4;
+  repeated string skill_ids = 5;
+  repeated string mcp_ids = 6;
+  repeated Scope scopes = 7;
+  int64 updated_at = 8;
+}
+
+message UpsertExpertRequest {
+  ExpertDef expert = 1;
+}
+
+message UpsertExpertResponse {}
+
+message DeleteExpertRequest {
+  string id = 1;
+}
+
+message DeleteExpertResponse {}
+
+message ListExpertsRequest {}
+
+message ListExpertsResponse {
+  repeated ExpertDef experts = 1;
+}
+
+message ListExpertsForUserRequest {
+  string user_id = 1;
+}
+
+message ListExpertsForUserResponse {
+  repeated ExpertDef experts = 1;
+}
+
+message GetEffectiveCapsResponse {
+  repeated McpServerDef mcp_servers = 1; // env decrypted
+  repeated SkillDef skills = 2;
+}

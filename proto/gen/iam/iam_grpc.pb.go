@@ -19,13 +19,18 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	IAM_Login_FullMethodName      = "/agentluoss.v1.iam.IAM/Login"
-	IAM_Refresh_FullMethodName    = "/agentluoss.v1.iam.IAM/Refresh"
-	IAM_Logout_FullMethodName     = "/agentluoss.v1.iam.IAM/Logout"
-	IAM_CreateUser_FullMethodName = "/agentluoss.v1.iam.IAM/CreateUser"
-	IAM_ListUsers_FullMethodName  = "/agentluoss.v1.iam.IAM/ListUsers"
-	IAM_UpdateUser_FullMethodName = "/agentluoss.v1.iam.IAM/UpdateUser"
-	IAM_DeleteUser_FullMethodName = "/agentluoss.v1.iam.IAM/DeleteUser"
+	IAM_Login_FullMethodName            = "/agentluoss.v1.iam.IAM/Login"
+	IAM_Refresh_FullMethodName          = "/agentluoss.v1.iam.IAM/Refresh"
+	IAM_Logout_FullMethodName           = "/agentluoss.v1.iam.IAM/Logout"
+	IAM_CreateUser_FullMethodName       = "/agentluoss.v1.iam.IAM/CreateUser"
+	IAM_ListUsers_FullMethodName        = "/agentluoss.v1.iam.IAM/ListUsers"
+	IAM_UpdateUser_FullMethodName       = "/agentluoss.v1.iam.IAM/UpdateUser"
+	IAM_DeleteUser_FullMethodName       = "/agentluoss.v1.iam.IAM/DeleteUser"
+	IAM_GetUser_FullMethodName          = "/agentluoss.v1.iam.IAM/GetUser"
+	IAM_CreateDepartment_FullMethodName = "/agentluoss.v1.iam.IAM/CreateDepartment"
+	IAM_UpdateDepartment_FullMethodName = "/agentluoss.v1.iam.IAM/UpdateDepartment"
+	IAM_DeleteDepartment_FullMethodName = "/agentluoss.v1.iam.IAM/DeleteDepartment"
+	IAM_ListDepartments_FullMethodName  = "/agentluoss.v1.iam.IAM/ListDepartments"
 )
 
 // IAMClient is the client API for IAM service.
@@ -39,6 +44,13 @@ type IAMClient interface {
 	ListUsers(ctx context.Context, in *ListUsersRequest, opts ...grpc.CallOption) (*ListUsersResponse, error)
 	UpdateUser(ctx context.Context, in *UpdateUserRequest, opts ...grpc.CallOption) (*UpdateUserResponse, error)
 	DeleteUser(ctx context.Context, in *DeleteUserRequest, opts ...grpc.CallOption) (*DeleteUserResponse, error)
+	// ---- internal (caps-svc resolves effective capabilities) ----
+	GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error)
+	// ---- departments ----
+	CreateDepartment(ctx context.Context, in *CreateDepartmentRequest, opts ...grpc.CallOption) (*CreateDepartmentResponse, error)
+	UpdateDepartment(ctx context.Context, in *UpdateDepartmentRequest, opts ...grpc.CallOption) (*UpdateDepartmentResponse, error)
+	DeleteDepartment(ctx context.Context, in *DeleteDepartmentRequest, opts ...grpc.CallOption) (*DeleteDepartmentResponse, error)
+	ListDepartments(ctx context.Context, in *ListDepartmentsRequest, opts ...grpc.CallOption) (*ListDepartmentsResponse, error)
 }
 
 type iAMClient struct {
@@ -119,6 +131,56 @@ func (c *iAMClient) DeleteUser(ctx context.Context, in *DeleteUserRequest, opts 
 	return out, nil
 }
 
+func (c *iAMClient) GetUser(ctx context.Context, in *GetUserRequest, opts ...grpc.CallOption) (*GetUserResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUserResponse)
+	err := c.cc.Invoke(ctx, IAM_GetUser_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *iAMClient) CreateDepartment(ctx context.Context, in *CreateDepartmentRequest, opts ...grpc.CallOption) (*CreateDepartmentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateDepartmentResponse)
+	err := c.cc.Invoke(ctx, IAM_CreateDepartment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *iAMClient) UpdateDepartment(ctx context.Context, in *UpdateDepartmentRequest, opts ...grpc.CallOption) (*UpdateDepartmentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateDepartmentResponse)
+	err := c.cc.Invoke(ctx, IAM_UpdateDepartment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *iAMClient) DeleteDepartment(ctx context.Context, in *DeleteDepartmentRequest, opts ...grpc.CallOption) (*DeleteDepartmentResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteDepartmentResponse)
+	err := c.cc.Invoke(ctx, IAM_DeleteDepartment_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *iAMClient) ListDepartments(ctx context.Context, in *ListDepartmentsRequest, opts ...grpc.CallOption) (*ListDepartmentsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListDepartmentsResponse)
+	err := c.cc.Invoke(ctx, IAM_ListDepartments_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // IAMServer is the server API for IAM service.
 // All implementations must embed UnimplementedIAMServer
 // for forward compatibility.
@@ -130,6 +192,13 @@ type IAMServer interface {
 	ListUsers(context.Context, *ListUsersRequest) (*ListUsersResponse, error)
 	UpdateUser(context.Context, *UpdateUserRequest) (*UpdateUserResponse, error)
 	DeleteUser(context.Context, *DeleteUserRequest) (*DeleteUserResponse, error)
+	// ---- internal (caps-svc resolves effective capabilities) ----
+	GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error)
+	// ---- departments ----
+	CreateDepartment(context.Context, *CreateDepartmentRequest) (*CreateDepartmentResponse, error)
+	UpdateDepartment(context.Context, *UpdateDepartmentRequest) (*UpdateDepartmentResponse, error)
+	DeleteDepartment(context.Context, *DeleteDepartmentRequest) (*DeleteDepartmentResponse, error)
+	ListDepartments(context.Context, *ListDepartmentsRequest) (*ListDepartmentsResponse, error)
 	mustEmbedUnimplementedIAMServer()
 }
 
@@ -160,6 +229,21 @@ func (UnimplementedIAMServer) UpdateUser(context.Context, *UpdateUserRequest) (*
 }
 func (UnimplementedIAMServer) DeleteUser(context.Context, *DeleteUserRequest) (*DeleteUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteUser not implemented")
+}
+func (UnimplementedIAMServer) GetUser(context.Context, *GetUserRequest) (*GetUserResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUser not implemented")
+}
+func (UnimplementedIAMServer) CreateDepartment(context.Context, *CreateDepartmentRequest) (*CreateDepartmentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateDepartment not implemented")
+}
+func (UnimplementedIAMServer) UpdateDepartment(context.Context, *UpdateDepartmentRequest) (*UpdateDepartmentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateDepartment not implemented")
+}
+func (UnimplementedIAMServer) DeleteDepartment(context.Context, *DeleteDepartmentRequest) (*DeleteDepartmentResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteDepartment not implemented")
+}
+func (UnimplementedIAMServer) ListDepartments(context.Context, *ListDepartmentsRequest) (*ListDepartmentsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListDepartments not implemented")
 }
 func (UnimplementedIAMServer) mustEmbedUnimplementedIAMServer() {}
 func (UnimplementedIAMServer) testEmbeddedByValue()             {}
@@ -308,6 +392,96 @@ func _IAM_DeleteUser_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IAM_GetUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUserRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IAMServer).GetUser(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IAM_GetUser_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IAMServer).GetUser(ctx, req.(*GetUserRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IAM_CreateDepartment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateDepartmentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IAMServer).CreateDepartment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IAM_CreateDepartment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IAMServer).CreateDepartment(ctx, req.(*CreateDepartmentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IAM_UpdateDepartment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateDepartmentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IAMServer).UpdateDepartment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IAM_UpdateDepartment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IAMServer).UpdateDepartment(ctx, req.(*UpdateDepartmentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IAM_DeleteDepartment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteDepartmentRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IAMServer).DeleteDepartment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IAM_DeleteDepartment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IAMServer).DeleteDepartment(ctx, req.(*DeleteDepartmentRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _IAM_ListDepartments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDepartmentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IAMServer).ListDepartments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: IAM_ListDepartments_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IAMServer).ListDepartments(ctx, req.(*ListDepartmentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // IAM_ServiceDesc is the grpc.ServiceDesc for IAM service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -342,6 +516,26 @@ var IAM_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteUser",
 			Handler:    _IAM_DeleteUser_Handler,
+		},
+		{
+			MethodName: "GetUser",
+			Handler:    _IAM_GetUser_Handler,
+		},
+		{
+			MethodName: "CreateDepartment",
+			Handler:    _IAM_CreateDepartment_Handler,
+		},
+		{
+			MethodName: "UpdateDepartment",
+			Handler:    _IAM_UpdateDepartment_Handler,
+		},
+		{
+			MethodName: "DeleteDepartment",
+			Handler:    _IAM_DeleteDepartment_Handler,
+		},
+		{
+			MethodName: "ListDepartments",
+			Handler:    _IAM_ListDepartments_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

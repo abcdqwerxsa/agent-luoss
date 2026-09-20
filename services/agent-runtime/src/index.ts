@@ -59,6 +59,22 @@ async function main() {
       const mode = MODES[r.mode] ?? "craft";
       try {
         const workspacePath = r.workspacePath || `${WORKSPACES_DIR}/${r.userId}`;
+        const caps = {
+          mcp: (r.mcpServers || []).map((m: any) => ({
+            id: m.id as string,
+            name: m.name as string,
+            transport: m.transport as string,
+            command: m.command,
+            args: m.args ?? [],
+            env: m.env ?? {},
+            url: m.url,
+          })),
+          skills: (r.skills || []).map((k: any) => ({
+            name: k.name as string,
+            description: k.description ?? "",
+            path: k.path as string,
+          })),
+        };
         const res = await pool.create({
           taskId: r.taskId,
           userId: r.userId,
@@ -67,6 +83,7 @@ async function main() {
           modelId: r.model?.modelId || "",
           workspacePath,
           sessionPath: r.sessionPath || "",
+          caps,
         });
         cb(null, { sessionId: res.sessionId, sessionPath: res.sessionPath, resumed: res.resumed });
       } catch (err: any) {

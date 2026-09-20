@@ -631,6 +631,7 @@ func (x *ListProvidersResponse) GetProviders() []*Provider {
 
 type ListModelsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	All           bool                   `protobuf:"varint,1,opt,name=all,proto3" json:"all,omitempty"` // include disabled models (admin only, enforced server-side)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -665,9 +666,16 @@ func (*ListModelsRequest) Descriptor() ([]byte, []int) {
 	return file_modelmgt_proto_rawDescGZIP(), []int{12}
 }
 
+func (x *ListModelsRequest) GetAll() bool {
+	if x != nil {
+		return x.All
+	}
+	return false
+}
+
 type ListModelsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Models        []*Model               `protobuf:"bytes,1,rep,name=models,proto3" json:"models,omitempty"` // enabled only
+	Models        []*Model               `protobuf:"bytes,1,rep,name=models,proto3" json:"models,omitempty"` // enabled only unless all=true
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -707,6 +715,206 @@ func (x *ListModelsResponse) GetModels() []*Model {
 		return x.Models
 	}
 	return nil
+}
+
+type FetchProviderModelsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FetchProviderModelsRequest) Reset() {
+	*x = FetchProviderModelsRequest{}
+	mi := &file_modelmgt_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FetchProviderModelsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FetchProviderModelsRequest) ProtoMessage() {}
+
+func (x *FetchProviderModelsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_modelmgt_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FetchProviderModelsRequest.ProtoReflect.Descriptor instead.
+func (*FetchProviderModelsRequest) Descriptor() ([]byte, []int) {
+	return file_modelmgt_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *FetchProviderModelsRequest) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+type FetchProviderModelsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ModelIds      []string               `protobuf:"bytes,1,rep,name=model_ids,json=modelIds,proto3" json:"model_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FetchProviderModelsResponse) Reset() {
+	*x = FetchProviderModelsResponse{}
+	mi := &file_modelmgt_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FetchProviderModelsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FetchProviderModelsResponse) ProtoMessage() {}
+
+func (x *FetchProviderModelsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_modelmgt_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FetchProviderModelsResponse.ProtoReflect.Descriptor instead.
+func (*FetchProviderModelsResponse) Descriptor() ([]byte, []int) {
+	return file_modelmgt_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *FetchProviderModelsResponse) GetModelIds() []string {
+	if x != nil {
+		return x.ModelIds
+	}
+	return nil
+}
+
+type TestModelRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	ModelId       string                 `protobuf:"bytes,2,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestModelRequest) Reset() {
+	*x = TestModelRequest{}
+	mi := &file_modelmgt_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestModelRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestModelRequest) ProtoMessage() {}
+
+func (x *TestModelRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_modelmgt_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestModelRequest.ProtoReflect.Descriptor instead.
+func (*TestModelRequest) Descriptor() ([]byte, []int) {
+	return file_modelmgt_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *TestModelRequest) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *TestModelRequest) GetModelId() string {
+	if x != nil {
+		return x.ModelId
+	}
+	return ""
+}
+
+type TestModelResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	LatencyMs     int64                  `protobuf:"varint,3,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestModelResponse) Reset() {
+	*x = TestModelResponse{}
+	mi := &file_modelmgt_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestModelResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestModelResponse) ProtoMessage() {}
+
+func (x *TestModelResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_modelmgt_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestModelResponse.ProtoReflect.Descriptor instead.
+func (*TestModelResponse) Descriptor() ([]byte, []int) {
+	return file_modelmgt_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *TestModelResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *TestModelResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+func (x *TestModelResponse) GetLatencyMs() int64 {
+	if x != nil {
+		return x.LatencyMs
+	}
+	return 0
 }
 
 var File_modelmgt_proto protoreflect.FileDescriptor
@@ -754,16 +962,33 @@ const file_modelmgt_proto_rawDesc = "" +
 	"\x13DeleteModelResponse\"\x16\n" +
 	"\x14ListProvidersRequest\"W\n" +
 	"\x15ListProvidersResponse\x12>\n" +
-	"\tproviders\x18\x01 \x03(\v2 .agentluoss.v1.modelmgt.ProviderR\tproviders\"\x13\n" +
-	"\x11ListModelsRequest\"K\n" +
+	"\tproviders\x18\x01 \x03(\v2 .agentluoss.v1.modelmgt.ProviderR\tproviders\"%\n" +
+	"\x11ListModelsRequest\x12\x10\n" +
+	"\x03all\x18\x01 \x01(\bR\x03all\"K\n" +
 	"\x12ListModelsResponse\x125\n" +
-	"\x06models\x18\x01 \x03(\v2\x1d.agentluoss.v1.modelmgt.ModelR\x06models2\x8f\x05\n" +
+	"\x06models\x18\x01 \x03(\v2\x1d.agentluoss.v1.modelmgt.ModelR\x06models\"=\n" +
+	"\x1aFetchProviderModelsRequest\x12\x1f\n" +
+	"\vprovider_id\x18\x01 \x01(\tR\n" +
+	"providerId\":\n" +
+	"\x1bFetchProviderModelsResponse\x12\x1b\n" +
+	"\tmodel_ids\x18\x01 \x03(\tR\bmodelIds\"N\n" +
+	"\x10TestModelRequest\x12\x1f\n" +
+	"\vprovider_id\x18\x01 \x01(\tR\n" +
+	"providerId\x12\x19\n" +
+	"\bmodel_id\x18\x02 \x01(\tR\amodelId\"X\n" +
+	"\x11TestModelResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\x12\x1d\n" +
+	"\n" +
+	"latency_ms\x18\x03 \x01(\x03R\tlatencyMs2\xf1\x06\n" +
 	"\bModelMgt\x12o\n" +
 	"\x0eUpsertProvider\x12-.agentluoss.v1.modelmgt.UpsertProviderRequest\x1a..agentluoss.v1.modelmgt.UpsertProviderResponse\x12o\n" +
 	"\x0eDeleteProvider\x12-.agentluoss.v1.modelmgt.DeleteProviderRequest\x1a..agentluoss.v1.modelmgt.DeleteProviderResponse\x12f\n" +
 	"\vUpsertModel\x12*.agentluoss.v1.modelmgt.UpsertModelRequest\x1a+.agentluoss.v1.modelmgt.UpsertModelResponse\x12f\n" +
 	"\vDeleteModel\x12*.agentluoss.v1.modelmgt.DeleteModelRequest\x1a+.agentluoss.v1.modelmgt.DeleteModelResponse\x12l\n" +
-	"\rListProviders\x12,.agentluoss.v1.modelmgt.ListProvidersRequest\x1a-.agentluoss.v1.modelmgt.ListProvidersResponse\x12c\n" +
+	"\rListProviders\x12,.agentluoss.v1.modelmgt.ListProvidersRequest\x1a-.agentluoss.v1.modelmgt.ListProvidersResponse\x12~\n" +
+	"\x13FetchProviderModels\x122.agentluoss.v1.modelmgt.FetchProviderModelsRequest\x1a3.agentluoss.v1.modelmgt.FetchProviderModelsResponse\x12`\n" +
+	"\tTestModel\x12(.agentluoss.v1.modelmgt.TestModelRequest\x1a).agentluoss.v1.modelmgt.TestModelResponse\x12c\n" +
 	"\n" +
 	"ListModels\x12).agentluoss.v1.modelmgt.ListModelsRequest\x1a*.agentluoss.v1.modelmgt.ListModelsResponseB*Z(agentluoss/proto/gen/modelmgt;modelmgtpbb\x06proto3"
 
@@ -779,22 +1004,26 @@ func file_modelmgt_proto_rawDescGZIP() []byte {
 	return file_modelmgt_proto_rawDescData
 }
 
-var file_modelmgt_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_modelmgt_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_modelmgt_proto_goTypes = []any{
-	(*Provider)(nil),               // 0: agentluoss.v1.modelmgt.Provider
-	(*Model)(nil),                  // 1: agentluoss.v1.modelmgt.Model
-	(*UpsertProviderRequest)(nil),  // 2: agentluoss.v1.modelmgt.UpsertProviderRequest
-	(*UpsertProviderResponse)(nil), // 3: agentluoss.v1.modelmgt.UpsertProviderResponse
-	(*DeleteProviderRequest)(nil),  // 4: agentluoss.v1.modelmgt.DeleteProviderRequest
-	(*DeleteProviderResponse)(nil), // 5: agentluoss.v1.modelmgt.DeleteProviderResponse
-	(*UpsertModelRequest)(nil),     // 6: agentluoss.v1.modelmgt.UpsertModelRequest
-	(*UpsertModelResponse)(nil),    // 7: agentluoss.v1.modelmgt.UpsertModelResponse
-	(*DeleteModelRequest)(nil),     // 8: agentluoss.v1.modelmgt.DeleteModelRequest
-	(*DeleteModelResponse)(nil),    // 9: agentluoss.v1.modelmgt.DeleteModelResponse
-	(*ListProvidersRequest)(nil),   // 10: agentluoss.v1.modelmgt.ListProvidersRequest
-	(*ListProvidersResponse)(nil),  // 11: agentluoss.v1.modelmgt.ListProvidersResponse
-	(*ListModelsRequest)(nil),      // 12: agentluoss.v1.modelmgt.ListModelsRequest
-	(*ListModelsResponse)(nil),     // 13: agentluoss.v1.modelmgt.ListModelsResponse
+	(*Provider)(nil),                    // 0: agentluoss.v1.modelmgt.Provider
+	(*Model)(nil),                       // 1: agentluoss.v1.modelmgt.Model
+	(*UpsertProviderRequest)(nil),       // 2: agentluoss.v1.modelmgt.UpsertProviderRequest
+	(*UpsertProviderResponse)(nil),      // 3: agentluoss.v1.modelmgt.UpsertProviderResponse
+	(*DeleteProviderRequest)(nil),       // 4: agentluoss.v1.modelmgt.DeleteProviderRequest
+	(*DeleteProviderResponse)(nil),      // 5: agentluoss.v1.modelmgt.DeleteProviderResponse
+	(*UpsertModelRequest)(nil),          // 6: agentluoss.v1.modelmgt.UpsertModelRequest
+	(*UpsertModelResponse)(nil),         // 7: agentluoss.v1.modelmgt.UpsertModelResponse
+	(*DeleteModelRequest)(nil),          // 8: agentluoss.v1.modelmgt.DeleteModelRequest
+	(*DeleteModelResponse)(nil),         // 9: agentluoss.v1.modelmgt.DeleteModelResponse
+	(*ListProvidersRequest)(nil),        // 10: agentluoss.v1.modelmgt.ListProvidersRequest
+	(*ListProvidersResponse)(nil),       // 11: agentluoss.v1.modelmgt.ListProvidersResponse
+	(*ListModelsRequest)(nil),           // 12: agentluoss.v1.modelmgt.ListModelsRequest
+	(*ListModelsResponse)(nil),          // 13: agentluoss.v1.modelmgt.ListModelsResponse
+	(*FetchProviderModelsRequest)(nil),  // 14: agentluoss.v1.modelmgt.FetchProviderModelsRequest
+	(*FetchProviderModelsResponse)(nil), // 15: agentluoss.v1.modelmgt.FetchProviderModelsResponse
+	(*TestModelRequest)(nil),            // 16: agentluoss.v1.modelmgt.TestModelRequest
+	(*TestModelResponse)(nil),           // 17: agentluoss.v1.modelmgt.TestModelResponse
 }
 var file_modelmgt_proto_depIdxs = []int32{
 	0,  // 0: agentluoss.v1.modelmgt.UpsertProviderRequest.provider:type_name -> agentluoss.v1.modelmgt.Provider
@@ -806,15 +1035,19 @@ var file_modelmgt_proto_depIdxs = []int32{
 	6,  // 6: agentluoss.v1.modelmgt.ModelMgt.UpsertModel:input_type -> agentluoss.v1.modelmgt.UpsertModelRequest
 	8,  // 7: agentluoss.v1.modelmgt.ModelMgt.DeleteModel:input_type -> agentluoss.v1.modelmgt.DeleteModelRequest
 	10, // 8: agentluoss.v1.modelmgt.ModelMgt.ListProviders:input_type -> agentluoss.v1.modelmgt.ListProvidersRequest
-	12, // 9: agentluoss.v1.modelmgt.ModelMgt.ListModels:input_type -> agentluoss.v1.modelmgt.ListModelsRequest
-	3,  // 10: agentluoss.v1.modelmgt.ModelMgt.UpsertProvider:output_type -> agentluoss.v1.modelmgt.UpsertProviderResponse
-	5,  // 11: agentluoss.v1.modelmgt.ModelMgt.DeleteProvider:output_type -> agentluoss.v1.modelmgt.DeleteProviderResponse
-	7,  // 12: agentluoss.v1.modelmgt.ModelMgt.UpsertModel:output_type -> agentluoss.v1.modelmgt.UpsertModelResponse
-	9,  // 13: agentluoss.v1.modelmgt.ModelMgt.DeleteModel:output_type -> agentluoss.v1.modelmgt.DeleteModelResponse
-	11, // 14: agentluoss.v1.modelmgt.ModelMgt.ListProviders:output_type -> agentluoss.v1.modelmgt.ListProvidersResponse
-	13, // 15: agentluoss.v1.modelmgt.ModelMgt.ListModels:output_type -> agentluoss.v1.modelmgt.ListModelsResponse
-	10, // [10:16] is the sub-list for method output_type
-	4,  // [4:10] is the sub-list for method input_type
+	14, // 9: agentluoss.v1.modelmgt.ModelMgt.FetchProviderModels:input_type -> agentluoss.v1.modelmgt.FetchProviderModelsRequest
+	16, // 10: agentluoss.v1.modelmgt.ModelMgt.TestModel:input_type -> agentluoss.v1.modelmgt.TestModelRequest
+	12, // 11: agentluoss.v1.modelmgt.ModelMgt.ListModels:input_type -> agentluoss.v1.modelmgt.ListModelsRequest
+	3,  // 12: agentluoss.v1.modelmgt.ModelMgt.UpsertProvider:output_type -> agentluoss.v1.modelmgt.UpsertProviderResponse
+	5,  // 13: agentluoss.v1.modelmgt.ModelMgt.DeleteProvider:output_type -> agentluoss.v1.modelmgt.DeleteProviderResponse
+	7,  // 14: agentluoss.v1.modelmgt.ModelMgt.UpsertModel:output_type -> agentluoss.v1.modelmgt.UpsertModelResponse
+	9,  // 15: agentluoss.v1.modelmgt.ModelMgt.DeleteModel:output_type -> agentluoss.v1.modelmgt.DeleteModelResponse
+	11, // 16: agentluoss.v1.modelmgt.ModelMgt.ListProviders:output_type -> agentluoss.v1.modelmgt.ListProvidersResponse
+	15, // 17: agentluoss.v1.modelmgt.ModelMgt.FetchProviderModels:output_type -> agentluoss.v1.modelmgt.FetchProviderModelsResponse
+	17, // 18: agentluoss.v1.modelmgt.ModelMgt.TestModel:output_type -> agentluoss.v1.modelmgt.TestModelResponse
+	13, // 19: agentluoss.v1.modelmgt.ModelMgt.ListModels:output_type -> agentluoss.v1.modelmgt.ListModelsResponse
+	12, // [12:20] is the sub-list for method output_type
+	4,  // [4:12] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name
@@ -831,7 +1064,7 @@ func file_modelmgt_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_modelmgt_proto_rawDesc), len(file_modelmgt_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

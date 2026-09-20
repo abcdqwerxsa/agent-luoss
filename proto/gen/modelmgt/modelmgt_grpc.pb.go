@@ -19,12 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ModelMgt_UpsertProvider_FullMethodName = "/agentluoss.v1.modelmgt.ModelMgt/UpsertProvider"
-	ModelMgt_DeleteProvider_FullMethodName = "/agentluoss.v1.modelmgt.ModelMgt/DeleteProvider"
-	ModelMgt_UpsertModel_FullMethodName    = "/agentluoss.v1.modelmgt.ModelMgt/UpsertModel"
-	ModelMgt_DeleteModel_FullMethodName    = "/agentluoss.v1.modelmgt.ModelMgt/DeleteModel"
-	ModelMgt_ListProviders_FullMethodName  = "/agentluoss.v1.modelmgt.ModelMgt/ListProviders"
-	ModelMgt_ListModels_FullMethodName     = "/agentluoss.v1.modelmgt.ModelMgt/ListModels"
+	ModelMgt_UpsertProvider_FullMethodName      = "/agentluoss.v1.modelmgt.ModelMgt/UpsertProvider"
+	ModelMgt_DeleteProvider_FullMethodName      = "/agentluoss.v1.modelmgt.ModelMgt/DeleteProvider"
+	ModelMgt_UpsertModel_FullMethodName         = "/agentluoss.v1.modelmgt.ModelMgt/UpsertModel"
+	ModelMgt_DeleteModel_FullMethodName         = "/agentluoss.v1.modelmgt.ModelMgt/DeleteModel"
+	ModelMgt_ListProviders_FullMethodName       = "/agentluoss.v1.modelmgt.ModelMgt/ListProviders"
+	ModelMgt_FetchProviderModels_FullMethodName = "/agentluoss.v1.modelmgt.ModelMgt/FetchProviderModels"
+	ModelMgt_TestModel_FullMethodName           = "/agentluoss.v1.modelmgt.ModelMgt/TestModel"
+	ModelMgt_ListModels_FullMethodName          = "/agentluoss.v1.modelmgt.ModelMgt/ListModels"
 )
 
 // ModelMgtClient is the client API for ModelMgt service.
@@ -37,6 +39,11 @@ type ModelMgtClient interface {
 	UpsertModel(ctx context.Context, in *UpsertModelRequest, opts ...grpc.CallOption) (*UpsertModelResponse, error)
 	DeleteModel(ctx context.Context, in *DeleteModelRequest, opts ...grpc.CallOption) (*DeleteModelResponse, error)
 	ListProviders(ctx context.Context, in *ListProvidersRequest, opts ...grpc.CallOption) (*ListProvidersResponse, error)
+	// Live-query the provider's OpenAI-compatible /models endpoint with the
+	// stored key; returns model ids (no local state change).
+	FetchProviderModels(ctx context.Context, in *FetchProviderModelsRequest, opts ...grpc.CallOption) (*FetchProviderModelsResponse, error)
+	// Send a minimal completion to verify the model works; reports latency.
+	TestModel(ctx context.Context, in *TestModelRequest, opts ...grpc.CallOption) (*TestModelResponse, error)
 	// ---- user-facing (via gateway) ----
 	ListModels(ctx context.Context, in *ListModelsRequest, opts ...grpc.CallOption) (*ListModelsResponse, error)
 }
@@ -99,6 +106,26 @@ func (c *modelMgtClient) ListProviders(ctx context.Context, in *ListProvidersReq
 	return out, nil
 }
 
+func (c *modelMgtClient) FetchProviderModels(ctx context.Context, in *FetchProviderModelsRequest, opts ...grpc.CallOption) (*FetchProviderModelsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FetchProviderModelsResponse)
+	err := c.cc.Invoke(ctx, ModelMgt_FetchProviderModels_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *modelMgtClient) TestModel(ctx context.Context, in *TestModelRequest, opts ...grpc.CallOption) (*TestModelResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TestModelResponse)
+	err := c.cc.Invoke(ctx, ModelMgt_TestModel_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *modelMgtClient) ListModels(ctx context.Context, in *ListModelsRequest, opts ...grpc.CallOption) (*ListModelsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ListModelsResponse)
@@ -119,6 +146,11 @@ type ModelMgtServer interface {
 	UpsertModel(context.Context, *UpsertModelRequest) (*UpsertModelResponse, error)
 	DeleteModel(context.Context, *DeleteModelRequest) (*DeleteModelResponse, error)
 	ListProviders(context.Context, *ListProvidersRequest) (*ListProvidersResponse, error)
+	// Live-query the provider's OpenAI-compatible /models endpoint with the
+	// stored key; returns model ids (no local state change).
+	FetchProviderModels(context.Context, *FetchProviderModelsRequest) (*FetchProviderModelsResponse, error)
+	// Send a minimal completion to verify the model works; reports latency.
+	TestModel(context.Context, *TestModelRequest) (*TestModelResponse, error)
 	// ---- user-facing (via gateway) ----
 	ListModels(context.Context, *ListModelsRequest) (*ListModelsResponse, error)
 	mustEmbedUnimplementedModelMgtServer()
@@ -145,6 +177,12 @@ func (UnimplementedModelMgtServer) DeleteModel(context.Context, *DeleteModelRequ
 }
 func (UnimplementedModelMgtServer) ListProviders(context.Context, *ListProvidersRequest) (*ListProvidersResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListProviders not implemented")
+}
+func (UnimplementedModelMgtServer) FetchProviderModels(context.Context, *FetchProviderModelsRequest) (*FetchProviderModelsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FetchProviderModels not implemented")
+}
+func (UnimplementedModelMgtServer) TestModel(context.Context, *TestModelRequest) (*TestModelResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method TestModel not implemented")
 }
 func (UnimplementedModelMgtServer) ListModels(context.Context, *ListModelsRequest) (*ListModelsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListModels not implemented")
@@ -260,6 +298,42 @@ func _ModelMgt_ListProviders_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ModelMgt_FetchProviderModels_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FetchProviderModelsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModelMgtServer).FetchProviderModels(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModelMgt_FetchProviderModels_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModelMgtServer).FetchProviderModels(ctx, req.(*FetchProviderModelsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ModelMgt_TestModel_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TestModelRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModelMgtServer).TestModel(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModelMgt_TestModel_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModelMgtServer).TestModel(ctx, req.(*TestModelRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ModelMgt_ListModels_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListModelsRequest)
 	if err := dec(in); err != nil {
@@ -304,6 +378,14 @@ var ModelMgt_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListProviders",
 			Handler:    _ModelMgt_ListProviders_Handler,
+		},
+		{
+			MethodName: "FetchProviderModels",
+			Handler:    _ModelMgt_FetchProviderModels_Handler,
+		},
+		{
+			MethodName: "TestModel",
+			Handler:    _ModelMgt_TestModel_Handler,
 		},
 		{
 			MethodName: "ListModels",

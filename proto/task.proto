@@ -51,6 +51,7 @@ message TaskInfo {
   string first_message = 9; // preview for task list
   int64 created_at = 10;    // unix ms
   int64 updated_at = 11;
+  string expert_id = 12;   // platform expert bound at creation ("" = none)
 }
 
 message CreateTaskRequest {
@@ -59,6 +60,7 @@ message CreateTaskRequest {
   agentluoss.v1.runtime.TaskMode mode = 3;
   agentluoss.v1.runtime.ModelRef model = 4;
   string first_message = 5; // optional: immediately send first prompt
+  string expert_id = 6;     // optional: platform expert whose caps load into sessions
 }
 
 message CreateTaskResponse {
@@ -71,6 +73,9 @@ message GetTaskRequest {
 
 message GetTaskResponse {
   TaskInfo task = 1;
+  // Live context occupancy of the underlying agent session (0 = unknown).
+  int64 context_tokens = 2;
+  int64 context_window = 3;
 }
 
 message ListTasksRequest {

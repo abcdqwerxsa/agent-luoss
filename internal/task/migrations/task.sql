@@ -15,3 +15,5 @@ CREATE TABLE IF NOT EXISTS task.tasks (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_user ON task.tasks(user_id, updated_at DESC);
+
+ALTER TABLE task.tasks ADD COLUMN IF NOT EXISTS expert_id TEXT NOT NULL DEFAULT '';

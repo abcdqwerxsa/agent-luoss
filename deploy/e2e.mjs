@@ -3,6 +3,7 @@
 //     node:24-bookworm-slim node deploy/e2e.mjs http://gateway:8080
 // Prereq: ZAI_API_KEY env (or any openai-compatible key already seeded).
 const UNAME = `e2e_user_${Date.now().toString(36)}`;
+const DEPT = `e2e_dept_${Date.now().toString(36)}`;
 const BASE = process.argv[2] || "http://gateway:8080";
 const API_KEY = process.env.ZAI_API_KEY || process.env.TEST_API_KEY || "";
 const BASE_URL_INPUT = process.env.TEST_BASE_URL || "https://open.bigmodel.cn/api/coding/paas/v4";
@@ -111,6 +112,117 @@ async function main() {
   await sleep(2000);
   const g2 = await (await fetch(`${BASE}/api/v1/tasks/${task2.id}`, { headers: H })).json();
   ok("task idle after abort", g2.task.status === "idle", g2.task.status);
+
+  // 12. usage dimensions: by_model / top_users / task usage / CSV export
+  const sum = await (await fetch(`${BASE}/api/v1/admin/usage?days=7`, { headers: H })).json();
+  ok("usage by_model", Array.isArray(sum.by_model) && sum.by_model.length > 0,
+     sum.by_model?.map((x) => `${x.provider}/${x.model_id}`).join(","));
+  ok("usage top_users", Array.isArray(sum.top_users) && sum.top_users.length > 0);
+  const tu = await (await fetch(`${BASE}/api/v1/tasks/${task.id}/usage`, { headers: H })).json();
+  ok("task usage endpoint", tu.total_tokens > 0, `tokens=${tu.total_tokens} cost=${tu.cost_usd}`);
+  const csv = await fetch(`${BASE}/api/v1/admin/usage/export?days=7`, { headers: H });
+  const csvText = await csv.text();
+  ok("usage CSV export", csv.ok && csvText.includes("day,user_id") && csvText.includes("provider,model_id"));
+
+  // 13. caps: departments + scoped MCP/skill injection
+  const cd = await fetch(`${BASE}/api/v1/admin/departments`, { method: "POST", headers: H, body: JSON.stringify({ id: DEPT, name: "E2E 部门" })});
+  ok("department created", cd.ok);
+  const deptExists = await (await fetch(`${BASE}/api/v1/admin/departments`, { headers: H })).json();
+  ok("department listed", (deptExists.departments || []).some((d) => d.id === DEPT));
+
+  // member joins the department (used for scope assertions below)
+  const users1 = await (await fetch(`${BASE}/api/v1/users`, { headers: H })).json();
+  const memberUser = (users1.users || []).find((u) => u.username === UNAME);
+  const pd = await fetch(`${BASE}/api/v1/users/${memberUser.id}`, { method: "PATCH", headers: H, body: JSON.stringify({ department_id: DEPT })});
+  ok("member assigned department", pd.ok, JSON.stringify((await pd.json()).user?.department_id));
+
+  // upload a platform skill scoped to the department
+  const { makeZip } = await import("./zip.mjs");
+  const skillZip = makeZip({ "e2e-skill/SKILL.md": "---\nname: e2e-skill\ndescription: When asked to greet, include the marker E2E-SKILL-LOADED.\n---\n# greet\n" });
+  const sfd = new FormData();
+  sfd.append("file", new Blob([skillZip]), "skill.zip");
+  sfd.append("scopes", JSON.stringify([{ type: "department", value: DEPT }]));
+  const up = await fetch(`${BASE}/api/v1/admin/skills/upload`, { method: "POST", headers: { Authorization: H.Authorization }, body: sfd });
+  const upj = await up.json();
+  ok("skill uploaded", up.ok && upj.skill?.name === "e2e-skill", JSON.stringify(upj.skill || upj));
+
+  // stdio echo MCP server (inline node script) scoped to the department
+  const echoScript = [
+    'const rl=require("readline").createInterface({input:process.stdin});',
+    'const send=o=>process.stdout.write(JSON.stringify(o)+"\\n");',
+    'rl.on("line",l=>{if(!l.trim())return;const m=JSON.parse(l);',
+    'if(m.method==="initialize")send({jsonrpc:"2.0",id:m.id,result:{protocolVersion:"2024-11-05",capabilities:{tools:{}},serverInfo:{name:"echo",version:"1"}}});',
+    'else if(m.method==="tools/list")send({jsonrpc:"2.0",id:m.id,result:{tools:[{name:"echo",description:"Echo text back",inputSchema:{type:"object",properties:{text:{type:"string"}},required:["text"]}}]}});',
+    'else if(m.method==="tools/call")send({jsonrpc:"2.0",id:m.id,result:{content:[{type:"text",text:"echo: "+(m.params.arguments?.text||"")}]}});',
+    'else if(m.id!==undefined)send({jsonrpc:"2.0",id:m.id,result:{}});});',
+  ].join("");
+  const pm = await fetch(`${BASE}/api/v1/admin/mcp`, { method: "PUT", headers: H, body: JSON.stringify({
+    id: "e2e-echo", name: "echo", transport: "stdio",
+    command: "node", args: ["-e", echoScript], env: { E2E_SECRET: "super-secret" },
+    enabled: true, scopes: [{ type: "department", value: DEPT }],
+  })});
+  ok("mcp server saved", pm.ok);
+  const mcps = await (await fetch(`${BASE}/api/v1/admin/mcp`, { headers: H })).json();
+  const savedMcp = (mcps.servers || []).find((s) => s.id === "e2e-echo");
+  ok("mcp listed, env masked", !!savedMcp && savedMcp.env?.E2E_SECRET === "", JSON.stringify(savedMcp?.env));
+
+  // member (in e2e-dept) runs a task that must reach the echo MCP tool
+  let task3; let task4;
+  const cm = await fetch(`${BASE}/api/v1/tasks`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${member.access_token}` }, body: JSON.stringify({
+    title: "mcp test", mode: "craft", provider: m.provider_id, model_id: m.model_id,
+    first_message: "调用 MCP 服务器 echo 的 echo 工具，text 参数为 e2e-mcp。把返回原样告诉我。",
+  })});
+  ({ task: task3 } = await cm.json());
+  ok("member task created", cm.ok, task3.id);
+  const ev3 = await streamUntil(task3.id, { Authorization: `Bearer ${member.access_token}`, "Content-Type": "application/json" }, 180_000);
+  ok("member task settled", ev3.settled, `${ev3.toolCalls} tool calls`);
+  const hist3 = await (await fetch(`${BASE}/api/v1/tasks/${task3.id}/messages`, { headers: { Authorization: `Bearer ${member.access_token}` } })).json();
+  const last3 = hist3.messages?.at(-1);
+  const txt3 = typeof last3?.content === "string" ? last3.content : JSON.stringify(last3?.content);
+  ok("mcp tool called by member", ev3.toolCalls > 0);
+  ok("mcp echo result in reply", /echo:\s*e2e-mcp/.test(txt3), txt3?.slice(0, 200));
+
+  // member blocked from caps admin
+  const mforbidden2 = await fetch(`${BASE}/api/v1/admin/mcp`, { headers: { Authorization: `Bearer ${member.access_token}` } });
+  ok("member blocked from caps admin", mforbidden2.status === 403);
+
+  // 13b. experts: bundle echo mcp into an expert, member task uses it
+  const pe = await fetch(`${BASE}/api/v1/admin/experts`, { method: "PUT", headers: H, body: JSON.stringify({
+    id: "e2e-expert", name: "E2E Expert", description: "echo via expert",
+    enabled: true, skill_ids: [], mcp_ids: ["e2e-echo"], scopes: [{ type: "all", value: "" }],
+  })});
+  ok("expert saved", pe.ok);
+  const elist = await (await fetch(`${BASE}/api/v1/experts`, { headers: H })).json();
+  ok("expert listed (admin user)", (elist.experts || []).some((e) => e.id === "e2e-expert"));
+  const mexp = await (await fetch(`${BASE}/api/v1/experts`, { headers: { Authorization: `Bearer ${member.access_token}` } })).json();
+  ok("expert visible to member", (mexp.experts || []).some((e) => e.id === "e2e-expert"));
+  const cet = await fetch(`${BASE}/api/v1/tasks`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${member.access_token}` }, body: JSON.stringify({
+    title: "expert test", mode: "craft", provider: m.provider_id, model_id: m.model_id,
+    first_message: "调用 MCP echo 服务器的 echo 工具，text 为 e2e-expert。原样返回结果。",
+    expert_id: "e2e-expert",
+  })});
+  ({ task: task4 } = await cet.json());
+  ok("expert task created with expert_id", cet.ok && task4?.expert_id === "e2e-expert", task4?.expert_id);
+  const ev4 = await streamUntil(task4.id, { Authorization: `Bearer ${member.access_token}`, "Content-Type": "application/json" }, 180_000);
+  ok("expert task settled", ev4.settled, `${ev4.toolCalls} tool calls`);
+  ok("expert mcp injected (mcp tool called)", ev4.toolCalls > 0);
+
+  // 14. cleanup: remove everything this run created (idempotent, best-effort)
+  const cleanup = async () => {
+    const mh = { "Content-Type": "application/json", Authorization: `Bearer ${member.access_token}` };
+    for (const t of [task4?.id, task3?.id, task2?.id, task?.id].filter(Boolean)) {
+      await fetch(`${BASE}/api/v1/tasks/${t}`, { method: "DELETE", headers: mh }).catch(() => {});
+    }
+    await fetch(`${BASE}/api/v1/users/${memberUser?.id ?? ""}`, { method: "DELETE", headers: H }).catch(() => {});
+    await fetch(`${BASE}/api/v1/admin/departments/${DEPT}`, { method: "DELETE", headers: H }).catch(() => {});
+    await fetch(`${BASE}/api/v1/admin/experts/e2e-expert`, { method: "DELETE", headers: H }).catch(() => {});
+    await fetch(`${BASE}/api/v1/admin/mcp/e2e-echo`, { method: "DELETE", headers: H }).catch(() => {});
+    const sk = await (await fetch(`${BASE}/api/v1/admin/skills`, { headers: H })).json().catch(() => ({}));
+    for (const s of sk.skills || []) {
+      if (s.name === "e2e-skill") await fetch(`${BASE}/api/v1/admin/skills/${s.id}`, { method: "DELETE", headers: H }).catch(() => {});
+    }
+  };
+  await cleanup();
 
   console.log(failures === 0 ? "\nE2E ALL PASS" : `\nE2E FAILED: ${failures} check(s)`);
   process.exit(failures === 0 ? 0 : 1);

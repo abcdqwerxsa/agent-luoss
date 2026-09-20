@@ -58,6 +58,7 @@ services:
       <<: *goenv
       PORT: "9092"
       USAGE_ADDR: usage:9095
+      CAPS_ADDR: caps:9096
       WORKSPACES_DIR: /data/workspaces
     volumes:
       - workspaces:/data/workspaces
@@ -106,6 +107,21 @@ services:
       redis: { condition: service_healthy }
     networks: [backend]
 
+  caps:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["caps"]
+    environment:
+      <<: *goenv
+      PORT: "9096"
+      IAM_ADDR: iam:9091
+      SKILLS_DIR: /data/skills
+    volumes:
+      - skills:/data/skills
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [backend]
+
   runtime1: &rt
     build: { context: .., dockerfile: deploy/Dockerfile.runtime }
     environment: &rtenv
@@ -123,6 +139,7 @@ services:
       - workspaces:/data/workspaces
       - sessions:/data/sessions
       - config:/data/config
+      - skills:/data/skills
       - agent1:/data/agent
     depends_on:
       redis: { condition: service_healthy }
@@ -139,6 +156,7 @@ services:
       - workspaces:/data/workspaces
       - sessions:/data/sessions
       - config:/data/config
+      - skills:/data/skills
       - agent2:/data/agent
 
   gateway:
@@ -152,6 +170,7 @@ services:
       ARTIFACT_ADDR: artifact:9093
       MODELMGT_ADDR: modelmgt:9094
       USAGE_ADDR: usage:9095
+      CAPS_ADDR: caps:9096
       WEB_DIR: /app/web
     ports:
       - "${GATEWAY_PORT:-18090}:8080"
@@ -161,6 +180,7 @@ services:
       - artifact
       - modelmgt
       - usage
+      - caps
     networks: [backend]
 
 volumes:
@@ -169,6 +189,7 @@ volumes:
   workspaces:
   sessions:
   config:
+  skills:
   agent1:
   agent2:
 

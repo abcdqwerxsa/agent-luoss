@@ -24,6 +24,7 @@ const (
 	Usage_SetQuota_FullMethodName        = "/agentluoss.v1.usage.Usage/SetQuota"
 	Usage_GetUsageSummary_FullMethodName = "/agentluoss.v1.usage.Usage/GetUsageSummary"
 	Usage_ListAuditLogs_FullMethodName   = "/agentluoss.v1.usage.Usage/ListAuditLogs"
+	Usage_GetTaskUsage_FullMethodName    = "/agentluoss.v1.usage.Usage/GetTaskUsage"
 	Usage_GetMyUsage_FullMethodName      = "/agentluoss.v1.usage.Usage/GetMyUsage"
 )
 
@@ -38,6 +39,7 @@ type UsageClient interface {
 	SetQuota(ctx context.Context, in *SetQuotaRequest, opts ...grpc.CallOption) (*SetQuotaResponse, error)
 	GetUsageSummary(ctx context.Context, in *GetUsageSummaryRequest, opts ...grpc.CallOption) (*GetUsageSummaryResponse, error)
 	ListAuditLogs(ctx context.Context, in *ListAuditLogsRequest, opts ...grpc.CallOption) (*ListAuditLogsResponse, error)
+	GetTaskUsage(ctx context.Context, in *GetTaskUsageRequest, opts ...grpc.CallOption) (*GetTaskUsageResponse, error)
 	// ---- user-facing ----
 	GetMyUsage(ctx context.Context, in *GetMyUsageRequest, opts ...grpc.CallOption) (*GetMyUsageResponse, error)
 }
@@ -100,6 +102,16 @@ func (c *usageClient) ListAuditLogs(ctx context.Context, in *ListAuditLogsReques
 	return out, nil
 }
 
+func (c *usageClient) GetTaskUsage(ctx context.Context, in *GetTaskUsageRequest, opts ...grpc.CallOption) (*GetTaskUsageResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTaskUsageResponse)
+	err := c.cc.Invoke(ctx, Usage_GetTaskUsage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *usageClient) GetMyUsage(ctx context.Context, in *GetMyUsageRequest, opts ...grpc.CallOption) (*GetMyUsageResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetMyUsageResponse)
@@ -121,6 +133,7 @@ type UsageServer interface {
 	SetQuota(context.Context, *SetQuotaRequest) (*SetQuotaResponse, error)
 	GetUsageSummary(context.Context, *GetUsageSummaryRequest) (*GetUsageSummaryResponse, error)
 	ListAuditLogs(context.Context, *ListAuditLogsRequest) (*ListAuditLogsResponse, error)
+	GetTaskUsage(context.Context, *GetTaskUsageRequest) (*GetTaskUsageResponse, error)
 	// ---- user-facing ----
 	GetMyUsage(context.Context, *GetMyUsageRequest) (*GetMyUsageResponse, error)
 	mustEmbedUnimplementedUsageServer()
@@ -147,6 +160,9 @@ func (UnimplementedUsageServer) GetUsageSummary(context.Context, *GetUsageSummar
 }
 func (UnimplementedUsageServer) ListAuditLogs(context.Context, *ListAuditLogsRequest) (*ListAuditLogsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListAuditLogs not implemented")
+}
+func (UnimplementedUsageServer) GetTaskUsage(context.Context, *GetTaskUsageRequest) (*GetTaskUsageResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetTaskUsage not implemented")
 }
 func (UnimplementedUsageServer) GetMyUsage(context.Context, *GetMyUsageRequest) (*GetMyUsageResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMyUsage not implemented")
@@ -262,6 +278,24 @@ func _Usage_ListAuditLogs_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Usage_GetTaskUsage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTaskUsageRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UsageServer).GetTaskUsage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Usage_GetTaskUsage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UsageServer).GetTaskUsage(ctx, req.(*GetTaskUsageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Usage_GetMyUsage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetMyUsageRequest)
 	if err := dec(in); err != nil {
@@ -306,6 +340,10 @@ var Usage_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListAuditLogs",
 			Handler:    _Usage_ListAuditLogs_Handler,
+		},
+		{
+			MethodName: "GetTaskUsage",
+			Handler:    _Usage_GetTaskUsage_Handler,
 		},
 		{
 			MethodName: "GetMyUsage",

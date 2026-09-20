@@ -26,8 +26,9 @@ type User struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`     // "admin" | "member"
-	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"` // "active" | "disabled"
+	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`                                     // "admin" | "member"
+	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`                                 // "active" | "disabled"
+	DepartmentId  string                 `protobuf:"bytes,7,opt,name=department_id,json=departmentId,proto3" json:"department_id,omitempty"` // empty = no department
 	CreatedAt     int64                  `protobuf:"varint,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -94,6 +95,13 @@ func (x *User) GetRole() string {
 func (x *User) GetStatus() string {
 	if x != nil {
 		return x.Status
+	}
+	return ""
+}
+
+func (x *User) GetDepartmentId() string {
+	if x != nil {
+		return x.DepartmentId
 	}
 	return ""
 }
@@ -415,6 +423,7 @@ type CreateUserRequest struct {
 	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	DepartmentId  string                 `protobuf:"bytes,5,opt,name=department_id,json=departmentId,proto3" json:"department_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -473,6 +482,13 @@ func (x *CreateUserRequest) GetDisplayName() string {
 func (x *CreateUserRequest) GetRole() string {
 	if x != nil {
 		return x.Role
+	}
+	return ""
+}
+
+func (x *CreateUserRequest) GetDepartmentId() string {
+	if x != nil {
+		return x.DepartmentId
 	}
 	return ""
 }
@@ -607,7 +623,8 @@ type UpdateUserRequest struct {
 	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
 	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
-	Password      string                 `protobuf:"bytes,5,opt,name=password,proto3" json:"password,omitempty"` // non-empty = reset
+	Password      string                 `protobuf:"bytes,5,opt,name=password,proto3" json:"password,omitempty"`                             // non-empty = reset
+	DepartmentId  string                 `protobuf:"bytes,6,opt,name=department_id,json=departmentId,proto3" json:"department_id,omitempty"` // "-" clears the department
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -673,6 +690,13 @@ func (x *UpdateUserRequest) GetStatus() string {
 func (x *UpdateUserRequest) GetPassword() string {
 	if x != nil {
 		return x.Password
+	}
+	return ""
+}
+
+func (x *UpdateUserRequest) GetDepartmentId() string {
+	if x != nil {
+		return x.DepartmentId
 	}
 	return ""
 }
@@ -801,17 +825,518 @@ func (*DeleteUserResponse) Descriptor() ([]byte, []int) {
 	return file_iam_proto_rawDescGZIP(), []int{14}
 }
 
+type GetUserRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserRequest) Reset() {
+	*x = GetUserRequest{}
+	mi := &file_iam_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserRequest) ProtoMessage() {}
+
+func (x *GetUserRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_iam_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserRequest.ProtoReflect.Descriptor instead.
+func (*GetUserRequest) Descriptor() ([]byte, []int) {
+	return file_iam_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *GetUserRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type GetUserResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUserResponse) Reset() {
+	*x = GetUserResponse{}
+	mi := &file_iam_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUserResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUserResponse) ProtoMessage() {}
+
+func (x *GetUserResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_iam_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUserResponse.ProtoReflect.Descriptor instead.
+func (*GetUserResponse) Descriptor() ([]byte, []int) {
+	return file_iam_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetUserResponse) GetUser() *User {
+	if x != nil {
+		return x.User
+	}
+	return nil
+}
+
+type Department struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	CreatedAt     int64                  `protobuf:"varint,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Department) Reset() {
+	*x = Department{}
+	mi := &file_iam_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Department) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Department) ProtoMessage() {}
+
+func (x *Department) ProtoReflect() protoreflect.Message {
+	mi := &file_iam_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Department.ProtoReflect.Descriptor instead.
+func (*Department) Descriptor() ([]byte, []int) {
+	return file_iam_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *Department) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Department) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Department) GetCreatedAt() int64 {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return 0
+}
+
+type CreateDepartmentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"` // slug; empty = generated
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateDepartmentRequest) Reset() {
+	*x = CreateDepartmentRequest{}
+	mi := &file_iam_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateDepartmentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateDepartmentRequest) ProtoMessage() {}
+
+func (x *CreateDepartmentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_iam_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateDepartmentRequest.ProtoReflect.Descriptor instead.
+func (*CreateDepartmentRequest) Descriptor() ([]byte, []int) {
+	return file_iam_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *CreateDepartmentRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CreateDepartmentRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type CreateDepartmentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Department    *Department            `protobuf:"bytes,1,opt,name=department,proto3" json:"department,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateDepartmentResponse) Reset() {
+	*x = CreateDepartmentResponse{}
+	mi := &file_iam_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateDepartmentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateDepartmentResponse) ProtoMessage() {}
+
+func (x *CreateDepartmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_iam_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateDepartmentResponse.ProtoReflect.Descriptor instead.
+func (*CreateDepartmentResponse) Descriptor() ([]byte, []int) {
+	return file_iam_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *CreateDepartmentResponse) GetDepartment() *Department {
+	if x != nil {
+		return x.Department
+	}
+	return nil
+}
+
+type UpdateDepartmentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateDepartmentRequest) Reset() {
+	*x = UpdateDepartmentRequest{}
+	mi := &file_iam_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateDepartmentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateDepartmentRequest) ProtoMessage() {}
+
+func (x *UpdateDepartmentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_iam_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateDepartmentRequest.ProtoReflect.Descriptor instead.
+func (*UpdateDepartmentRequest) Descriptor() ([]byte, []int) {
+	return file_iam_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *UpdateDepartmentRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *UpdateDepartmentRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type UpdateDepartmentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Department    *Department            `protobuf:"bytes,1,opt,name=department,proto3" json:"department,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateDepartmentResponse) Reset() {
+	*x = UpdateDepartmentResponse{}
+	mi := &file_iam_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateDepartmentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateDepartmentResponse) ProtoMessage() {}
+
+func (x *UpdateDepartmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_iam_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateDepartmentResponse.ProtoReflect.Descriptor instead.
+func (*UpdateDepartmentResponse) Descriptor() ([]byte, []int) {
+	return file_iam_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *UpdateDepartmentResponse) GetDepartment() *Department {
+	if x != nil {
+		return x.Department
+	}
+	return nil
+}
+
+type DeleteDepartmentRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteDepartmentRequest) Reset() {
+	*x = DeleteDepartmentRequest{}
+	mi := &file_iam_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteDepartmentRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteDepartmentRequest) ProtoMessage() {}
+
+func (x *DeleteDepartmentRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_iam_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteDepartmentRequest.ProtoReflect.Descriptor instead.
+func (*DeleteDepartmentRequest) Descriptor() ([]byte, []int) {
+	return file_iam_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *DeleteDepartmentRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type DeleteDepartmentResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteDepartmentResponse) Reset() {
+	*x = DeleteDepartmentResponse{}
+	mi := &file_iam_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteDepartmentResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteDepartmentResponse) ProtoMessage() {}
+
+func (x *DeleteDepartmentResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_iam_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteDepartmentResponse.ProtoReflect.Descriptor instead.
+func (*DeleteDepartmentResponse) Descriptor() ([]byte, []int) {
+	return file_iam_proto_rawDescGZIP(), []int{23}
+}
+
+type ListDepartmentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDepartmentsRequest) Reset() {
+	*x = ListDepartmentsRequest{}
+	mi := &file_iam_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDepartmentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDepartmentsRequest) ProtoMessage() {}
+
+func (x *ListDepartmentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_iam_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDepartmentsRequest.ProtoReflect.Descriptor instead.
+func (*ListDepartmentsRequest) Descriptor() ([]byte, []int) {
+	return file_iam_proto_rawDescGZIP(), []int{24}
+}
+
+type ListDepartmentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Departments   []*Department          `protobuf:"bytes,1,rep,name=departments,proto3" json:"departments,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDepartmentsResponse) Reset() {
+	*x = ListDepartmentsResponse{}
+	mi := &file_iam_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDepartmentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDepartmentsResponse) ProtoMessage() {}
+
+func (x *ListDepartmentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_iam_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDepartmentsResponse.ProtoReflect.Descriptor instead.
+func (*ListDepartmentsResponse) Descriptor() ([]byte, []int) {
+	return file_iam_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListDepartmentsResponse) GetDepartments() []*Department {
+	if x != nil {
+		return x.Departments
+	}
+	return nil
+}
+
 var File_iam_proto protoreflect.FileDescriptor
 
 const file_iam_proto_rawDesc = "" +
 	"\n" +
-	"\tiam.proto\x12\x11agentluoss.v1.iam\"\xa0\x01\n" +
+	"\tiam.proto\x12\x11agentluoss.v1.iam\"\xc5\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x12\n" +
 	"\x04role\x18\x04 \x01(\tR\x04role\x12\x16\n" +
-	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1d\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12#\n" +
+	"\rdepartment_id\x18\a \x01(\tR\fdepartmentId\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\x03R\tcreatedAt\"F\n" +
 	"\fLoginRequest\x12\x1a\n" +
@@ -832,28 +1357,60 @@ const file_iam_proto_rawDesc = "" +
 	"expires_in\x18\x03 \x01(\x03R\texpiresIn\"4\n" +
 	"\rLogoutRequest\x12#\n" +
 	"\rrefresh_token\x18\x01 \x01(\tR\frefreshToken\"\x10\n" +
-	"\x0eLogoutResponse\"\x82\x01\n" +
+	"\x0eLogoutResponse\"\xa7\x01\n" +
 	"\x11CreateUserRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x12!\n" +
 	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x12\n" +
-	"\x04role\x18\x04 \x01(\tR\x04role\"A\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x12#\n" +
+	"\rdepartment_id\x18\x05 \x01(\tR\fdepartmentId\"A\n" +
 	"\x12CreateUserResponse\x12+\n" +
 	"\x04user\x18\x01 \x01(\v2\x17.agentluoss.v1.iam.UserR\x04user\"\x12\n" +
 	"\x10ListUsersRequest\"B\n" +
 	"\x11ListUsersResponse\x12-\n" +
-	"\x05users\x18\x01 \x03(\v2\x17.agentluoss.v1.iam.UserR\x05users\"\x97\x01\n" +
+	"\x05users\x18\x01 \x03(\v2\x17.agentluoss.v1.iam.UserR\x05users\"\xbc\x01\n" +
 	"\x11UpdateUserRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x12\n" +
 	"\x04role\x18\x03 \x01(\tR\x04role\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1a\n" +
-	"\bpassword\x18\x05 \x01(\tR\bpassword\"A\n" +
+	"\bpassword\x18\x05 \x01(\tR\bpassword\x12#\n" +
+	"\rdepartment_id\x18\x06 \x01(\tR\fdepartmentId\"A\n" +
 	"\x12UpdateUserResponse\x12+\n" +
 	"\x04user\x18\x01 \x01(\v2\x17.agentluoss.v1.iam.UserR\x04user\",\n" +
 	"\x11DeleteUserRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x14\n" +
-	"\x12DeleteUserResponse2\xdb\x04\n" +
+	"\x12DeleteUserResponse\")\n" +
+	"\x0eGetUserRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\">\n" +
+	"\x0fGetUserResponse\x12+\n" +
+	"\x04user\x18\x01 \x01(\v2\x17.agentluoss.v1.iam.UserR\x04user\"O\n" +
+	"\n" +
+	"Department\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x03 \x01(\x03R\tcreatedAt\"=\n" +
+	"\x17CreateDepartmentRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"Y\n" +
+	"\x18CreateDepartmentResponse\x12=\n" +
+	"\n" +
+	"department\x18\x01 \x01(\v2\x1d.agentluoss.v1.iam.DepartmentR\n" +
+	"department\"=\n" +
+	"\x17UpdateDepartmentRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"Y\n" +
+	"\x18UpdateDepartmentResponse\x12=\n" +
+	"\n" +
+	"department\x18\x01 \x01(\v2\x1d.agentluoss.v1.iam.DepartmentR\n" +
+	"department\")\n" +
+	"\x17DeleteDepartmentRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x1a\n" +
+	"\x18DeleteDepartmentResponse\"\x18\n" +
+	"\x16ListDepartmentsRequest\"Z\n" +
+	"\x17ListDepartmentsResponse\x12?\n" +
+	"\vdepartments\x18\x01 \x03(\v2\x1d.agentluoss.v1.iam.DepartmentR\vdepartments2\xde\b\n" +
 	"\x03IAM\x12J\n" +
 	"\x05Login\x12\x1f.agentluoss.v1.iam.LoginRequest\x1a .agentluoss.v1.iam.LoginResponse\x12P\n" +
 	"\aRefresh\x12!.agentluoss.v1.iam.RefreshRequest\x1a\".agentluoss.v1.iam.RefreshResponse\x12M\n" +
@@ -864,7 +1421,12 @@ const file_iam_proto_rawDesc = "" +
 	"\n" +
 	"UpdateUser\x12$.agentluoss.v1.iam.UpdateUserRequest\x1a%.agentluoss.v1.iam.UpdateUserResponse\x12Y\n" +
 	"\n" +
-	"DeleteUser\x12$.agentluoss.v1.iam.DeleteUserRequest\x1a%.agentluoss.v1.iam.DeleteUserResponseB Z\x1eagentluoss/proto/gen/iam;iampbb\x06proto3"
+	"DeleteUser\x12$.agentluoss.v1.iam.DeleteUserRequest\x1a%.agentluoss.v1.iam.DeleteUserResponse\x12P\n" +
+	"\aGetUser\x12!.agentluoss.v1.iam.GetUserRequest\x1a\".agentluoss.v1.iam.GetUserResponse\x12k\n" +
+	"\x10CreateDepartment\x12*.agentluoss.v1.iam.CreateDepartmentRequest\x1a+.agentluoss.v1.iam.CreateDepartmentResponse\x12k\n" +
+	"\x10UpdateDepartment\x12*.agentluoss.v1.iam.UpdateDepartmentRequest\x1a+.agentluoss.v1.iam.UpdateDepartmentResponse\x12k\n" +
+	"\x10DeleteDepartment\x12*.agentluoss.v1.iam.DeleteDepartmentRequest\x1a+.agentluoss.v1.iam.DeleteDepartmentResponse\x12h\n" +
+	"\x0fListDepartments\x12).agentluoss.v1.iam.ListDepartmentsRequest\x1a*.agentluoss.v1.iam.ListDepartmentsResponseB Z\x1eagentluoss/proto/gen/iam;iampbb\x06proto3"
 
 var (
 	file_iam_proto_rawDescOnce sync.Once
@@ -878,48 +1440,73 @@ func file_iam_proto_rawDescGZIP() []byte {
 	return file_iam_proto_rawDescData
 }
 
-var file_iam_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_iam_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_iam_proto_goTypes = []any{
-	(*User)(nil),               // 0: agentluoss.v1.iam.User
-	(*LoginRequest)(nil),       // 1: agentluoss.v1.iam.LoginRequest
-	(*LoginResponse)(nil),      // 2: agentluoss.v1.iam.LoginResponse
-	(*RefreshRequest)(nil),     // 3: agentluoss.v1.iam.RefreshRequest
-	(*RefreshResponse)(nil),    // 4: agentluoss.v1.iam.RefreshResponse
-	(*LogoutRequest)(nil),      // 5: agentluoss.v1.iam.LogoutRequest
-	(*LogoutResponse)(nil),     // 6: agentluoss.v1.iam.LogoutResponse
-	(*CreateUserRequest)(nil),  // 7: agentluoss.v1.iam.CreateUserRequest
-	(*CreateUserResponse)(nil), // 8: agentluoss.v1.iam.CreateUserResponse
-	(*ListUsersRequest)(nil),   // 9: agentluoss.v1.iam.ListUsersRequest
-	(*ListUsersResponse)(nil),  // 10: agentluoss.v1.iam.ListUsersResponse
-	(*UpdateUserRequest)(nil),  // 11: agentluoss.v1.iam.UpdateUserRequest
-	(*UpdateUserResponse)(nil), // 12: agentluoss.v1.iam.UpdateUserResponse
-	(*DeleteUserRequest)(nil),  // 13: agentluoss.v1.iam.DeleteUserRequest
-	(*DeleteUserResponse)(nil), // 14: agentluoss.v1.iam.DeleteUserResponse
+	(*User)(nil),                     // 0: agentluoss.v1.iam.User
+	(*LoginRequest)(nil),             // 1: agentluoss.v1.iam.LoginRequest
+	(*LoginResponse)(nil),            // 2: agentluoss.v1.iam.LoginResponse
+	(*RefreshRequest)(nil),           // 3: agentluoss.v1.iam.RefreshRequest
+	(*RefreshResponse)(nil),          // 4: agentluoss.v1.iam.RefreshResponse
+	(*LogoutRequest)(nil),            // 5: agentluoss.v1.iam.LogoutRequest
+	(*LogoutResponse)(nil),           // 6: agentluoss.v1.iam.LogoutResponse
+	(*CreateUserRequest)(nil),        // 7: agentluoss.v1.iam.CreateUserRequest
+	(*CreateUserResponse)(nil),       // 8: agentluoss.v1.iam.CreateUserResponse
+	(*ListUsersRequest)(nil),         // 9: agentluoss.v1.iam.ListUsersRequest
+	(*ListUsersResponse)(nil),        // 10: agentluoss.v1.iam.ListUsersResponse
+	(*UpdateUserRequest)(nil),        // 11: agentluoss.v1.iam.UpdateUserRequest
+	(*UpdateUserResponse)(nil),       // 12: agentluoss.v1.iam.UpdateUserResponse
+	(*DeleteUserRequest)(nil),        // 13: agentluoss.v1.iam.DeleteUserRequest
+	(*DeleteUserResponse)(nil),       // 14: agentluoss.v1.iam.DeleteUserResponse
+	(*GetUserRequest)(nil),           // 15: agentluoss.v1.iam.GetUserRequest
+	(*GetUserResponse)(nil),          // 16: agentluoss.v1.iam.GetUserResponse
+	(*Department)(nil),               // 17: agentluoss.v1.iam.Department
+	(*CreateDepartmentRequest)(nil),  // 18: agentluoss.v1.iam.CreateDepartmentRequest
+	(*CreateDepartmentResponse)(nil), // 19: agentluoss.v1.iam.CreateDepartmentResponse
+	(*UpdateDepartmentRequest)(nil),  // 20: agentluoss.v1.iam.UpdateDepartmentRequest
+	(*UpdateDepartmentResponse)(nil), // 21: agentluoss.v1.iam.UpdateDepartmentResponse
+	(*DeleteDepartmentRequest)(nil),  // 22: agentluoss.v1.iam.DeleteDepartmentRequest
+	(*DeleteDepartmentResponse)(nil), // 23: agentluoss.v1.iam.DeleteDepartmentResponse
+	(*ListDepartmentsRequest)(nil),   // 24: agentluoss.v1.iam.ListDepartmentsRequest
+	(*ListDepartmentsResponse)(nil),  // 25: agentluoss.v1.iam.ListDepartmentsResponse
 }
 var file_iam_proto_depIdxs = []int32{
 	0,  // 0: agentluoss.v1.iam.LoginResponse.user:type_name -> agentluoss.v1.iam.User
 	0,  // 1: agentluoss.v1.iam.CreateUserResponse.user:type_name -> agentluoss.v1.iam.User
 	0,  // 2: agentluoss.v1.iam.ListUsersResponse.users:type_name -> agentluoss.v1.iam.User
 	0,  // 3: agentluoss.v1.iam.UpdateUserResponse.user:type_name -> agentluoss.v1.iam.User
-	1,  // 4: agentluoss.v1.iam.IAM.Login:input_type -> agentluoss.v1.iam.LoginRequest
-	3,  // 5: agentluoss.v1.iam.IAM.Refresh:input_type -> agentluoss.v1.iam.RefreshRequest
-	5,  // 6: agentluoss.v1.iam.IAM.Logout:input_type -> agentluoss.v1.iam.LogoutRequest
-	7,  // 7: agentluoss.v1.iam.IAM.CreateUser:input_type -> agentluoss.v1.iam.CreateUserRequest
-	9,  // 8: agentluoss.v1.iam.IAM.ListUsers:input_type -> agentluoss.v1.iam.ListUsersRequest
-	11, // 9: agentluoss.v1.iam.IAM.UpdateUser:input_type -> agentluoss.v1.iam.UpdateUserRequest
-	13, // 10: agentluoss.v1.iam.IAM.DeleteUser:input_type -> agentluoss.v1.iam.DeleteUserRequest
-	2,  // 11: agentluoss.v1.iam.IAM.Login:output_type -> agentluoss.v1.iam.LoginResponse
-	4,  // 12: agentluoss.v1.iam.IAM.Refresh:output_type -> agentluoss.v1.iam.RefreshResponse
-	6,  // 13: agentluoss.v1.iam.IAM.Logout:output_type -> agentluoss.v1.iam.LogoutResponse
-	8,  // 14: agentluoss.v1.iam.IAM.CreateUser:output_type -> agentluoss.v1.iam.CreateUserResponse
-	10, // 15: agentluoss.v1.iam.IAM.ListUsers:output_type -> agentluoss.v1.iam.ListUsersResponse
-	12, // 16: agentluoss.v1.iam.IAM.UpdateUser:output_type -> agentluoss.v1.iam.UpdateUserResponse
-	14, // 17: agentluoss.v1.iam.IAM.DeleteUser:output_type -> agentluoss.v1.iam.DeleteUserResponse
-	11, // [11:18] is the sub-list for method output_type
-	4,  // [4:11] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	0,  // 4: agentluoss.v1.iam.GetUserResponse.user:type_name -> agentluoss.v1.iam.User
+	17, // 5: agentluoss.v1.iam.CreateDepartmentResponse.department:type_name -> agentluoss.v1.iam.Department
+	17, // 6: agentluoss.v1.iam.UpdateDepartmentResponse.department:type_name -> agentluoss.v1.iam.Department
+	17, // 7: agentluoss.v1.iam.ListDepartmentsResponse.departments:type_name -> agentluoss.v1.iam.Department
+	1,  // 8: agentluoss.v1.iam.IAM.Login:input_type -> agentluoss.v1.iam.LoginRequest
+	3,  // 9: agentluoss.v1.iam.IAM.Refresh:input_type -> agentluoss.v1.iam.RefreshRequest
+	5,  // 10: agentluoss.v1.iam.IAM.Logout:input_type -> agentluoss.v1.iam.LogoutRequest
+	7,  // 11: agentluoss.v1.iam.IAM.CreateUser:input_type -> agentluoss.v1.iam.CreateUserRequest
+	9,  // 12: agentluoss.v1.iam.IAM.ListUsers:input_type -> agentluoss.v1.iam.ListUsersRequest
+	11, // 13: agentluoss.v1.iam.IAM.UpdateUser:input_type -> agentluoss.v1.iam.UpdateUserRequest
+	13, // 14: agentluoss.v1.iam.IAM.DeleteUser:input_type -> agentluoss.v1.iam.DeleteUserRequest
+	15, // 15: agentluoss.v1.iam.IAM.GetUser:input_type -> agentluoss.v1.iam.GetUserRequest
+	18, // 16: agentluoss.v1.iam.IAM.CreateDepartment:input_type -> agentluoss.v1.iam.CreateDepartmentRequest
+	20, // 17: agentluoss.v1.iam.IAM.UpdateDepartment:input_type -> agentluoss.v1.iam.UpdateDepartmentRequest
+	22, // 18: agentluoss.v1.iam.IAM.DeleteDepartment:input_type -> agentluoss.v1.iam.DeleteDepartmentRequest
+	24, // 19: agentluoss.v1.iam.IAM.ListDepartments:input_type -> agentluoss.v1.iam.ListDepartmentsRequest
+	2,  // 20: agentluoss.v1.iam.IAM.Login:output_type -> agentluoss.v1.iam.LoginResponse
+	4,  // 21: agentluoss.v1.iam.IAM.Refresh:output_type -> agentluoss.v1.iam.RefreshResponse
+	6,  // 22: agentluoss.v1.iam.IAM.Logout:output_type -> agentluoss.v1.iam.LogoutResponse
+	8,  // 23: agentluoss.v1.iam.IAM.CreateUser:output_type -> agentluoss.v1.iam.CreateUserResponse
+	10, // 24: agentluoss.v1.iam.IAM.ListUsers:output_type -> agentluoss.v1.iam.ListUsersResponse
+	12, // 25: agentluoss.v1.iam.IAM.UpdateUser:output_type -> agentluoss.v1.iam.UpdateUserResponse
+	14, // 26: agentluoss.v1.iam.IAM.DeleteUser:output_type -> agentluoss.v1.iam.DeleteUserResponse
+	16, // 27: agentluoss.v1.iam.IAM.GetUser:output_type -> agentluoss.v1.iam.GetUserResponse
+	19, // 28: agentluoss.v1.iam.IAM.CreateDepartment:output_type -> agentluoss.v1.iam.CreateDepartmentResponse
+	21, // 29: agentluoss.v1.iam.IAM.UpdateDepartment:output_type -> agentluoss.v1.iam.UpdateDepartmentResponse
+	23, // 30: agentluoss.v1.iam.IAM.DeleteDepartment:output_type -> agentluoss.v1.iam.DeleteDepartmentResponse
+	25, // 31: agentluoss.v1.iam.IAM.ListDepartments:output_type -> agentluoss.v1.iam.ListDepartmentsResponse
+	20, // [20:32] is the sub-list for method output_type
+	8,  // [8:20] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_iam_proto_init() }
@@ -933,7 +1520,7 @@ func file_iam_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_iam_proto_rawDesc), len(file_iam_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

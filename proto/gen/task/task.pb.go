@@ -93,6 +93,7 @@ type TaskInfo struct {
 	FirstMessage  string                 `protobuf:"bytes,9,opt,name=first_message,json=firstMessage,proto3" json:"first_message,omitempty"` // preview for task list
 	CreatedAt     int64                  `protobuf:"varint,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`        // unix ms
 	UpdatedAt     int64                  `protobuf:"varint,11,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	ExpertId      string                 `protobuf:"bytes,12,opt,name=expert_id,json=expertId,proto3" json:"expert_id,omitempty"` // platform expert bound at creation ("" = none)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -204,6 +205,13 @@ func (x *TaskInfo) GetUpdatedAt() int64 {
 	return 0
 }
 
+func (x *TaskInfo) GetExpertId() string {
+	if x != nil {
+		return x.ExpertId
+	}
+	return ""
+}
+
 type CreateTaskRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -211,6 +219,7 @@ type CreateTaskRequest struct {
 	Mode          runtime.TaskMode       `protobuf:"varint,3,opt,name=mode,proto3,enum=agentluoss.v1.runtime.TaskMode" json:"mode,omitempty"`
 	Model         *runtime.ModelRef      `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
 	FirstMessage  string                 `protobuf:"bytes,5,opt,name=first_message,json=firstMessage,proto3" json:"first_message,omitempty"` // optional: immediately send first prompt
+	ExpertId      string                 `protobuf:"bytes,6,opt,name=expert_id,json=expertId,proto3" json:"expert_id,omitempty"`             // optional: platform expert whose caps load into sessions
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -276,6 +285,13 @@ func (x *CreateTaskRequest) GetModel() *runtime.ModelRef {
 func (x *CreateTaskRequest) GetFirstMessage() string {
 	if x != nil {
 		return x.FirstMessage
+	}
+	return ""
+}
+
+func (x *CreateTaskRequest) GetExpertId() string {
+	if x != nil {
+		return x.ExpertId
 	}
 	return ""
 }
@@ -369,8 +385,11 @@ func (x *GetTaskRequest) GetTaskId() string {
 }
 
 type GetTaskResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Task          *TaskInfo              `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Task  *TaskInfo              `protobuf:"bytes,1,opt,name=task,proto3" json:"task,omitempty"`
+	// Live context occupancy of the underlying agent session (0 = unknown).
+	ContextTokens int64 `protobuf:"varint,2,opt,name=context_tokens,json=contextTokens,proto3" json:"context_tokens,omitempty"`
+	ContextWindow int64 `protobuf:"varint,3,opt,name=context_window,json=contextWindow,proto3" json:"context_window,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -410,6 +429,20 @@ func (x *GetTaskResponse) GetTask() *TaskInfo {
 		return x.Task
 	}
 	return nil
+}
+
+func (x *GetTaskResponse) GetContextTokens() int64 {
+	if x != nil {
+		return x.ContextTokens
+	}
+	return 0
+}
+
+func (x *GetTaskResponse) GetContextWindow() int64 {
+	if x != nil {
+		return x.ContextWindow
+	}
+	return 0
 }
 
 type ListTasksRequest struct {
@@ -1504,7 +1537,7 @@ var File_task_proto protoreflect.FileDescriptor
 const file_task_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"task.proto\x12\x12agentluoss.v1.task\x1a\rruntime.proto\"\x92\x03\n" +
+	"task.proto\x12\x12agentluoss.v1.task\x1a\rruntime.proto\"\xaf\x03\n" +
 	"\bTaskInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x14\n" +
@@ -1520,19 +1553,23 @@ const file_task_proto_rawDesc = "" +
 	"created_at\x18\n" +
 	" \x01(\x03R\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\v \x01(\x03R\tupdatedAt\"\xd3\x01\n" +
+	"updated_at\x18\v \x01(\x03R\tupdatedAt\x12\x1b\n" +
+	"\texpert_id\x18\f \x01(\tR\bexpertId\"\xf0\x01\n" +
 	"\x11CreateTaskRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x123\n" +
 	"\x04mode\x18\x03 \x01(\x0e2\x1f.agentluoss.v1.runtime.TaskModeR\x04mode\x125\n" +
 	"\x05model\x18\x04 \x01(\v2\x1f.agentluoss.v1.runtime.ModelRefR\x05model\x12#\n" +
-	"\rfirst_message\x18\x05 \x01(\tR\ffirstMessage\"F\n" +
+	"\rfirst_message\x18\x05 \x01(\tR\ffirstMessage\x12\x1b\n" +
+	"\texpert_id\x18\x06 \x01(\tR\bexpertId\"F\n" +
 	"\x12CreateTaskResponse\x120\n" +
 	"\x04task\x18\x01 \x01(\v2\x1c.agentluoss.v1.task.TaskInfoR\x04task\")\n" +
 	"\x0eGetTaskRequest\x12\x17\n" +
-	"\atask_id\x18\x01 \x01(\tR\x06taskId\"C\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\"\x91\x01\n" +
 	"\x0fGetTaskResponse\x120\n" +
-	"\x04task\x18\x01 \x01(\v2\x1c.agentluoss.v1.task.TaskInfoR\x04task\"o\n" +
+	"\x04task\x18\x01 \x01(\v2\x1c.agentluoss.v1.task.TaskInfoR\x04task\x12%\n" +
+	"\x0econtext_tokens\x18\x02 \x01(\x03R\rcontextTokens\x12%\n" +
+	"\x0econtext_window\x18\x03 \x01(\x03R\rcontextWindow\"o\n" +
 	"\x10ListTasksRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12\x14\n" +

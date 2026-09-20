@@ -15,6 +15,7 @@ import (
 	artifactpb "agentluoss/proto/gen/artifact"
 	modelmgtpb "agentluoss/proto/gen/modelmgt"
 	usagepb "agentluoss/proto/gen/usage"
+	capspb "agentluoss/proto/gen/caps"
 	iampb "agentluoss/proto/gen/iam"
 	taskpb "agentluoss/proto/gen/task"
 	runtimpb "agentluoss/proto/gen/runtime"
@@ -34,11 +35,12 @@ type App struct {
 	artifact  artifactpb.ArtifactClient
 	modelmgt  modelmgtpb.ModelMgtClient
 	usage     usagepb.UsageClient
+	caps      capspb.CapsClient
 	audit     *auditx.Event
 	router    *gin.Engine
 }
 
-func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr string) *App {
+func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr, capsAddr string) *App {
 	iamConn, err := grpc.NewClient(iamAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("dial iam: %v", err)
@@ -65,6 +67,13 @@ func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr str
 			log.Fatalf("dial usage: %v", err)
 		}
 	}
+	var capsConn *grpc.ClientConn
+	if capsAddr != "" {
+		capsConn, err = grpc.NewClient(capsAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("dial caps: %v", err)
+		}
+	}
 	if taskAddr != "" {
 		taskConn, err = grpc.NewClient(taskAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
@@ -78,6 +87,7 @@ func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr str
 		artifact:  artifactpb.NewArtifactClient(artifactConn),
 		modelmgt:  modelmgtpb.NewModelMgtClient(modelmgtConn),
 		usage:     usagepb.NewUsageClient(usageConn),
+		caps:      capspb.NewCapsClient(capsConn),
 		router:    nil,
 	}
 	a.router = a.build()
@@ -120,6 +130,11 @@ func (a *App) build() *gin.Engine {
 	}
 	if a.usage != nil {
 		a.registerUsageRoutes(authed, admin)
+	}
+	if a.caps != nil {
+		a.registerCapsRoutes(admin)
+		a.registerExpertAdminRoutes(admin)
+		a.registerExpertUserRoutes(authed)
 	}
 
 	r.GET("/healthz", func(c *gin.Context) { c.String(200, "ok") })
@@ -282,10 +297,11 @@ func (a *App) listUsers(c *gin.Context) {
 
 func (a *App) createUser(c *gin.Context) {
 	var req struct {
-		Username    string `json:"username" binding:"required"`
-		Password    string `json:"password" binding:"required,min=8"`
-		DisplayName string `json:"display_name"`
-		Role        string `json:"role"`
+		Username     string `json:"username" binding:"required"`
+		Password     string `json:"password" binding:"required,min=8"`
+		DisplayName  string `json:"display_name"`
+		Role         string `json:"role"`
+		DepartmentID string `json:"department_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -293,7 +309,7 @@ func (a *App) createUser(c *gin.Context) {
 	}
 	resp, err := a.iam.CreateUser(outCtx(c), &iampb.CreateUserRequest{
 		Username: req.Username, Password: req.Password,
-		DisplayName: req.DisplayName, Role: req.Role,
+		DisplayName: req.DisplayName, Role: req.Role, DepartmentId: req.DepartmentID,
 	})
 	if err != nil {
 		grpcStatus(c, err)
@@ -304,10 +320,11 @@ func (a *App) createUser(c *gin.Context) {
 
 func (a *App) updateUser(c *gin.Context) {
 	var req struct {
-		DisplayName string `json:"display_name"`
-		Role        string `json:"role"`
-		Status      string `json:"status"`
-		Password    string `json:"password"`
+		DisplayName  string `json:"display_name"`
+		Role         string `json:"role"`
+		Status       string `json:"status"`
+		Password     string `json:"password"`
+		DepartmentID string `json:"department_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": err.Error()})
@@ -315,7 +332,7 @@ func (a *App) updateUser(c *gin.Context) {
 	}
 	resp, err := a.iam.UpdateUser(outCtx(c), &iampb.UpdateUserRequest{
 		UserId: c.Param("id"), DisplayName: req.DisplayName, Role: req.Role,
-		Status: req.Status, Password: req.Password,
+		Status: req.Status, Password: req.Password, DepartmentId: req.DepartmentID,
 	})
 	if err != nil {
 		grpcStatus(c, err)
@@ -336,7 +353,8 @@ func (a *App) deleteUser(c *gin.Context) {
 func pbUserJSON(u *iampb.User) gin.H {
 	return gin.H{
 		"id": u.GetId(), "username": u.GetUsername(), "display_name": u.GetDisplayName(),
-		"role": u.GetRole(), "status": u.GetStatus(), "created_at": u.GetCreatedAt(),
+		"role": u.GetRole(), "status": u.GetStatus(), "department_id": u.GetDepartmentId(),
+		"created_at": u.GetCreatedAt(),
 	}
 }
 

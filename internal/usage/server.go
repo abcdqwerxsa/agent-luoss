@@ -127,30 +127,127 @@ func (s *Server) SetQuota(ctx context.Context, req *usagepb.SetQuotaRequest) (*u
 
 // ---- queries ----
 
-func (s *Server) GetUsageSummary(ctx context.Context, req *usagepb.GetUsageSummaryRequest) (*usagepb.GetUsageSummaryResponse, error) {
-	if req.GetUserId() == "" && !s.adminOnly(ctx) {
-		return nil, status.Error(codes.PermissionDenied, "admin only")
+// window resolves (from, to) for a summary request; falls back to days.
+func window(req *usagepb.GetUsageSummaryRequest) (time.Time, time.Time) {
+	to := time.Now()
+	if req.GetToTs() > 0 {
+		to = time.UnixMilli(req.GetToTs())
+	}
+	if req.GetFromTs() > 0 {
+		return time.UnixMilli(req.GetFromTs()), to
 	}
 	days := req.GetDays()
 	if days <= 0 || days > 366 {
 		days = 30
 	}
+	return to.AddDate(0, 0, -int(days)), to
+}
+
+func (s *Server) GetUsageSummary(ctx context.Context, req *usagepb.GetUsageSummaryRequest) (*usagepb.GetUsageSummaryResponse, error) {
+	if req.GetUserId() == "" && !s.adminOnly(ctx) {
+		return nil, status.Error(codes.PermissionDenied, "admin only")
+	}
+	from, to := window(req)
+	user := req.GetUserId()
+	admin := user == ""
+	resp := &usagepb.GetUsageSummaryResponse{}
+
+	// per user/day rows (fast path via usage_daily)
 	rows, err := s.db.Query(ctx, `
 		SELECT to_char(day,'YYYY-MM-DD'), user_id, input_tokens, output_tokens, total_tokens, cost_usd, task_count
 		FROM usage.usage_daily
-		WHERE day >= current_date - $1::int AND ($2 = '' OR user_id = $2)
-		ORDER BY day DESC LIMIT 500`, days, req.GetUserId())
+		WHERE day >= $1::date AND day <= $2::date AND ($3 = '' OR user_id = $3)
+		ORDER BY day DESC LIMIT 500`, from, to, user)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
-	resp := &usagepb.GetUsageSummaryResponse{}
 	for rows.Next() {
 		var r usagepb.UsageRow
 		if err := rows.Scan(&r.Day, &r.UserId, &r.InputTokens, &r.OutputTokens, &r.TotalTokens, &r.CostUsd, &r.TaskCount); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		resp.Rows = append(resp.Rows, &r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	// by model (from raw events; cache breakdown only lives there)
+	mrows, err := s.db.Query(ctx, `
+		SELECT provider, model_id,
+		       sum(input_tokens), sum(output_tokens),
+		       sum(cache_read_tokens), sum(cache_write_tokens),
+		       sum(input_tokens+output_tokens+cache_read_tokens+cache_write_tokens),
+		       sum(cost_usd), count(DISTINCT task_id)
+		FROM usage.usage_events
+		WHERE ts >= $1 AND ts <= $2 AND ($3 = '' OR user_id = $3)
+		GROUP BY provider, model_id ORDER BY sum(cost_usd) DESC LIMIT 100`, from, to, user)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer mrows.Close()
+	for mrows.Next() {
+		var m usagepb.ModelUsageRow
+		if err := mrows.Scan(&m.Provider, &m.ModelId, &m.InputTokens, &m.OutputTokens,
+			&m.CacheReadTokens, &m.CacheWriteTokens, &m.TotalTokens, &m.CostUsd, &m.TaskCount); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		resp.ByModel = append(resp.ByModel, &m)
+	}
+	if err := mrows.Err(); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	// top users (admin view only)
+	if admin {
+		urows, err := s.db.Query(ctx, `
+			SELECT user_id, sum(total_tokens), sum(cost_usd), sum(task_count)
+			FROM usage.usage_daily
+			WHERE day >= $1::date AND day <= $2::date
+			GROUP BY user_id ORDER BY sum(cost_usd) DESC LIMIT 20`, from, to)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		defer urows.Close()
+		for urows.Next() {
+			var u usagepb.UserUsageRow
+			if err := urows.Scan(&u.UserId, &u.TotalTokens, &u.CostUsd, &u.TaskCount); err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			resp.TopUsers = append(resp.TopUsers, &u)
+		}
+		if err := urows.Err(); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	return resp, nil
+}
+
+func (s *Server) GetTaskUsage(ctx context.Context, req *usagepb.GetTaskUsageRequest) (*usagepb.GetTaskUsageResponse, error) {
+	resp := &usagepb.GetTaskUsageResponse{}
+	rows, err := s.db.Query(ctx, `
+		SELECT provider, model_id,
+		       sum(input_tokens), sum(output_tokens),
+		       sum(cache_read_tokens), sum(cache_write_tokens),
+		       sum(input_tokens+output_tokens+cache_read_tokens+cache_write_tokens),
+		       sum(cost_usd), count(DISTINCT task_id)
+		FROM usage.usage_events
+		WHERE task_id = $1
+		GROUP BY provider, model_id ORDER BY sum(cost_usd) DESC`, req.GetTaskId())
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var m usagepb.ModelUsageRow
+		if err := rows.Scan(&m.Provider, &m.ModelId, &m.InputTokens, &m.OutputTokens,
+			&m.CacheReadTokens, &m.CacheWriteTokens, &m.TotalTokens, &m.CostUsd, &m.TaskCount); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		resp.ByModel = append(resp.ByModel, &m)
+		resp.TotalTokens += m.TotalTokens
+		resp.CostUsd += m.CostUsd
 	}
 	return resp, rows.Err()
 }

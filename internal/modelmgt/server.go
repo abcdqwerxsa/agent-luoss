@@ -258,8 +258,14 @@ func (s *Server) ListProviders(ctx context.Context, _ *modelmgtpb.ListProvidersR
 	return resp, nil
 }
 
-func (s *Server) ListModels(ctx context.Context, _ *modelmgtpb.ListModelsRequest) (*modelmgtpb.ListModelsResponse, error) {
-	models, err := s.store.ListModels(ctx, true)
+func (s *Server) ListModels(ctx context.Context, req *modelmgtpb.ListModelsRequest) (*modelmgtpb.ListModelsResponse, error) {
+	all := req.GetAll()
+	if all {
+		if err := s.adminOnly(ctx); err != nil {
+			return nil, err
+		}
+	}
+	models, err := s.store.ListModels(ctx, !all)
 	if err != nil {
 		return nil, errCode(err)
 	}

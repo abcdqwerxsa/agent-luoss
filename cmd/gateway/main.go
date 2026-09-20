@@ -16,7 +16,8 @@ func main() {
 		envOr("TASK_ADDR", "127.0.0.1:9092"),
 		envOr("ARTIFACT_ADDR", "127.0.0.1:9093"),
 		envOr("MODELMGT_ADDR", "127.0.0.1:9094"),
-		envOr("USAGE_ADDR", "127.0.0.1:9095"))
+		envOr("USAGE_ADDR", "127.0.0.1:9095"),
+		envOr("CAPS_ADDR", "127.0.0.1:9096"))
 	addr := ":" + port
 	log.Printf("gateway listening on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, app.Handler()))

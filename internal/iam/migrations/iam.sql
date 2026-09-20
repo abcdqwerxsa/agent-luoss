@@ -17,3 +17,12 @@ CREATE TABLE IF NOT EXISTS iam.refresh_tokens (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON iam.refresh_tokens(user_id);
+
+CREATE TABLE IF NOT EXISTS iam.departments (
+  id         TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE iam.users ADD COLUMN IF NOT EXISTS department_id TEXT REFERENCES iam.departments(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_users_department ON iam.users(department_id);

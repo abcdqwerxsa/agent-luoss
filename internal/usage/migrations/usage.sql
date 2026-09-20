@@ -42,3 +42,6 @@ CREATE TABLE IF NOT EXISTS usage.audit_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_audit_ts ON usage.audit_logs(ts DESC);
 CREATE INDEX IF NOT EXISTS idx_audit_actor ON usage.audit_logs(actor);
+
+CREATE INDEX IF NOT EXISTS idx_usage_events_task ON usage.usage_events(task_id);
+CREATE INDEX IF NOT EXISTS idx_usage_events_ts_user ON usage.usage_events(ts, user_id);

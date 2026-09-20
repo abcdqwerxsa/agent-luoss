@@ -73,6 +73,7 @@ func taskJSON(t *taskpb.TaskInfo) gin.H {
 		"provider": t.GetModel().GetProvider(), "model_id": t.GetModel().GetModelId(),
 		"status":      statusString(t.GetStatus()),
 		"first_message": t.GetFirstMessage(),
+		"expert_id":   t.GetExpertId(),
 		"created_at":  t.GetCreatedAt(), "updated_at": t.GetUpdatedAt(),
 	}
 }
@@ -86,6 +87,7 @@ func (a *App) createTask(c *gin.Context) {
 		Provider     string `json:"provider" binding:"required"`
 		ModelID      string `json:"model_id" binding:"required"`
 		FirstMessage string `json:"first_message"`
+		ExpertID     string `json:"expert_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": "provider and model_id required"})
@@ -97,6 +99,7 @@ func (a *App) createTask(c *gin.Context) {
 		Mode:         modeEnum(req.Mode),
 		Model:        &taskModel{Provider: req.Provider, ModelId: req.ModelID},
 		FirstMessage: req.FirstMessage,
+		ExpertId:     req.ExpertID,
 	})
 	if err != nil {
 		grpcStatus(c, err)
@@ -132,7 +135,10 @@ func (a *App) getTask(c *gin.Context) {
 		grpcStatus(c, err)
 		return
 	}
-	c.JSON(200, gin.H{"task": taskJSON(resp.Task)})
+	c.JSON(200, gin.H{
+		"task": taskJSON(resp.Task),
+		"context_tokens": resp.ContextTokens, "context_window": resp.ContextWindow,
+	})
 }
 
 func (a *App) updateTask(c *gin.Context) {
@@ -229,13 +235,21 @@ func (a *App) taskHistory(c *gin.Context) {
 	for _, m := range msgs {
 		var p struct {
 			Message struct {
-				Role    string          `json:"role"`
+				Role    string `json:"role"`
 				Content json.RawMessage `json:"content"`
-				Model   string          `json:"model"`
+				Model   string `json:"model"`
+				// toolResult extras (role == "toolResult")
+				ToolCallId string `json:"toolCallId"`
+				ToolName   string `json:"toolName"`
+				IsError    bool   `json:"isError"`
 			} `json:"message"`
 		}
 		if json.Unmarshal(m, &p) == nil && p.Message.Role != "" {
-			out = append(out, gin.H{"role": p.Message.Role, "content": p.Message.Content, "model": p.Message.Model})
+			out = append(out, gin.H{
+				"role": p.Message.Role, "content": p.Message.Content, "model": p.Message.Model,
+				"toolCallId": p.Message.ToolCallId, "toolName": p.Message.ToolName,
+				"isError": p.Message.IsError,
+			})
 		}
 	}
 	c.JSON(200, gin.H{"messages": out})

@@ -7,9 +7,8 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { loaderFor } from "./loader.js";
+import { loaderFor, toolsFor, type Caps } from "./loader.js";
 import type { Mode } from "./prompts.js";
-import { TOOLS } from "./prompts.js";
 import type { EventBus, OutEvent } from "./eventbus.js";
 
 export interface SessionSpec {
@@ -20,6 +19,7 @@ export interface SessionSpec {
   modelId: string;
   workspacePath: string;
   sessionPath: string; // "" = new
+  caps: Caps;
 }
 
 export class SessionPool {
@@ -101,8 +101,8 @@ export class SessionPool {
       agentDir: this.opts.agentDir,
       model,
       modelRuntime: this.modelRuntime,
-      resourceLoader: loaderFor(spec.mode),
-      tools: TOOLS[spec.mode],
+      resourceLoader: await loaderFor(spec.mode, spec.caps, spec.workspacePath, this.opts.agentDir),
+      tools: toolsFor(spec.mode, spec.caps),
       sessionManager,
     });
 
@@ -115,6 +115,22 @@ export class SessionPool {
         timestamp: Date.now(),
       };
       this.opts.bus.push(out);
+      // Context usage follow-up: pushes the live context occupancy so the
+      // UI can show a meter; safe no-op when usage is not yet estimated.
+      if (event.type === "message_end" || event.type === "agent_settled") {
+        try {
+          const cu = (session as any).getContextUsage?.();
+          if (cu && (cu.tokens != null || cu.contextWindow)) {
+            this.opts.bus.push({
+              taskId: spec.taskId,
+              sessionId: session.sessionId,
+              type: "context_usage",
+              payload: JSON.stringify({ tokens: cu.tokens, contextWindow: cu.contextWindow, percent: cu.percent ?? null }),
+              timestamp: Date.now(),
+            });
+          }
+        } catch { /* context usage is best-effort */ }
+      }
     });
 
     this.sessions.set(spec.taskId, { s: session, lastActive: Date.now(), unsub });

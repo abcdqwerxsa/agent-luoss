@@ -66,6 +66,7 @@ services:
       <<: *goenv
       PORT: "9092"
       USAGE_ADDR: 172.28.0.8:9095
+      CAPS_ADDR: 172.28.0.12:9096
       WORKSPACES_DIR: /data/workspaces
     volumes:
       - workspaces:/data/workspaces
@@ -118,6 +119,22 @@ services:
     networks:
       backend: { ipv4_address: 172.28.0.8 }
 
+  caps:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["caps"]
+    environment:
+      <<: *goenv
+      PORT: "9096"
+      IAM_ADDR: 172.28.0.4:9091
+      SKILLS_DIR: /data/skills
+    volumes:
+      - skills:/data/skills
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks:
+      backend: { ipv4_address: 172.28.0.12 }
+
   runtime1: &rt
     build: { context: .., dockerfile: deploy/Dockerfile.runtime }
     # host networking: this kernel has broken docker embedded DNS + iptables DNAT;
@@ -145,6 +162,7 @@ services:
       - workspaces:/data/workspaces
       - sessions:/data/sessions
       - config:/data/config
+      - skills:/data/skills
       - agent1:/data/agent
     depends_on:
       redis: { condition: service_healthy }
@@ -161,6 +179,7 @@ services:
       - workspaces:/data/workspaces
       - sessions:/data/sessions
       - config:/data/config
+      - skills:/data/skills
       - agent2:/data/agent
 
   gateway:
@@ -174,6 +193,7 @@ services:
       ARTIFACT_ADDR: 172.28.0.6:9093
       MODELMGT_ADDR: 172.28.0.7:9094
       USAGE_ADDR: 172.28.0.8:9095
+      CAPS_ADDR: 172.28.0.12:9096
       WEB_DIR: /app/web
     depends_on:
       - iam
@@ -181,6 +201,7 @@ services:
       - artifact
       - modelmgt
       - usage
+      - caps
     networks:
       backend: { ipv4_address: 172.28.0.11 }
 
@@ -190,6 +211,7 @@ volumes:
   workspaces:
   sessions:
   config:
+  skills:
   agent1:
   agent2:
 

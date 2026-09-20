@@ -38,6 +38,24 @@ message CreateSessionRequest {
   ModelRef model = 4;
   string workspace_path = 5;  // cwd, e.g. /data/workspaces/u123
   string session_path = 6;    // empty = new session file
+  repeated McpServer mcp_servers = 7; // effective MCP servers (caps-svc)
+  repeated Skill skills = 8;          // effective skills (caps-svc)
+}
+
+message McpServer {
+  string id = 1;
+  string name = 2;
+  string transport = 3;          // "stdio" | "http" | "sse"
+  string command = 4;            // stdio
+  repeated string args = 5;      // stdio
+  map<string, string> env = 6;   // stdio, secrets decrypted
+  string url = 7;                // http/sse
+}
+
+message Skill {
+  string name = 1;
+  string description = 2;
+  string path = 3; // on-disk dir containing SKILL.md
 }
 
 message CreateSessionResponse {
