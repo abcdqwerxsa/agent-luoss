@@ -1,0 +1,176 @@
+name: agentluoss
+
+# Standard deployment for normal hosts: service-name DNS, bridge network,
+# published gateway port. (docker-compose.yml is the dev-machine variant with
+# static IPs / host-net runtimes for a kernel lacking DNAT + embedded DNS.)
+
+x-go-env: &goenv
+  PG_DSN: postgres://agent:${POSTGRES_PASSWORD:-agentdev}@postgres:5432/agentluoss
+  REDIS_ADDR: redis:6379
+  JWT_SECRET: ${JWT_SECRET:-dev-secret}
+  KEY_MASTER: ${KEY_MASTER:-dev-master}
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentdev}
+      POSTGRES_DB: agentluoss
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d agentluoss"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  iam:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["iam"]
+    environment:
+      <<: *goenv
+      PORT: "9091"
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin12345}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [backend]
+
+  task:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["task"]
+    environment:
+      <<: *goenv
+      PORT: "9092"
+      USAGE_ADDR: usage:9095
+      WORKSPACES_DIR: /data/workspaces
+    volumes:
+      - workspaces:/data/workspaces
+      - sessions:/data/sessions
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [backend]
+
+  artifact:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["artifact"]
+    environment:
+      <<: *goenv
+      PORT: "9093"
+      WORKSPACES_DIR: /data/workspaces
+    volumes:
+      - workspaces:/data/workspaces
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [backend]
+
+  modelmgt:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["modelmgt"]
+    environment:
+      <<: *goenv
+      PORT: "9094"
+      CONFIG_DIR: /data/config
+    volumes:
+      - config:/data/config
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [backend]
+
+  usage:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["usage"]
+    environment:
+      <<: *goenv
+      PORT: "9095"
+      DEFAULT_MONTHLY_LIMIT_USD: ${DEFAULT_MONTHLY_LIMIT_USD:-100}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [backend]
+
+  runtime1: &rt
+    build: { context: .., dockerfile: deploy/Dockerfile.runtime }
+    environment: &rtenv
+      PORT: "9100"
+      RUNTIME_ID: runtime-1
+      ADVERTISE_ADDR: runtime1:9100
+      TASK_ADDR: task:9092
+      MODELS_PATH: /data/config/models.json
+      AUTH_PATH: /data/config/auth.json
+      SESSIONS_DIR: /data/sessions
+      AGENT_DIR: /data/agent
+      WORKSPACES_DIR: /data/workspaces
+      MAX_SESSIONS: ${RUNTIME_MAX_SESSIONS:-200}
+    volumes:
+      - workspaces:/data/workspaces
+      - sessions:/data/sessions
+      - config:/data/config
+      - agent1:/data/agent
+    depends_on:
+      redis: { condition: service_healthy }
+      task: { condition: service_started }
+    networks: [backend]
+
+  runtime2:
+    <<: *rt
+    environment:
+      <<: *rtenv
+      RUNTIME_ID: runtime-2
+      ADVERTISE_ADDR: runtime2:9100
+    volumes:
+      - workspaces:/data/workspaces
+      - sessions:/data/sessions
+      - config:/data/config
+      - agent2:/data/agent
+
+  gateway:
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["gateway"]
+    environment:
+      <<: *goenv
+      PORT: "8080"
+      IAM_ADDR: iam:9091
+      TASK_ADDR: task:9092
+      ARTIFACT_ADDR: artifact:9093
+      MODELMGT_ADDR: modelmgt:9094
+      USAGE_ADDR: usage:9095
+      WEB_DIR: /app/web
+    ports:
+      - "${GATEWAY_PORT:-18090}:8080"
+    depends_on:
+      - iam
+      - task
+      - artifact
+      - modelmgt
+      - usage
+    networks: [backend]
+
+volumes:
+  pgdata:
+  redisdata:
+  workspaces:
+  sessions:
+  config:
+  agent1:
+  agent2:
+
+networks:
+  backend:

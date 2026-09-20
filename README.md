@@ -20,7 +20,7 @@ Web (React) ──HTTPS/SSE──► gateway (Go :8080) ──gRPC──┬─�
 
 ```bash
 cp .env.example .env   # 改 JWT_SECRET / KEY_MASTER
-cd deploy && docker compose -f docker-compose.standard.yml up -d
+GATEWAY_PORT=18090: cd deploy && GATEWAY_PORT=18090 docker compose -f docker-compose.standard.yml up -d   # 宿主端口默认 18090，可按需覆盖
 # （本开发机内核受限环境才用默认 docker-compose.yml）
 ```
 
