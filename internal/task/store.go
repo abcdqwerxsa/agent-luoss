@@ -159,6 +159,13 @@ func (s *Store) SetStatus(ctx context.Context, id, status string) error {
 	return err
 }
 
+// SetMode records the permission mode currently in use (per-turn switches
+// update the row so recovery resumes on the last-used mode).
+func (s *Store) SetMode(ctx context.Context, id, mode string) error {
+	_, err := s.db.Exec(ctx, `UPDATE task.tasks SET mode=$2, updated_at=now() WHERE id=$1`, id, mode)
+	return err
+}
+
 // SetModel records the model currently in use (per-turn overrides update
 // the row so recovery resumes on the last-used model).
 func (s *Store) SetModel(ctx context.Context, id, provider, modelID string) error {

@@ -525,6 +525,7 @@ textarea { font-family: var(--font-mono); font-size: 12px; padding: 6px 8px; bor
   border-radius: var(--radius-ctrl);
   box-shadow: var(--shadow-pop);
 }
+.select-dd.up .select-menu { top: auto; bottom: calc(100% + 4px); }
 .select-menu li {
   padding: 7px 10px; border-radius: 6px; cursor: pointer;
   color: var(--text); white-space: nowrap;

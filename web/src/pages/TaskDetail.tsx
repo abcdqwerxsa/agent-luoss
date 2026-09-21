@@ -32,6 +32,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
   const [notice, setNotice] = useState("");
   const [models, setModels] = useState<ModelOpt[]>([]);
   const [modelKey, setModelKey] = useState(""); // "" = keep current, "auto", or provider/model_id
+  const [modeKey, setModeKey] = useState("");   // "" = keep current, or ask|craft|plan
   const [auto, setAuto] = useState(true);
   const [files, setFiles] = useState<Record<string, { name: string; is_dir: boolean; size: number }[]>>({});
   const [dirOpen, setDirOpen] = useState<Record<string, boolean>>({ "": true });
@@ -218,7 +219,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
       const model = modelKey === "" ? undefined
         : modelKey === "auto" ? { provider: "auto", model_id: "auto" }
         : (() => { const [p, m] = modelKey.split("/"); return { provider: p, model_id: m }; })();
-      await api.tasks.send(taskId, msg, behavior, undefined, model);
+      await api.tasks.send(taskId, msg, behavior, undefined, model, modeKey || undefined);
       setRunning(true);
     } catch (e: any) {
       setNotice(e.message);
@@ -395,15 +396,24 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                   <input type="file" hidden onChange={(e) => e.target.files?.[0] && uploadFile(e.target.files[0])} />
                 </label>
                 {task && (
-                  <span className="ct-pill" title="执行模式（创建任务时确定）">
-                    <Icon name={MODE_ICON[task.mode] || "sparkles"} size={13} className="accent" />
-                    {MODE_NAME[task.mode] || task.mode}
-                  </span>
+                  <Select
+                    dropUp
+                    value={modeKey}
+                    onChange={setModeKey}
+                    title="权限模式（可切换，下一轮生效）"
+                    options={[
+                      { value: "", label: `${MODE_NAME[task.mode] || task.mode} · 当前` },
+                      { value: "ask", label: "只读 · 仅查看不改文件" },
+                      { value: "craft", label: "完整 · 可读写执行" },
+                      { value: "plan", label: "计划 · 先计划再执行" },
+                    ]}
+                  />
                 )}
               </div>
               <div className="ct-right">
                 {task && (
                   <Select
+                    dropUp
                     value={modelKey}
                     onChange={setModelKey}
                     title="模型（可切换，下一轮生效）"

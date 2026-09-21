@@ -498,7 +498,11 @@ type PromptRequest struct {
 	StreamingBehavior string `protobuf:"bytes,4,opt,name=streaming_behavior,json=streamingBehavior,proto3" json:"streaming_behavior,omitempty"`
 	// Optional per-turn model override (resolved model; applies before this
 	// prompt via session.setModel — rejected while streaming).
-	Model         *ModelRef `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
+	Model *ModelRef `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
+	// Optional per-turn mode/permission switch ("ask" | "craft" | "plan").
+	// Applies by rebuilding the session (same session file, new toolset and
+	// system prompt) before this prompt — rejected while streaming.
+	Mode          string `protobuf:"bytes,6,opt,name=mode,proto3" json:"mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -566,6 +570,13 @@ func (x *PromptRequest) GetModel() *ModelRef {
 		return x.Model
 	}
 	return nil
+}
+
+func (x *PromptRequest) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
 }
 
 type PromptResponse struct {
@@ -1213,13 +1224,14 @@ const file_runtime_proto_rawDesc = "" +
 	"\fImageContent\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\tR\x04data\x12\x1d\n" +
 	"\n" +
-	"media_type\x18\x02 \x01(\tR\tmediaType\"\xe5\x01\n" +
+	"media_type\x18\x02 \x01(\tR\tmediaType\"\xf9\x01\n" +
 	"\rPromptRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12;\n" +
 	"\x06images\x18\x03 \x03(\v2#.agentluoss.v1.runtime.ImageContentR\x06images\x12-\n" +
 	"\x12streaming_behavior\x18\x04 \x01(\tR\x11streamingBehavior\x125\n" +
-	"\x05model\x18\x05 \x01(\v2\x1f.agentluoss.v1.runtime.ModelRefR\x05model\",\n" +
+	"\x05model\x18\x05 \x01(\v2\x1f.agentluoss.v1.runtime.ModelRefR\x05model\x12\x12\n" +
+	"\x04mode\x18\x06 \x01(\tR\x04mode\",\n" +
 	"\x0ePromptResponse\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\bR\baccepted\"~\n" +
 	"\fSteerRequest\x12\x17\n" +

@@ -66,8 +66,8 @@ export const api = {
     get: (id: string) => req<{ task: TaskInfo; context_tokens?: number; context_window?: number }>("GET", `/api/v1/tasks/${id}`),
     remove: (id: string) => req("DELETE", `/api/v1/tasks/${id}`),
     patch: (id: string, t: { title?: string; archive?: boolean }) => req("PATCH", `/api/v1/tasks/${id}`, t),
-    send: (id: string, message: string, streaming_behavior?: string, images?: { data: string; media_type: string }[], model?: { provider: string; model_id: string }) =>
-      req("POST", `/api/v1/tasks/${id}/messages`, { message, streaming_behavior, images, provider: model?.provider, model_id: model?.model_id }),
+    send: (id: string, message: string, streaming_behavior?: string, images?: { data: string; media_type: string }[], model?: { provider: string; model_id: string }, mode?: string) =>
+      req("POST", `/api/v1/tasks/${id}/messages`, { message, streaming_behavior, images, provider: model?.provider, model_id: model?.model_id, mode }),
     steer: (id: string, message: string) => req("POST", `/api/v1/tasks/${id}/steer`, { message }),
     abort: (id: string) => req("POST", `/api/v1/tasks/${id}/abort`),
     history: (id: string) => req<{ messages: { role: string; content: unknown; model?: string; toolCallId?: string; toolName?: string; isError?: boolean }[] }>("GET", `/api/v1/tasks/${id}/messages`),

@@ -23,7 +23,7 @@ export interface SessionSpec {
 }
 
 export class SessionPool {
-  private sessions = new Map<string, { s: AgentSession; lastActive: number; unsub: () => void }>();
+  private sessions = new Map<string, { s: AgentSession; lastActive: number; unsub: () => void; spec: SessionSpec }>();
   modelRuntime: ModelRuntime | null = null;
 
   constructor(
@@ -74,6 +74,26 @@ export class SessionPool {
     const e = this.sessions.get(taskId);
     if (e) e.lastActive = Date.now();
     return e?.s;
+  }
+
+  modeOf(taskId: string): string | undefined {
+    return this.sessions.get(taskId)?.spec.mode;
+  }
+
+  // switchMode rebuilds the session with a new permission mode, reusing the
+  // same session file (conversation history preserved) — the same path the
+  // task service uses to recover sessions after eviction. New toolset,
+  // system prompt, and caps loader are rebuilt for the target mode.
+  async switchMode(taskId: string, mode: Mode): Promise<AgentSession> {
+    const e = this.sessions.get(taskId);
+    if (!e) throw new Error("session not in pool");
+    if (e.s.isStreaming) throw new Error("cannot switch mode while streaming");
+    e.unsub();
+    this.sessions.delete(taskId);
+    await this.create({ ...e.spec, mode, sessionPath: e.s.sessionFile ?? "" });
+    const s = this.sessions.get(taskId)?.s;
+    if (!s) throw new Error("mode switch failed");
+    return s;
   }
 
   async create(spec: SessionSpec): Promise<{ sessionId: string; sessionPath: string; resumed: boolean }> {
@@ -133,7 +153,7 @@ export class SessionPool {
       }
     });
 
-    this.sessions.set(spec.taskId, { s: session, lastActive: Date.now(), unsub });
+    this.sessions.set(spec.taskId, { s: session, lastActive: Date.now(), unsub, spec });
     return {
       sessionId: session.sessionId,
       sessionPath: session.sessionFile ?? path.join(this.opts.sessionsDir, `${session.sessionId}.jsonl`),

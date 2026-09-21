@@ -757,7 +757,9 @@ type SendPromptRequest struct {
 	Images            []*runtime.ImageContent `protobuf:"bytes,4,rep,name=images,proto3" json:"images,omitempty"`
 	StreamingBehavior string                  `protobuf:"bytes,5,opt,name=streaming_behavior,json=streamingBehavior,proto3" json:"streaming_behavior,omitempty"`
 	// Optional per-turn model override; provider/model_id "auto" routes via Jev.
-	Model         *runtime.ModelRef `protobuf:"bytes,6,opt,name=model,proto3" json:"model,omitempty"`
+	Model *runtime.ModelRef `protobuf:"bytes,6,opt,name=model,proto3" json:"model,omitempty"`
+	// Optional per-turn mode/permission switch ("ask" | "craft" | "plan").
+	Mode          string `protobuf:"bytes,7,opt,name=mode,proto3" json:"mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -832,6 +834,13 @@ func (x *SendPromptRequest) GetModel() *runtime.ModelRef {
 		return x.Model
 	}
 	return nil
+}
+
+func (x *SendPromptRequest) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
 }
 
 type SendPromptResponse struct {
@@ -1595,14 +1604,15 @@ const file_task_proto_rawDesc = "" +
 	"\x04task\x18\x01 \x01(\v2\x1c.agentluoss.v1.task.TaskInfoR\x04task\",\n" +
 	"\x11DeleteTaskRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\"\x14\n" +
-	"\x12DeleteTaskResponse\"\x82\x02\n" +
+	"\x12DeleteTaskResponse\"\x96\x02\n" +
 	"\x11SendPromptRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12;\n" +
 	"\x06images\x18\x04 \x03(\v2#.agentluoss.v1.runtime.ImageContentR\x06images\x12-\n" +
 	"\x12streaming_behavior\x18\x05 \x01(\tR\x11streamingBehavior\x125\n" +
-	"\x05model\x18\x06 \x01(\v2\x1f.agentluoss.v1.runtime.ModelRefR\x05model\"F\n" +
+	"\x05model\x18\x06 \x01(\v2\x1f.agentluoss.v1.runtime.ModelRefR\x05model\x12\x12\n" +
+	"\x04mode\x18\a \x01(\tR\x04mode\"F\n" +
 	"\x12SendPromptResponse\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\bR\baccepted\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\"^\n" +

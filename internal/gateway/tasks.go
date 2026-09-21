@@ -171,6 +171,7 @@ func (a *App) sendPrompt(c *gin.Context) {
 		StreamingBehavior string   `json:"streaming_behavior"`
 		Provider          string   `json:"provider"` // optional per-turn override
 		ModelID           string   `json:"model_id"`
+		Mode              string   `json:"mode"`     // optional per-turn permission switch: ask|craft|plan
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": "message required"})
@@ -192,7 +193,7 @@ func (a *App) sendPrompt(c *gin.Context) {
 	resp, err := a.task.SendPrompt(outCtx(c), &taskpb.SendPromptRequest{
 		TaskId: c.Param("id"), UserId: c.GetString("user_id"),
 		Message: req.Message, Images: pbImages, StreamingBehavior: req.StreamingBehavior,
-		Model: model,
+		Model: model, Mode: req.Mode,
 	})
 	if err != nil {
 		grpcStatus(c, err)

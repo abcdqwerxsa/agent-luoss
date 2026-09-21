@@ -385,6 +385,16 @@ func (s *Server) SendPrompt(ctx context.Context, req *taskpb.SendPromptRequest) 
 			return nil, status.Error(codes.ResourceExhausted, err.Error())
 		}
 	}
+	// Optional per-turn permission mode switch ("ask" | "craft" | "plan").
+	if m := req.GetMode(); m != "" {
+		if m != "ask" && m != "craft" && m != "plan" {
+			return nil, status.Error(codes.InvalidArgument, "invalid mode: "+m)
+		}
+		if m != t.Mode {
+			_ = s.store.SetMode(ctx, t.ID, m)
+			t.Mode = m
+		}
+	}
 	if !s.registry.AcquireSessionLock(ctx, t.ID, 15*time.Minute) {
 		return nil, status.Error(codes.ResourceExhausted, "task busy")
 	}
@@ -400,7 +410,7 @@ func (s *Server) SendPrompt(ctx context.Context, req *taskpb.SendPromptRequest) 
 	}
 	_, err = cl.Prompt(ctx, &runtimpb.PromptRequest{
 		TaskId: t.ID, Message: req.GetMessage(), Images: images,
-		StreamingBehavior: req.GetStreamingBehavior(), Model: override,
+		StreamingBehavior: req.GetStreamingBehavior(), Model: override, Mode: req.GetMode(),
 	})
 	if err != nil {
 		s.registry.ReleaseSessionLock(ctx, t.ID)

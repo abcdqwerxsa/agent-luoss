@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 
 export interface Opt { value: string; label: string }
 
-export function Select({ value, onChange, options, className, title }: {
+export function Select({ value, onChange, options, className, title, dropUp }: {
   value: string;
   onChange: (v: string) => void;
   options: Opt[];
   className?: string;
   title?: string;
+  dropUp?: boolean; // open upward (bottom toolbars)
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -23,7 +24,7 @@ export function Select({ value, onChange, options, className, title }: {
   }, [open]);
   const cur = options.find((o) => o.value === value);
   return (
-    <div className={`select-dd ${className || ""}`} ref={ref} title={title}>
+    <div className={`select-dd ${dropUp ? "up" : ""} ${className || ""}`} ref={ref} title={title}>
       <button type="button" className={`select-btn ${open ? "open" : ""}`} onClick={() => setOpen(!open)}>
         <span className="select-val">{cur?.label ?? "—"}</span>
         <svg className="select-caret" width="10" height="6" viewBox="0 0 10 6" aria-hidden>
