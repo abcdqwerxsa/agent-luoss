@@ -31,8 +31,8 @@ export function App() {
   const nav = (
     <nav className="topnav">
       <a href="#/tasks" className="brand">
-        <span className="brand-logo"><Icon name="bot" size={16} /></span>
-        <span className="brand-name">AgentLuoss</span>
+        <span className="brand-logo"><img src="/logo.svg" alt="ailswork" /></span>
+        <span className="brand-name">ailswork</span>
       </a>
       <div className="nav-links">
         <a href="#/tasks" className={`nav-link ${route.startsWith("#/tasks") || route.startsWith("#/task/") ? "active" : ""}`}>任务</a>

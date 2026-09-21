@@ -382,10 +382,10 @@ export function TaskDetail({ taskId }: { taskId: string }) {
               </div>
             )}
           </div>
-          <button className="icon-btn" onClick={() => setShowFiles(!showFiles)} data-tip={showFiles ? "隐藏产物面板" : "显示产物面板"}>
+          <button className="icon-btn" onClick={() => setShowFiles(!showFiles)} data-tip-down data-tip={showFiles ? "隐藏产物面板" : "显示产物面板"}>
             <Icon name="panel-right" size={15} />
           </button>
-          <button className="icon-btn danger" onClick={delTask} data-tip="删除任务">
+          <button className="icon-btn danger" onClick={delTask} data-tip-down data-tip="删除任务">
             <Icon name="trash" size={15} />
           </button>
         </div>
@@ -504,8 +504,8 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           <div className="files-head">
             <Icon name="folder" size={15} />
             <h4>工作区文件</h4>
-            <button className="icon-btn" onClick={() => loadFiles("")} data-tip="刷新"><Icon name="refresh-cw" size={13} /></button>
-            <button className="icon-btn" onClick={() => setShowFiles(false)} data-tip="收起面板"><Icon name="x" size={13} /></button>
+            <button className="icon-btn" onClick={() => loadFiles("")} data-tip-down data-tip="刷新"><Icon name="refresh-cw" size={13} /></button>
+            <button className="icon-btn" onClick={() => setShowFiles(false)} data-tip-down data-tip="收起面板"><Icon name="x" size={13} /></button>
           </div>
           <div className="ftree">{fileTree("", 0)}</div>
           <p className="hint">点击文件下载，点击目录展开</p>
