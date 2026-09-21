@@ -5,6 +5,9 @@ import { Markdown } from "../lib/md";
 import { Select } from "../lib/select";
 import Loader from "../components/Loader";
 import ThinkingTrace from "../components/ThinkingTrace";
+import StreamText from "../components/StreamText";
+import DiffView from "../components/DiffView";
+import PlanApproval from "../components/PlanApproval";
 
 interface ToolCard { id: string; tool: string; args: string; output: string; done: boolean; error?: boolean }
 interface Bubble { role: "user" | "assistant"; text: string; thinking?: string; tools: ToolCard[]; streaming?: boolean; n?: number }
@@ -35,6 +38,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
   const [models, setModels] = useState<ModelOpt[]>([]);
   const [modelKey, setModelKey] = useState(""); // "" = keep current, "auto", or provider/model_id
   const [modeKey, setModeKey] = useState("");   // "" = keep current, or ask|craft|plan
+  const [planPromptAt, setPlanPromptAt] = useState(-1); // bubbles count when the plan approval was last shown
   const [auto, setAuto] = useState(true);
   const [files, setFiles] = useState<Record<string, { name: string; is_dir: boolean; size: number }[]>>({});
   const [dirOpen, setDirOpen] = useState<Record<string, boolean>>({ "": true });
@@ -221,10 +225,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     }
   };
 
-  const send = async (behavior?: string) => {
-    if (!input.trim()) return;
-    const msg = input;
-    setInput("");
+  const sendText = async (msg: string, behavior?: string) => {
     setBubbles((prev) => {
       const n = (prev.filter((b) => b.role === "user").at(-1)?.n ?? 0) + 1;
       setCurN(n);
@@ -247,6 +248,13 @@ export function TaskDetail({ taskId }: { taskId: string }) {
       setNotice(e.message);
       setBubbles((prev) => [...prev, { role: "assistant", text: `发送失败：${e.message}`, tools: [] }]);
     }
+  };
+
+  const send = (behavior?: string) => {
+    if (!input.trim()) return;
+    const msg = input;
+    setInput("");
+    void sendText(msg, behavior);
   };
 
   const abort = async () => {
@@ -388,29 +396,33 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                   working={!!b.streaming}
                   active="执行中"
                   done={b.tools.length ? `执行了 ${b.tools.length} 步` : "思考过程"}
-                  rows={b.tools.map((t) => ({ primary: t.tool, secondary: t.error ? "失败" : t.done ? "完成" : "…", mono: true }))}
+                  rows={b.tools.map((t) => ({
+                    primary: t.tool,
+                    secondary: t.error ? "失败" : t.done ? "完成" : "…",
+                    mono: true,
+                    detail: (
+                      <div>
+                        <pre className="toolargs">{t.args}</pre>
+                        {t.output && (t.output.match(/^[+-][^+-]/m) ? <DiffView diff={t.output} /> : <pre className="toolout">{t.output}</pre>)}
+                      </div>
+                    ),
+                  }))}
                 >
                   {b.thinking && <div className="trace-thinking">{b.thinking}</div>}
-                  {b.tools.map((t) => (
-                    <details key={t.id} className={`toolcard ${t.error ? "err" : ""}`}>
-                      <summary>
-                        <span className="toolname"><Icon name={toolIcon(t.tool)} size={13} />{t.tool}</span>
-                        <span className="toolargs-preview">{t.args}</span>
-                        <span className={`toolstate ${!t.done ? "run" : t.error ? "err" : "ok"}`}>
-                          {!t.done ? "运行中…" : t.error ? "失败" : "完成"}
-                        </span>
-                      </summary>
-                      <pre className="toolargs">{t.args}</pre>
-                      {t.output && <pre className="toolout">{t.output}</pre>}
-                    </details>
-                  ))}
                 </ThinkingTrace>
               )}
-              {b.text ? <Markdown text={b.text} /> : b.streaming ? <Loader label="生成中" /> : null}
+              {b.text ? (b.streaming ? <StreamText text={b.text} /> : <Markdown text={b.text} />) : b.streaming ? <Loader label="生成中" /> : null}
             </div>
           ))}
           {bubbles.length === 0 && <div className="empty">发送第一条消息开始任务</div>}
         </div>
+
+        {task?.mode === "plan" && !running && bubbles.length > 0 && bubbles.at(-1)?.role === "assistant" && planPromptAt !== bubbles.length && (
+          <PlanApproval
+            onConfirm={() => { setPlanPromptAt(bubbles.length); void sendText("确认执行以上计划"); }}
+            onRevise={() => setPlanPromptAt(bubbles.length)}
+          />
+        )}
 
         <div className="composer">
           <div className="composer-box">

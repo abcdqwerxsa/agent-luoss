@@ -1,13 +1,15 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
-/* Ported from Beautiful UI "Thinking" (MIT License, © 2026 Shane Levine,
- * https://www.beautifului.dev/) — expandable agent trace. The showcase
- * auto-sequence is replaced by a controlled `working` prop; rows and the
- * expanded body (thinking prose, tool cards) come from real task events. */
+/* Ported from Beautiful UI "Thinking" + "Tool Chips" (MIT License,
+ * © 2026 Shane Levine, https://www.beautifului.dev/) — expandable agent
+ * trace with timeline rows; rows carrying `detail` are clickable and expand
+ * inline (the Tool Chips row-expand pattern). Controlled `working` prop
+ * drives the shimmer header; rows and details come from real task events. */
 export interface TraceRow {
   primary: string;
   secondary?: string;
   mono?: boolean;
+  detail?: ReactNode;
 }
 
 export default function ThinkingTrace({
@@ -24,6 +26,7 @@ export default function ThinkingTrace({
   children?: ReactNode;
 }) {
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
+  const [openRows, setOpenRows] = useState<Set<number>>(new Set());
   const expanded = manualExpanded ?? working;
   const traceRef = useRef<HTMLDivElement>(null);
   const [lineHeight, setLineHeight] = useState(0);
@@ -83,25 +86,48 @@ export default function ThinkingTrace({
               style={{ top: -8, height: lineHeight ? lineHeight - 2 : 0, transition: "height 500ms cubic-bezier(0.23,1,0.32,1)" }}
             />
             <div ref={traceRef} className="flex flex-col gap-1 py-1">
-              {rows.map((row, i) => (
-                <div
-                  key={`${row.primary}-${i}`}
-                  className="flex min-h-7 w-full items-center gap-2 rounded-[6px] px-1.5 py-0.5 text-left"
-                  style={{ animation: `fade-up 320ms cubic-bezier(0.23,1,0.32,1) ${Math.min(i, 6) * 120}ms both` }}
-                >
-                  {i < rows.length - 1 || !working ? (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
-                  ) : (
-                    <span className="size-3 shrink-0 rounded-full border-[1.5px] border-line-strong border-t-ink-2" style={{ animation: "spin 700ms linear infinite" }} />
-                  )}
-                  <span className="min-w-0 truncate text-[12.5px] font-medium text-ink">{row.primary}</span>
-                  {row.secondary && (
-                    <span className={`shrink-0 text-[11.5px] text-ink-3 ${row.mono ? "font-mono" : ""}`}>{row.secondary}</span>
-                  )}
-                </div>
-              ))}
+              {rows.map((row, i) => {
+                const hasDetail = row.detail !== undefined;
+                const rowOpen = openRows.has(i);
+                const inner = (
+                  <>
+                    {i < rows.length - 1 || !working ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                        <path d="M20 6L9 17l-5-5" />
+                      </svg>
+                    ) : (
+                      <span className="size-3 shrink-0 rounded-full border-[1.5px] border-line-strong border-t-ink-2" style={{ animation: "spin 700ms linear infinite" }} />
+                    )}
+                    <span className="min-w-0 truncate text-[12.5px] font-medium text-ink">{row.primary}</span>
+                    {row.secondary && (
+                      <span className={`shrink-0 text-[11.5px] text-ink-3 ${row.mono ? "font-mono" : ""}`}>{row.secondary}</span>
+                    )}
+                    {hasDetail && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="ml-auto shrink-0 transition-transform duration-200" style={{ transform: rowOpen ? "rotate(0deg)" : "rotate(-90deg)" }}>
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    )}
+                  </>
+                );
+                return (
+                  <div key={`${row.primary}-${i}`} className="flex flex-col">
+                    <div
+                      role={hasDetail ? "button" : undefined}
+                      tabIndex={hasDetail ? 0 : undefined}
+                      onClick={hasDetail ? () => setOpenRows((cur) => { const n = new Set(cur); n.has(i) ? n.delete(i) : n.add(i); return n; }) : undefined}
+                      className={`flex min-h-7 w-full items-center gap-2 rounded-[6px] px-1.5 py-0.5 text-left ${hasDetail ? "cursor-pointer transition-colors duration-150 hover:bg-hover" : ""}`}
+                      style={{ animation: `fade-up 320ms cubic-bezier(0.23,1,0.32,1) ${Math.min(i, 6) * 120}ms both` }}
+                    >
+                      {inner}
+                    </div>
+                    {hasDetail && rowOpen && (
+                      <div className="ml-6 pb-1" style={{ animation: "fade-in 200ms ease-out both" }}>
+                        {row.detail}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               {children}
             </div>
           </div>
