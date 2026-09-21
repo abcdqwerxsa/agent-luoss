@@ -340,7 +340,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   padding: 14px 16px 6px; resize: none; line-height: 1.6;
 }
 .composer-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 10px 10px; }
-.ct-left { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow: hidden; }
+.ct-left { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
 .ct-right { display: flex; align-items: center; gap: 10px; flex: none; }
 .ct-btn {
   display: inline-flex; align-items: center; justify-content: center;

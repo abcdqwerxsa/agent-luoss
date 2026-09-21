@@ -298,7 +298,6 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           <a href="#/tasks" className="back" title="返回任务列表"><Icon name="arrow-left" size={18} /></a>
           <h3>{task?.title || "任务"}</h3>
           {statusBadge}
-          {task && <span className="chip">{task.mode} · {task.model_id}</span>}
           {task?.expert_id ? <span className="chip expert-chip" title={`专家：${task.expert_id}`}><Icon name="sparkles" size={11} />{experts.find((e) => e.id === task.expert_id)?.name || task.expert_id}</span> : null}
           {usage && usage.total_tokens > 0 && (
             <span className="chip mono" title={usage.by_model.map((m) => `${m.provider}/${m.model_id}: in ${+m.input_tokens || 0} out ${+m.output_tokens || 0} cache ${+m.cache_read_tokens || 0}/${+m.cache_write_tokens || 0} ($${(+m.cost_usd || 0).toFixed(6)})`).join("\n")}>
@@ -402,7 +401,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                     onChange={setModeKey}
                     title="权限模式（可切换，下一轮生效）"
                     options={[
-                      { value: "", label: `${MODE_NAME[task.mode] || task.mode} · 当前` },
+                      { value: "", label: MODE_NAME[task.mode] || task.mode },
                       { value: "ask", label: "只读 · 仅查看不改文件" },
                       { value: "craft", label: "完整 · 可读写执行" },
                       { value: "plan", label: "计划 · 先计划再执行" },
@@ -418,7 +417,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                     onChange={setModelKey}
                     title="模型（可切换，下一轮生效）"
                     options={[
-                      { value: "", label: `${task.model_id} · 当前` },
+                      { value: "", label: task.model_id },
                       { value: "auto", label: "Auto · 自动路由" },
                       ...models.map((m) => ({ value: `${m.provider_id}/${m.model_id}`, label: m.display_name || m.model_id })),
                     ]}
