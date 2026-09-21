@@ -298,11 +298,17 @@ function ModelsTab() {
                   <td>{m.context_window ? (+m.context_window / 1000).toFixed(0) + "k" : "—"}</td>
                   <td className="mono small">{(+m.input_cost || 0)} / {(+m.output_cost || 0)}</td>
                   <td>
-                    <select className="tier-select" value={m.tier || ""} onChange={(e) => setTier(m, e.target.value)} data-tip="Auto 路由分层">
-                      <option value="">自动</option>
-                      <option value="strong">强</option>
-                      <option value="weak">弱</option>
-                    </select>
+                    <Select
+                      className="tier-select"
+                      value={m.tier || ""}
+                      onChange={(v) => setTier(m, v)}
+                      title="Auto 路由分层：强=复杂任务，弱=简单任务，自动=按推理标志归类"
+                      options={[
+                        { value: "", label: "自动" },
+                        { value: "strong", label: "强" },
+                        { value: "weak", label: "弱" },
+                      ]}
+                    />
                   </td>
                   <td>
                     <button className="btn small" onClick={() => runTest(m)}>测试</button>
