@@ -12,6 +12,7 @@ x-go-env: &goenv
 
 services:
   postgres:
+    restart: unless-stopped
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: agent
@@ -27,6 +28,7 @@ services:
     networks: [backend]
 
   redis:
+    restart: unless-stopped
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
@@ -39,6 +41,7 @@ services:
     networks: [backend]
 
   iam:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["iam"]
     environment:
@@ -52,6 +55,7 @@ services:
     networks: [backend]
 
   task:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["task"]
     environment:
@@ -72,6 +76,7 @@ services:
     networks: [backend]
 
   artifact:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["artifact"]
     environment:
@@ -85,6 +90,7 @@ services:
     networks: [backend]
 
   modelmgt:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["modelmgt"]
     environment:
@@ -99,6 +105,7 @@ services:
     networks: [backend]
 
   usage:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["usage"]
     environment:
@@ -111,6 +118,7 @@ services:
     networks: [backend]
 
   caps:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["caps"]
     environment:
@@ -150,6 +158,7 @@ services:
     networks: [backend]
 
   runtime2:
+    restart: unless-stopped
     <<: *rt
     environment:
       <<: *rtenv
@@ -163,6 +172,7 @@ services:
       - agent2:/data/agent
 
   gateway:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["gateway"]
     environment:
