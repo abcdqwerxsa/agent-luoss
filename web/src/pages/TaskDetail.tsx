@@ -225,6 +225,12 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     }
   };
 
+  const delTask = () => {
+    if (confirm(`删除任务「${task?.title || taskId}」？此操作不可恢复。`)) {
+      api.tasks.del(taskId).then(() => { location.hash = "#/tasks"; }).catch((e: any) => setNotice(e.message));
+    }
+  };
+
   const sendText = async (msg: string, behavior?: string) => {
     setBubbles((prev) => {
       const n = (prev.filter((b) => b.role === "user").at(-1)?.n ?? 0) + 1;
@@ -325,21 +331,24 @@ export function TaskDetail({ taskId }: { taskId: string }) {
         if (atBottom !== auto) setAuto(atBottom);
       }}>
         <div className="detail-head">
-          <a href="#/tasks" className="back" data-tip="返回任务列表"><Icon name="arrow-left" size={18} /></a>
+          <a href="#/tasks" className="back" data-tip-down data-tip="返回任务列表"><Icon name="arrow-left" size={18} /></a>
           {renaming ? (
             <span className="rename-row">
               <input autoFocus value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") saveTitle(); if (e.key === "Escape") setRenaming(false); }} />
-              <button className="icon-btn" onClick={saveTitle} data-tip="保存"><Icon name="check" size={14} /></button>
-              <button className="icon-btn" onClick={() => setRenaming(false)} data-tip="取消"><Icon name="x" size={14} /></button>
+              <button className="icon-btn" onClick={saveTitle} data-tip-down data-tip="保存 (Enter)"><Icon name="check" size={14} /></button>
+              <button className="icon-btn" onClick={() => setRenaming(false)} data-tip-down data-tip="取消 (Esc)"><Icon name="x" size={14} /></button>
             </span>
           ) : (
-            <h3 style={{ cursor: "pointer" }} data-tip="点击重命名" onClick={() => { setTitleDraft(task?.title || ""); setRenaming(true); }}>{task?.title || "任务"}</h3>
+            <span className="title-wrap">
+              <h3 onClick={() => { setTitleDraft(task?.title || ""); setRenaming(true); }}>{task?.title || "任务"}</h3>
+              <button className="icon-btn" data-tip-down data-tip="重命名" onClick={() => { setTitleDraft(task?.title || ""); setRenaming(true); }}><Icon name="edit" size={13} /></button>
+            </span>
           )}
           {statusBadge}
-          {task?.expert_id ? <span className="chip expert-chip" data-tip={`专家：${task.expert_id}`}><Icon name="sparkles" size={11} />{experts.find((e) => e.id === task.expert_id)?.name || task.expert_id}</span> : null}
+          {task?.expert_id ? <span className="chip expert-chip" data-tip-down data-tip={`专家：${task.expert_id}`}><Icon name="sparkles" size={11} />{experts.find((e) => e.id === task.expert_id)?.name || task.expert_id}</span> : null}
           {usage && usage.total_tokens > 0 && (
-            <span className="chip mono" data-tip={usage.by_model.map((m) => `${m.provider}/${m.model_id}: in ${+m.input_tokens || 0} out ${+m.output_tokens || 0} cache ${+m.cache_read_tokens || 0}/${+m.cache_write_tokens || 0} ($${(+m.cost_usd || 0).toFixed(6)})`).join("\n")}>
+            <span className="chip mono" data-tip-down data-tip={usage.by_model.map((m) => `${m.provider}/${m.model_id}: in ${+m.input_tokens || 0} out ${+m.output_tokens || 0} cache ${+m.cache_read_tokens || 0}/${+m.cache_write_tokens || 0} ($${(+m.cost_usd || 0).toFixed(6)})`).join("\n")}>
               {usage.total_tokens.toLocaleString()} tok · ${(+usage.cost_usd || 0).toFixed(4)}
             </span>
           )}
@@ -347,7 +356,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
             const pct = Math.min(100, Math.round((ctxUse.tokens / ctxUse.window) * 100));
             const lvl = pct >= 85 ? "danger" : pct >= 60 ? "warn" : "ok";
             return (
-              <span className={`ctx-chip ${lvl}`} data-tip={`当前上下文占用 ${ctxUse.tokens.toLocaleString()} / ${ctxUse.window.toLocaleString()} tokens（${pct}%）`}>
+              <span className={`ctx-chip ${lvl}`} data-tip-down data-tip={`当前上下文占用 ${ctxUse.tokens.toLocaleString()} / ${ctxUse.window.toLocaleString()} tokens（${pct}%）`}>
                 <span className="ctx-label">上下文</span>
                 <span className="ctx-bar"><span className="ctx-fill" style={{ width: `${pct}%` }} /></span>
                 <span className="mono">{pct}%</span>
@@ -356,9 +365,9 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           })()}
           <span className="spacer" />
           <div className="msg-nav">
-            <button className="icon-btn" onClick={() => jump(curN - 1)} data-tip="上一条指令 (Alt+↑)" disabled={curN <= 1}><Icon name="chevron-right" size={15} className="rot270" /></button>
-            <button className="icon-btn" onClick={() => jump(curN + 1)} data-tip="下一条指令 (Alt+↓)" disabled={!userMsgs.length || curN >= userMsgs.length}><Icon name="chevron-right" size={15} className="rot90" /></button>
-            <button className="icon-btn" onClick={() => setNavOpen(!navOpen)} data-tip="指令定位"><Icon name="search" size={15} /></button>
+            <button className="icon-btn" onClick={() => jump(curN - 1)} data-tip-down data-tip="上一条指令 (Alt+↑)" disabled={curN <= 1}><Icon name="chevron-right" size={15} className="rot270" /></button>
+            <button className="icon-btn" onClick={() => jump(curN + 1)} data-tip-down data-tip="下一条指令 (Alt+↓)" disabled={!userMsgs.length || curN >= userMsgs.length}><Icon name="chevron-right" size={15} className="rot90" /></button>
+            <button className="icon-btn" onClick={() => setNavOpen(!navOpen)} data-tip-down data-tip="指令定位"><Icon name="search" size={15} /></button>
             {navOpen && (
               <div className="msg-nav-pop">
                 <div className="mnp-head">指令列表（{userMsgs.length} 条）</div>
@@ -375,6 +384,9 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           </div>
           <button className="icon-btn" onClick={() => setShowFiles(!showFiles)} data-tip={showFiles ? "隐藏产物面板" : "显示产物面板"}>
             <Icon name="panel-right" size={15} />
+          </button>
+          <button className="icon-btn danger" onClick={delTask} data-tip="删除任务">
+            <Icon name="trash" size={15} />
           </button>
         </div>
 

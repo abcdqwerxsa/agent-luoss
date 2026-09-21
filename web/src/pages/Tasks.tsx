@@ -121,6 +121,12 @@ export function Tasks() {
                 <span>{new Date(t.updated_at).toLocaleString()}</span>
               </div>
             </div>
+            <button className="icon-btn danger row-del" data-tip="删除任务" onClick={(e) => {
+              e.stopPropagation();
+              if (confirm(`删除任务「${t.title || t.first_message?.slice(0, 30) || t.id}」？不可恢复。`)) {
+                api.tasks.del(t.id).then(refresh).catch((e: any) => setErr(e.message));
+              }
+            }}><Icon name="trash" size={14} /></button>
             <span className="arrow"><Icon name="chevron-right" size={16} /></span>
           </div>
         ))}

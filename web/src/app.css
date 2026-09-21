@@ -333,7 +333,26 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 /* unified composer */
 .composer { padding: 14px 0 20px; position: sticky; bottom: 0; background: var(--bg); }
 .composer-box { background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 14px; }
-.composer-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-tint); }
+.composer-box:focus-within { border-color: var(--border-strong); box-shadow: 0 0 0 2.5px var(--accent-tint); }
+
+/* Tooltips inside the sticky chat header open DOWNWARD: the chat column is a
+   scroll container, so upward popovers clip at the scrollport edge. */
+[data-tip][data-tip-down]:hover::after, [data-tip][data-tip-down]:focus-visible::after {
+  top: calc(100% + 6px); bottom: auto;
+}
+
+.title-wrap { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.title-wrap .icon-btn { opacity: 0; transition: opacity 0.12s; }
+.title-wrap:hover .icon-btn, .title-wrap .icon-btn:focus-visible { opacity: 1; }
+.icon-btn.danger:hover { background: var(--danger-tint); color: var(--danger); }
+.rename-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.rename-row input {
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 6px;
+  color: var(--text); font: inherit; font-size: 14px; padding: 4px 10px; width: 280px; max-width: 40vw;
+}
+.task-row { position: relative; }
+.row-del { opacity: 0; transition: opacity 0.12s; }
+.task-row:hover .row-del { opacity: 1; }
 .composer-box { transition: border-color 0.2s, box-shadow 0.2s; }
 .ct-send { border-radius: 999px; transition: background 0.15s, transform 0.15s; }
 .ct-send:hover { transform: translateY(-1px); }

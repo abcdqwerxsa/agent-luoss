@@ -61,6 +61,7 @@ export const api = {
 
   tasks: {
     list: (q = "") => req<{ tasks: TaskInfo[]; total: number }>("GET", `/api/v1/tasks${q}`),
+    del: (id: string) => req("DELETE", `/api/v1/tasks/${id}`),
     create: (t: { title: string; mode: string; provider: string; model_id: string; first_message: string; expert_id?: string }) =>
       req<{ task: TaskInfo }>("POST", "/api/v1/tasks", t),
     get: (id: string) => req<{ task: TaskInfo; context_tokens?: number; context_window?: number }>("GET", `/api/v1/tasks/${id}`),
