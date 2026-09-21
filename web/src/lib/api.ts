@@ -112,8 +112,8 @@ export const api = {
     putModel: (m: { provider_id: string; model_id: string; display_name: string; context_window?: number; input_cost?: number; output_cost?: number; reasoning?: boolean; enabled: boolean; tier?: string }) => req("PUT", "/api/v1/admin/models", m),
     deleteModel: (provider_id: string, model_id: string) => req("DELETE", `/api/v1/admin/models?provider_id=${encodeURIComponent(provider_id)}&model_id=${encodeURIComponent(model_id)}`),
     allModels: () => req<{ models: ModelOpt[] }>("GET", "/api/v1/admin/models/all"),
-    deleteProvider: (id: string) => req("DELETE", `/api/v1/admin/providers/${id}`),
-    fetchProviderModels: (id: string) => req<{ model_ids: string[] }>("POST", `/api/v1/admin/providers/${id}/fetch-models`),
+    deleteProvider: (id: string) => req("DELETE", `/api/v1/admin/providers?id=${encodeURIComponent(id)}`),
+    fetchProviderModels: (id: string) => req<{ model_ids: string[] }>("POST", `/api/v1/admin/providers/fetch-models?id=${encodeURIComponent(id)}`),
     testModel: (provider_id: string, model_id: string) => req<{ ok: boolean; error?: string; latency_ms: number }>("POST", "/api/v1/admin/models/test", { provider_id, model_id }),
     usage: (q = "") => req<{
       rows: { day: string; user_id: string; total_tokens: number; cost_usd: number; task_count: number }[];

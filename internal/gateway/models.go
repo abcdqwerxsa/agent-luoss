@@ -12,8 +12,8 @@ func (a *App) registerModelRoutes(authed, admin *gin.RouterGroup) {
 
 	admin.GET("/admin/providers", a.listProviders)
 	admin.PUT("/admin/providers", a.upsertProvider)
-	admin.DELETE("/admin/providers/:id", a.deleteProvider)
-	admin.POST("/admin/providers/:id/fetch-models", a.fetchProviderModels)
+	admin.DELETE("/admin/providers", a.deleteProvider)
+	admin.POST("/admin/providers/fetch-models", a.fetchProviderModels)
 	admin.PUT("/admin/models", a.upsertModel)
 	admin.DELETE("/admin/models", a.deleteModel)
 	admin.POST("/admin/models/test", a.testModel)
@@ -79,7 +79,11 @@ func (a *App) upsertProvider(c *gin.Context) {
 }
 
 func (a *App) deleteProvider(c *gin.Context) {
-	if _, err := a.modelmgt.DeleteProvider(outCtx(c), &modelmgtpb.DeleteProviderRequest{ProviderId: c.Param("id")}); err != nil {
+	id := c.Param("id")
+	if id == "" {
+		id = c.Query("id")
+	}
+	if _, err := a.modelmgt.DeleteProvider(outCtx(c), &modelmgtpb.DeleteProviderRequest{ProviderId: id}); err != nil {
 		grpcStatus(c, err)
 		return
 	}
@@ -147,8 +151,12 @@ func (a *App) listAllModels(c *gin.Context) {
 }
 
 func (a *App) fetchProviderModels(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		id = c.Query("id")
+	}
 	resp, err := a.modelmgt.FetchProviderModels(outCtx(c), &modelmgtpb.FetchProviderModelsRequest{
-		ProviderId: c.Param("id"),
+		ProviderId: id,
 	})
 	if err != nil {
 		grpcStatus(c, err)
