@@ -3,6 +3,8 @@ import { api, TaskInfo, ModelOpt } from "../lib/api";
 import { Icon } from "../lib/icons";
 import { Markdown } from "../lib/md";
 import { Select } from "../lib/select";
+import Loader from "../components/Loader";
+import ThinkingTrace from "../components/ThinkingTrace";
 
 interface ToolCard { id: string; tool: string; args: string; output: string; done: boolean; error?: boolean }
 interface Bubble { role: "user" | "assistant"; text: string; thinking?: string; tools: ToolCard[]; streaming?: boolean; n?: number }
@@ -381,26 +383,30 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           {bubbles.map((b, i) => (
             <div key={i} id={b.n ? `um-${b.n}` : undefined} className={`bubble ${b.role} ${b.n && b.n === flashN ? "flash" : ""}`}>
               {b.role === "user" && b.n && <span className="msg-ord mono">#{b.n}</span>}
-              {b.role === "assistant" && b.thinking && (
-                <details className="thinking">
-                  <summary><Icon name="lightbulb" size={13} />思考过程<Icon name="chevron-down" size={12} /></summary>
-                  <div>{b.thinking}</div>
-                </details>
+              {b.role === "assistant" && (b.thinking || b.tools.length > 0) && (
+                <ThinkingTrace
+                  working={!!b.streaming}
+                  active="执行中"
+                  done={b.tools.length ? `执行了 ${b.tools.length} 步` : "思考过程"}
+                  rows={b.tools.map((t) => ({ primary: t.tool, secondary: t.error ? "失败" : t.done ? "完成" : "…", mono: true }))}
+                >
+                  {b.thinking && <div className="trace-thinking">{b.thinking}</div>}
+                  {b.tools.map((t) => (
+                    <details key={t.id} className={`toolcard ${t.error ? "err" : ""}`}>
+                      <summary>
+                        <span className="toolname"><Icon name={toolIcon(t.tool)} size={13} />{t.tool}</span>
+                        <span className="toolargs-preview">{t.args}</span>
+                        <span className={`toolstate ${!t.done ? "run" : t.error ? "err" : "ok"}`}>
+                          {!t.done ? "运行中…" : t.error ? "失败" : "完成"}
+                        </span>
+                      </summary>
+                      <pre className="toolargs">{t.args}</pre>
+                      {t.output && <pre className="toolout">{t.output}</pre>}
+                    </details>
+                  ))}
+                </ThinkingTrace>
               )}
-              {b.tools.map((t) => (
-                <details key={t.id} className={`toolcard ${t.error ? "err" : ""}`}>
-                  <summary>
-                    <span className="toolname"><Icon name={toolIcon(t.tool)} size={13} />{t.tool}</span>
-                    <span className="toolargs-preview">{t.args}</span>
-                    <span className={`toolstate ${!t.done ? "run" : t.error ? "err" : "ok"}`}>
-                      {!t.done ? "运行中…" : t.error ? "失败" : "完成"}
-                    </span>
-                  </summary>
-                  <pre className="toolargs">{t.args}</pre>
-                  {t.output && <pre className="toolout">{t.output}</pre>}
-                </details>
-              ))}
-              {b.text ? <Markdown text={b.text} /> : b.streaming ? <span className="cursor" /> : null}
+              {b.text ? <Markdown text={b.text} /> : b.streaming ? <Loader label="生成中" /> : null}
             </div>
           ))}
           {bubbles.length === 0 && <div className="empty">发送第一条消息开始任务</div>}

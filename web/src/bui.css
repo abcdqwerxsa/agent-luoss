@@ -1,0 +1,37 @@
+/* Tailwind entry for Beautiful UI components (MIT, https://www.beautifului.dev/).
+   Tokens map onto the app CSS-variable design system so ported components
+   blend with hand-written app.css styling. */
+@import "tailwindcss";
+
+:root {
+  /* raw vars referenced by ported components' inline styles */
+  --ink: var(--text);
+  --ink-2: var(--text-2);
+  --ink-3: var(--text-3);
+}
+
+@theme {
+  --color-ink: var(--text);
+  --color-ink-2: var(--text-2);
+  --color-ink-3: var(--text-3);
+  --color-accent: var(--accent);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-hover: var(--row-hover);
+  --color-hover-2: var(--surface-3);
+  --color-inset: var(--surface-2);
+  --color-green: #22c55e;
+  --color-red: #f87171;
+  --radius-control: var(--radius-ctrl);
+}
+
+/* keyframes used by the ported components */
+@keyframes pixel-on { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.9; } }
+@keyframes shimmer-text { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bui [style*="animation"] { animation: none !important; }
+}
