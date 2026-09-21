@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { api, TaskInfo, ModelOpt } from "../lib/api";
 import { Icon } from "../lib/icons";
 import { Markdown } from "../lib/md";
+import { Select } from "../lib/select";
 
 interface ToolCard { id: string; tool: string; args: string; output: string; done: boolean; error?: boolean }
 interface Bubble { role: "user" | "assistant"; text: string; thinking?: string; tools: ToolCard[]; streaming?: boolean; n?: number }
@@ -399,31 +400,20 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                     {MODE_NAME[task.mode] || task.mode}
                   </span>
                 )}
-                {task && (
-                  <span className="ct-pill mono" title="模型（可切换，下一轮生效）">
-                    <Icon name="sparkles" size={12} className="info" />
-                    <select
-                      value={modelKey}
-                      onChange={(e) => setModelKey(e.target.value)}
-                      style={{ background: "transparent", border: "none", color: "inherit", font: "inherit", cursor: "pointer", padding: 0 }}
-                    >
-                      <option value="">{task.model_id}（当前）</option>
-                      <option value="auto">Auto · 自动路由</option>
-                      {models.map((m) => (
-                        <option key={`${m.provider_id}/${m.model_id}`} value={`${m.provider_id}/${m.model_id}`}>{m.display_name || m.model_id}</option>
-                      ))}
-                    </select>
-                  </span>
-                )}
               </div>
               <div className="ct-right">
-                <button
-                  className={`ct-auto ${auto ? "on" : ""}`}
-                  onClick={() => { setAuto(true); scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }}
-                  title="自动滚动到最新消息"
-                >
-                  <Icon name="zap" size={13} />Auto
-                </button>
+                {task && (
+                  <Select
+                    value={modelKey}
+                    onChange={setModelKey}
+                    title="模型（可切换，下一轮生效）"
+                    options={[
+                      { value: "", label: `${task.model_id} · 当前` },
+                      { value: "auto", label: "Auto · 自动路由" },
+                      ...models.map((m) => ({ value: `${m.provider_id}/${m.model_id}`, label: m.display_name || m.model_id })),
+                    ]}
+                  />
+                )}
                 {running ? (
                   <>
                     <button className="ct-send stop" onClick={abort} title="中止任务"><Icon name="square" size={12} /></button>
