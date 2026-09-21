@@ -39,6 +39,7 @@ type Server struct {
 	usage     UsageReporter
 	quota     QuotaChecker
 	caps      CapsResolver
+	router    *Router
 }
 
 // QuotaChecker gates prompts on user quota (nil = always allow).
@@ -73,7 +74,7 @@ func (noopCaps) EffectiveCaps(context.Context, string, string) (*capspb.GetEffec
 	return &capspb.GetEffectiveCapsResponse{}, nil
 }
 
-func NewServer(db *pgxpool.Pool, rdb *redis.Client, workspacesDir string, usage UsageReporter, quota QuotaChecker, caps CapsResolver) *Server {
+func NewServer(db *pgxpool.Pool, rdb *redis.Client, workspacesDir string, usage UsageReporter, quota QuotaChecker, caps CapsResolver, router *Router) *Server {
 	if usage == nil {
 		usage = noopUsage{}
 	}
@@ -90,6 +91,7 @@ func NewServer(db *pgxpool.Pool, rdb *redis.Client, workspacesDir string, usage 
 		usage:     usage,
 		quota:     quota,
 		caps:      caps,
+		router:    router,
 	}
 }
 
@@ -125,9 +127,22 @@ func (s *Server) CreateTask(ctx context.Context, req *taskpb.CreateTaskRequest) 
 	if req.GetModel().GetModelId() == "" {
 		return nil, status.Error(codes.InvalidArgument, "model required")
 	}
+	provider, modelID := req.GetModel().GetProvider(), req.GetModel().GetModelId()
+	var route *RouteResult
+	if provider == "auto" || modelID == "auto" {
+		if s.router == nil {
+			return nil, status.Error(codes.Unimplemented, "auto routing not configured")
+		}
+		res, err := s.router.Resolve(ctx, req.GetTitle(), req.GetFirstMessage())
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		provider, modelID = res.Provider, res.ModelID
+		route = res
+	}
 	t := &Task{
 		ID: newTaskID(), UserID: req.GetUserId(), Title: req.GetTitle(),
-		Mode: mode, Provider: req.GetModel().GetProvider(), ModelID: req.GetModel().GetModelId(),
+		Mode: mode, Provider: provider, ModelID: modelID,
 		Status: "pending", FirstMessage: req.GetFirstMessage(), ExpertID: req.GetExpertId(),
 	}
 	if err := s.store.Create(ctx, t); err != nil {
@@ -135,6 +150,9 @@ func (s *Server) CreateTask(ctx context.Context, req *taskpb.CreateTaskRequest) 
 	}
 	actor := mdGet(ctx, "x-user-id")
 	auditx.Publish(ctx, s.rdb, auditx.Event{Actor: actor, Action: "task.create", Resource: "task/" + t.ID})
+	if route != nil {
+		s.synth(t.ID, "auto_route", route)
+	}
 
 	if req.GetFirstMessage() != "" {
 		// first prompt runs async; events arrive via SSE

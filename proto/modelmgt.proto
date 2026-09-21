@@ -41,6 +41,7 @@ message Model {
   double output_cost = 7;
   bool reasoning = 8;
   bool enabled = 9;
+  string tier = 10;       // "" (auto: derive from reasoning) | "strong" | "weak"
 }
 
 message UpsertProviderRequest {

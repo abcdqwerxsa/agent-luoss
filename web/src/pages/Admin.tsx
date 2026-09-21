@@ -167,7 +167,15 @@ function ModelsTab() {
     api.admin.putModel({
       provider_id: m.provider_id, model_id: m.model_id, display_name: m.display_name,
       context_window: m.context_window, input_cost: m.input_cost, output_cost: m.output_cost,
-      enabled: !m.enabled,
+      reasoning: !!m.reasoning, enabled: !m.enabled, tier: m.tier || "",
+    }).then(refresh).catch((e) => setMsg(e.message));
+  };
+
+  const setTier = (m: any, tier: string) => {
+    api.admin.putModel({
+      provider_id: m.provider_id, model_id: m.model_id, display_name: m.display_name,
+      context_window: m.context_window, input_cost: m.input_cost, output_cost: m.output_cost,
+      reasoning: !!m.reasoning, enabled: !!m.enabled, tier,
     }).then(refresh).catch((e) => setMsg(e.message));
   };
 
@@ -281,7 +289,7 @@ function ModelsTab() {
           )}
 
           <table>
-            <thead><tr><th>模型 ID</th><th>显示名</th><th>上下文</th><th>价格 in/out</th><th>测试</th><th>状态</th><th>操作</th></tr></thead>
+            <thead><tr><th>模型 ID</th><th>显示名</th><th>上下文</th><th>价格 in/out</th><th title="Auto 路由分层：强=复杂任务，弱=简单任务，空=按推理标志自动归类">分层</th><th>测试</th><th>状态</th><th>操作</th></tr></thead>
             <tbody>
               {mine.map((m) => (
                 <tr key={m.model_id} className={!m.enabled ? "row-off" : ""}>
@@ -289,6 +297,13 @@ function ModelsTab() {
                   <td>{m.display_name || <span className="hint">—</span>}</td>
                   <td>{m.context_window ? (+m.context_window / 1000).toFixed(0) + "k" : "—"}</td>
                   <td className="mono small">{(+m.input_cost || 0)} / {(+m.output_cost || 0)}</td>
+                  <td>
+                    <select className="tier-select" value={m.tier || ""} onChange={(e) => setTier(m, e.target.value)} title="Auto 路由分层">
+                      <option value="">自动</option>
+                      <option value="strong">强</option>
+                      <option value="weak">弱</option>
+                    </select>
+                  </td>
                   <td>
                     <button className="btn small" onClick={() => runTest(m)}>测试</button>
                     {testResult(m)}

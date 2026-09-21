@@ -35,7 +35,7 @@ export function Tasks() {
   useEffect(() => {
     api.models().then((r) => {
       setModels(r.models);
-      if (r.models.length) setModelKey(`${r.models[0].provider_id}/${r.models[0].model_id}`);
+      if (r.models.length) setModelKey("auto");
     }).catch(() => {});
     api.experts().then((r) => setExperts(r.experts || [])).catch(() => {});
     const t = setInterval(refresh, 10_000);
@@ -43,7 +43,7 @@ export function Tasks() {
   }, []);
 
   const create = async () => {
-    const [provider, model_id] = modelKey.split("/");
+    const [provider, model_id] = modelKey === "auto" ? ["auto", "auto"] : modelKey.split("/");
     setBusy(true); setErr("");
     try {
       const r = await api.tasks.create({ title, mode, provider, model_id, first_message: message, expert_id: expertId || undefined });
@@ -91,7 +91,7 @@ export function Tasks() {
           )}
           <div className="field-row">
             <label>模型</label>
-            <Select value={modelKey} onChange={setModelKey} options={models.map((m) => ({ value: `${m.provider_id}/${m.model_id}`, label: m.display_name || `${m.provider_id}/${m.model_id}` }))} />
+            <Select value={modelKey} onChange={setModelKey} options={[{ value: "auto", label: "Auto · 自动路由（简单→弱模型，复杂→强模型）" }, ...models.map((m) => ({ value: `${m.provider_id}/${m.model_id}`, label: m.display_name || `${m.provider_id}/${m.model_id}` }))]} />
           </div>
           <div className="field-row">
             <label>任务描述</label>

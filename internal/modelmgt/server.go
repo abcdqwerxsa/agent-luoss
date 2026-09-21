@@ -118,6 +118,9 @@ func (s *Server) Render(ctx context.Context) error {
 			if m.Reasoning {
 				mm["reasoning"] = true
 			}
+			if m.Tier != "" {
+				mm["tier"] = m.Tier
+			}
 			list = append(list, mm)
 		}
 		pm["models"] = list
@@ -221,7 +224,7 @@ func (s *Server) UpsertModel(ctx context.Context, req *modelmgtpb.UpsertModelReq
 		ProviderID: m.GetProviderId(), ModelID: m.GetId(), DisplayName: m.GetDisplayName(),
 		ContextWindow: m.GetContextWindow(), MaxTokens: m.GetMaxTokens(),
 		InputCost: m.GetInputCost(), OutputCost: m.GetOutputCost(),
-		Reasoning: m.GetReasoning(), Enabled: m.GetEnabled(),
+		Reasoning: m.GetReasoning(), Enabled: m.GetEnabled(), Tier: m.GetTier(),
 	}); err != nil {
 		return nil, errCode(err)
 	}
@@ -275,7 +278,7 @@ func (s *Server) ListModels(ctx context.Context, req *modelmgtpb.ListModelsReque
 			ProviderId: m.ProviderID, Id: m.ModelID, DisplayName: m.DisplayName,
 			ContextWindow: m.ContextWindow, MaxTokens: m.MaxTokens,
 			InputCost: m.InputCost, OutputCost: m.OutputCost,
-			Reasoning: m.Reasoning, Enabled: m.Enabled,
+			Reasoning: m.Reasoning, Enabled: m.Enabled, Tier: m.Tier,
 		})
 	}
 	return resp, nil

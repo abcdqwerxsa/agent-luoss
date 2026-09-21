@@ -20,5 +20,9 @@ CREATE TABLE IF NOT EXISTS modelmgt.models (
   output_cost   DOUBLE PRECISION NOT NULL DEFAULT 0,
   reasoning     BOOLEAN NOT NULL DEFAULT false,
   enabled       BOOLEAN NOT NULL DEFAULT true,
+  tier          TEXT NOT NULL DEFAULT '',           -- "" | "strong" | "weak" (auto routing)
   PRIMARY KEY (provider_id, model_id)
 );
+
+-- Existing deployments: add tier column idempotently.
+ALTER TABLE modelmgt.models ADD COLUMN IF NOT EXISTS tier TEXT NOT NULL DEFAULT '';
