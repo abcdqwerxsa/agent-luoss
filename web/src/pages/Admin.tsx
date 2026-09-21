@@ -200,8 +200,8 @@ function ModelsTab() {
     if (t === "testing") return <span className="test-res testing">测试中…</span>;
     if (!t) return null;
     return t.ok
-      ? <span className="test-res ok" title={`${t.latency_ms}ms`}><Icon name="check" size={12} />{t.latency_ms}ms</span>
-      : <span className="test-res err" title={t.error}>失败</span>;
+      ? <span className="test-res ok" data-tip={`${t.latency_ms}ms`}><Icon name="check" size={12} />{t.latency_ms}ms</span>
+      : <span className="test-res err" data-tip={t.error}>失败</span>;
   };
 
   const fetchFromProvider = async () => {
@@ -289,7 +289,7 @@ function ModelsTab() {
           )}
 
           <table>
-            <thead><tr><th>模型 ID</th><th>显示名</th><th>上下文</th><th>价格 in/out</th><th title="Auto 路由分层：强=复杂任务，弱=简单任务，空=按推理标志自动归类">分层</th><th>测试</th><th>状态</th><th>操作</th></tr></thead>
+            <thead><tr><th>模型 ID</th><th>显示名</th><th>上下文</th><th>价格 in/out</th><th data-tip="Auto 路由分层：强=复杂任务，弱=简单任务，空=按推理标志自动归类">分层</th><th>测试</th><th>状态</th><th>操作</th></tr></thead>
             <tbody>
               {mine.map((m) => (
                 <tr key={m.model_id} className={!m.enabled ? "row-off" : ""}>
@@ -298,7 +298,7 @@ function ModelsTab() {
                   <td>{m.context_window ? (+m.context_window / 1000).toFixed(0) + "k" : "—"}</td>
                   <td className="mono small">{(+m.input_cost || 0)} / {(+m.output_cost || 0)}</td>
                   <td>
-                    <select className="tier-select" value={m.tier || ""} onChange={(e) => setTier(m, e.target.value)} title="Auto 路由分层">
+                    <select className="tier-select" value={m.tier || ""} onChange={(e) => setTier(m, e.target.value)} data-tip="Auto 路由分层">
                       <option value="">自动</option>
                       <option value="strong">强</option>
                       <option value="weak">弱</option>
@@ -309,7 +309,7 @@ function ModelsTab() {
                     {testResult(m)}
                   </td>
                   <td>
-                    <label className="switch" title={m.enabled ? "点击停用" : "点击启用"}>
+                    <label className="switch" data-tip={m.enabled ? "点击停用" : "点击启用"}>
                       <input type="checkbox" checked={!!m.enabled} onChange={() => toggle(m)} />
                       <span className="slider" />
                     </label>
@@ -393,13 +393,13 @@ function McpTab() {
         {msg && <div className="msg">{msg}</div>}
         <div className="provider-cards">
           {servers.map((m) => (
-            <div key={m.id} className={`provider-card ${m.enabled ? "" : "off"}`} onClick={() => startEdit(m)} title="点击编辑">
+            <div key={m.id} className={`provider-card ${m.enabled ? "" : "off"}`} onClick={() => startEdit(m)} data-tip="点击编辑">
               <span className="pc-del" onClick={(e) => { e.stopPropagation(); del(m); }}>删除</span>
               <span className="pc-name">{m.name || m.id} <span className="badge">{m.transport}</span></span>
               <span className="pc-meta mono ellipsis">{m.transport === "stdio" ? `${m.command} ${(m.args || []).join(" ")}` : m.url}</span>
               <span className="pc-meta">👥 {scopeSummary(m.scopes)}</span>
               <div className="cap-actions" onClick={(e) => e.stopPropagation()}>
-                <label className="switch" title={m.enabled ? "停用" : "启用"}>
+                <label className="switch" data-tip={m.enabled ? "停用" : "启用"}>
                   <input type="checkbox" checked={m.enabled} onChange={() => toggle(m)} />
                   <span className="slider" />
                 </label>
@@ -500,10 +500,10 @@ function SkillsTab() {
               <span className="pc-del" onClick={() => del(k)}>删除</span>
               <span className="pc-name">{k.name}</span>
               <span className="pc-meta mono">{k.id}</span>
-              <span className="pc-meta ellipsis" title={k.description}>{k.description || "—"}</span>
+              <span className="pc-meta ellipsis" data-tip={k.description}>{k.description || "—"}</span>
               <span className="pc-meta">👥 {scopeSummary(k.scopes)}</span>
               <div className="cap-actions">
-                <label className="switch" title={k.enabled ? "停用" : "启用"}>
+                <label className="switch" data-tip={k.enabled ? "停用" : "启用"}>
                   <input type="checkbox" checked={k.enabled} onChange={() => toggle(k)} />
                   <span className="slider" />
                 </label>
@@ -557,11 +557,11 @@ function ExpertsTab() {
               <span className="pc-del" onClick={() => confirm(`删除专家 ${e.name}？`) && api.admin.deleteExpert(e.id).then(refresh).catch((er) => setMsg(er.message))}>删除</span>
               <span className="pc-name">{e.name}</span>
               <span className="pc-meta mono">{e.id}</span>
-              <span className="pc-meta ellipsis" title={e.description}>{e.description || "—"}</span>
+              <span className="pc-meta ellipsis" data-tip={e.description}>{e.description || "—"}</span>
               <span className="pc-meta">技能×{e.skill_ids?.length || 0} · MCP×{e.mcp_ids?.length || 0} · 👥 {scopeSummary(e.scopes)}</span>
               <div className="cap-actions">
                 <button className="btn small" onClick={() => { setForm({ id: e.id, name: e.name, description: e.description, enabled: e.enabled, skill_ids: e.skill_ids || [], mcp_ids: e.mcp_ids || [] }); setScopes(e.scopes || []); setEditing(true); }}>编辑</button>
-                <label className="switch" title={e.enabled ? "下架" : "上架"}>
+                <label className="switch" data-tip={e.enabled ? "下架" : "上架"}>
                   <input type="checkbox" checked={e.enabled} onChange={() => api.admin.putExpert({ ...e, enabled: !e.enabled, scopes: e.scopes || [] }).then(refresh).catch((er) => setMsg(er.message))} />
                   <span className="slider" />
                 </label>
@@ -660,7 +660,7 @@ function UsageTab() {
           {dayList.map((d) => (
             <div key={d.day} className={`chart-col ${d.today ? "today" : ""}`}>
               <span className="chart-val">{d.tokens > 0 ? fmt(d.tokens) : ""}</span>
-              <div className="chart-bar" style={{ height: `${Math.max(3, (d.tokens / maxTokens) * 130)}px` }} title={`${d.day} · $${d.cost.toFixed(6)}`} />
+              <div className="chart-bar" style={{ height: `${Math.max(3, (d.tokens / maxTokens) * 130)}px` }} data-tip={`${d.day} · $${d.cost.toFixed(6)}`} />
               <span className="chart-day">{d.label}</span>
             </div>
           ))}

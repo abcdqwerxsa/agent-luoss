@@ -279,7 +279,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
         );
       }
       return (
-        <div key={full} className="fnode" style={{ paddingLeft: depth * 14 + 24 }} onClick={() => download(full)} title="点击下载">
+        <div key={full} className="fnode" style={{ paddingLeft: depth * 14 + 24 }} onClick={() => download(full)} data-tip="点击下载">
           <Icon name="file-text" size={13} />
           {n.name} <span className="fsize">{n.size}B</span>
         </div>
@@ -295,12 +295,12 @@ export function TaskDetail({ taskId }: { taskId: string }) {
         if (atBottom !== auto) setAuto(atBottom);
       }}>
         <div className="detail-head">
-          <a href="#/tasks" className="back" title="返回任务列表"><Icon name="arrow-left" size={18} /></a>
+          <a href="#/tasks" className="back" data-tip="返回任务列表"><Icon name="arrow-left" size={18} /></a>
           <h3>{task?.title || "任务"}</h3>
           {statusBadge}
-          {task?.expert_id ? <span className="chip expert-chip" title={`专家：${task.expert_id}`}><Icon name="sparkles" size={11} />{experts.find((e) => e.id === task.expert_id)?.name || task.expert_id}</span> : null}
+          {task?.expert_id ? <span className="chip expert-chip" data-tip={`专家：${task.expert_id}`}><Icon name="sparkles" size={11} />{experts.find((e) => e.id === task.expert_id)?.name || task.expert_id}</span> : null}
           {usage && usage.total_tokens > 0 && (
-            <span className="chip mono" title={usage.by_model.map((m) => `${m.provider}/${m.model_id}: in ${+m.input_tokens || 0} out ${+m.output_tokens || 0} cache ${+m.cache_read_tokens || 0}/${+m.cache_write_tokens || 0} ($${(+m.cost_usd || 0).toFixed(6)})`).join("\n")}>
+            <span className="chip mono" data-tip={usage.by_model.map((m) => `${m.provider}/${m.model_id}: in ${+m.input_tokens || 0} out ${+m.output_tokens || 0} cache ${+m.cache_read_tokens || 0}/${+m.cache_write_tokens || 0} ($${(+m.cost_usd || 0).toFixed(6)})`).join("\n")}>
               {usage.total_tokens.toLocaleString()} tok · ${(+usage.cost_usd || 0).toFixed(4)}
             </span>
           )}
@@ -308,7 +308,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
             const pct = Math.min(100, Math.round((ctxUse.tokens / ctxUse.window) * 100));
             const lvl = pct >= 85 ? "danger" : pct >= 60 ? "warn" : "ok";
             return (
-              <span className={`ctx-chip ${lvl}`} title={`当前上下文占用 ${ctxUse.tokens.toLocaleString()} / ${ctxUse.window.toLocaleString()} tokens（${pct}%）`}>
+              <span className={`ctx-chip ${lvl}`} data-tip={`当前上下文占用 ${ctxUse.tokens.toLocaleString()} / ${ctxUse.window.toLocaleString()} tokens（${pct}%）`}>
                 <span className="ctx-label">上下文</span>
                 <span className="ctx-bar"><span className="ctx-fill" style={{ width: `${pct}%` }} /></span>
                 <span className="mono">{pct}%</span>
@@ -317,9 +317,9 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           })()}
           <span className="spacer" />
           <div className="msg-nav">
-            <button className="icon-btn" onClick={() => jump(curN - 1)} title="上一条指令 (Alt+↑)" disabled={curN <= 1}><Icon name="chevron-right" size={15} className="rot270" /></button>
-            <button className="icon-btn" onClick={() => jump(curN + 1)} title="下一条指令 (Alt+↓)" disabled={!userMsgs.length || curN >= userMsgs.length}><Icon name="chevron-right" size={15} className="rot90" /></button>
-            <button className="icon-btn" onClick={() => setNavOpen(!navOpen)} title="指令定位"><Icon name="search" size={15} /></button>
+            <button className="icon-btn" onClick={() => jump(curN - 1)} data-tip="上一条指令 (Alt+↑)" disabled={curN <= 1}><Icon name="chevron-right" size={15} className="rot270" /></button>
+            <button className="icon-btn" onClick={() => jump(curN + 1)} data-tip="下一条指令 (Alt+↓)" disabled={!userMsgs.length || curN >= userMsgs.length}><Icon name="chevron-right" size={15} className="rot90" /></button>
+            <button className="icon-btn" onClick={() => setNavOpen(!navOpen)} data-tip="指令定位"><Icon name="search" size={15} /></button>
             {navOpen && (
               <div className="msg-nav-pop">
                 <div className="mnp-head">指令列表（{userMsgs.length} 条）</div>
@@ -334,7 +334,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
               </div>
             )}
           </div>
-          <button className="icon-btn" onClick={() => setShowFiles(!showFiles)} title={showFiles ? "隐藏产物面板" : "显示产物面板"}>
+          <button className="icon-btn" onClick={() => setShowFiles(!showFiles)} data-tip={showFiles ? "隐藏产物面板" : "显示产物面板"}>
             <Icon name="panel-right" size={15} />
           </button>
         </div>
@@ -390,7 +390,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
             />
             <div className="composer-toolbar">
               <div className="ct-left">
-                <label className="ct-btn" title="上传文件到工作区">
+                <label className="ct-btn" data-tip="上传文件到工作区">
                   <Icon name="plus" size={15} />
                   <input type="file" hidden onChange={(e) => e.target.files?.[0] && uploadFile(e.target.files[0])} />
                 </label>
@@ -399,9 +399,9 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                     dropUp
                     value={modeKey}
                     onChange={setModeKey}
-                    title="权限模式（可切换，下一轮生效）"
+                    data-tip="权限模式（可切换，下一轮生效）"
                     options={[
-                      { value: "", label: MODE_NAME[task.mode] || task.mode },
+                      { value: "", label: task.mode === "ask" ? "只读" : task.mode === "plan" ? "计划" : "完整" },
                       { value: "ask", label: "只读 · 仅查看不改文件" },
                       { value: "craft", label: "完整 · 可读写执行" },
                       { value: "plan", label: "计划 · 先计划再执行" },
@@ -415,7 +415,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                     dropUp
                     value={modelKey}
                     onChange={setModelKey}
-                    title="模型（可切换，下一轮生效）"
+                    data-tip="模型（可切换，下一轮生效）"
                     options={[
                       { value: "", label: task.model_id },
                       { value: "auto", label: "Auto · 自动路由" },
@@ -425,11 +425,11 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                 )}
                 {running ? (
                   <>
-                    <button className="ct-send stop" onClick={abort} title="中止任务"><Icon name="square" size={12} /></button>
+                    <button className="ct-send stop" onClick={abort} data-tip="中止任务"><Icon name="square" size={12} /></button>
                     <button className="btn ghost sm" onClick={() => send("follow_up")} disabled={!input.trim()}>排队追问</button>
                   </>
                 ) : (
-                  <button className="ct-send" onClick={() => send()} disabled={!input.trim()} title="发送"><Icon name="arrow-up" size={16} /></button>
+                  <button className="ct-send" onClick={() => send()} disabled={!input.trim()} data-tip="发送"><Icon name="arrow-up" size={16} /></button>
                 )}
               </div>
             </div>
@@ -442,8 +442,8 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           <div className="files-head">
             <Icon name="folder" size={15} />
             <h4>工作区文件</h4>
-            <button className="icon-btn" onClick={() => loadFiles("")} title="刷新"><Icon name="refresh-cw" size={13} /></button>
-            <button className="icon-btn" onClick={() => setShowFiles(false)} title="收起面板"><Icon name="x" size={13} /></button>
+            <button className="icon-btn" onClick={() => loadFiles("")} data-tip="刷新"><Icon name="refresh-cw" size={13} /></button>
+            <button className="icon-btn" onClick={() => setShowFiles(false)} data-tip="收起面板"><Icon name="x" size={13} /></button>
           </div>
           <div className="ftree">{fileTree("", 0)}</div>
           <p className="hint">点击文件下载，点击目录展开</p>

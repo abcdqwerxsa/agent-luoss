@@ -72,7 +72,7 @@ export function Tasks() {
           <div className="new-task-head">
             <b>新建任务</b>
             <span className="spacer" />
-            <button className="icon-btn" onClick={() => setCreating(false)} title="收起"><Icon name="x" size={16} /></button>
+            <button className="icon-btn" onClick={() => setCreating(false)} data-tip="收起"><Icon name="x" size={16} /></button>
           </div>
           <div className="modes">
             {MODES.map((m) => (
@@ -116,7 +116,7 @@ export function Tasks() {
               <div className="t-meta">
                 {statusBadge(t.status)}
                 <span className="chip">{t.mode}</span>
-                {!!t.expert_id && <span className="chip expert-chip" title={`专家：${t.expert_id}`}><Icon name="sparkles" size={11} />{experts.find((ex) => ex.id === t.expert_id)?.name || t.expert_id}</span>}
+                {!!t.expert_id && <span className="chip expert-chip" data-tip={`专家：${t.expert_id}`}><Icon name="sparkles" size={11} />{experts.find((ex) => ex.id === t.expert_id)?.name || t.expert_id}</span>}
                 <span className="chip">{t.model_id}</span>
                 <span>{new Date(t.updated_at).toLocaleString()}</span>
               </div>

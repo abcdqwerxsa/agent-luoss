@@ -24,7 +24,7 @@ export function Select({ value, onChange, options, className, title, dropUp }: {
   }, [open]);
   const cur = options.find((o) => o.value === value);
   return (
-    <div className={`select-dd ${dropUp ? "up" : ""} ${className || ""}`} ref={ref} title={title}>
+    <div className={`select-dd ${dropUp ? "up" : ""} ${className || ""}`} ref={ref} data-tip={title}>
       <button type="button" className={`select-btn ${open ? "open" : ""}`} onClick={() => setOpen(!open)}>
         <span className="select-val">{cur?.label ?? "—"}</span>
         <svg className="select-caret" width="10" height="6" viewBox="0 0 10 6" aria-hidden>
