@@ -60,9 +60,12 @@ services:
       USAGE_ADDR: usage:9095
       CAPS_ADDR: caps:9096
       WORKSPACES_DIR: /data/workspaces
+      MODELS_PATH: /data/config/models.json
+      JEV_API_KEY: ${JEV_API_KEY:-}
     volumes:
       - workspaces:/data/workspaces
       - sessions:/data/sessions
+      - config:/data/config:ro
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

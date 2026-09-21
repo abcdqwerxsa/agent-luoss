@@ -3,7 +3,7 @@ export interface User { id: string; username: string; display_name: string; role
 export interface Scope { type: string; value: string }
 export interface McpServerInfo { id: string; name: string; transport: string; command: string; args: string[]; url: string; enabled: boolean; scopes: Scope[] }
 export interface SkillInfo { id: string; name: string; description: string; enabled: boolean; scopes: Scope[] }
-export interface ModelOpt { provider_id: string; model_id: string; display_name: string; context_window?: number; reasoning?: boolean; input_cost?: number; output_cost?: number; enabled?: boolean }
+export interface ModelOpt { provider_id: string; model_id: string; display_name: string; context_window?: number; reasoning?: boolean; input_cost?: number; output_cost?: number; enabled?: boolean; tier?: string }
 export interface TaskInfo {
   id: string; user_id: string; title: string; mode: string; expert_id?: string;
   provider: string; model_id: string; status: string;
@@ -109,7 +109,7 @@ export const api = {
     deleteUser: (id: string) => req("DELETE", `/api/v1/users/${id}`),
     providers: () => req<{ providers: { id: string; name: string; base_url: string; api_type: string; has_key: boolean; enabled: boolean }[] }>("GET", "/api/v1/admin/providers"),
     putProvider: (p: { id: string; name: string; base_url: string; api_type: string; api_key?: string; enabled: boolean }) => req("PUT", "/api/v1/admin/providers", p),
-    putModel: (m: { provider_id: string; model_id: string; display_name: string; context_window?: number; input_cost?: number; output_cost?: number; enabled: boolean }) => req("PUT", "/api/v1/admin/models", m),
+    putModel: (m: { provider_id: string; model_id: string; display_name: string; context_window?: number; input_cost?: number; output_cost?: number; reasoning?: boolean; enabled: boolean; tier?: string }) => req("PUT", "/api/v1/admin/models", m),
     deleteModel: (provider_id: string, model_id: string) => req("DELETE", `/api/v1/admin/models?provider_id=${encodeURIComponent(provider_id)}&model_id=${encodeURIComponent(model_id)}`),
     allModels: () => req<{ models: ModelOpt[] }>("GET", "/api/v1/admin/models/all"),
     deleteProvider: (id: string) => req("DELETE", `/api/v1/admin/providers/${id}`),

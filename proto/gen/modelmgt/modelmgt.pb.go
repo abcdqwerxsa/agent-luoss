@@ -124,6 +124,7 @@ type Model struct {
 	OutputCost    float64                `protobuf:"fixed64,7,opt,name=output_cost,json=outputCost,proto3" json:"output_cost,omitempty"`
 	Reasoning     bool                   `protobuf:"varint,8,opt,name=reasoning,proto3" json:"reasoning,omitempty"`
 	Enabled       bool                   `protobuf:"varint,9,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Tier          string                 `protobuf:"bytes,10,opt,name=tier,proto3" json:"tier,omitempty"` // "" (auto: derive from reasoning) | "strong" | "weak"
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -219,6 +220,13 @@ func (x *Model) GetEnabled() bool {
 		return x.Enabled
 	}
 	return false
+}
+
+func (x *Model) GetTier() string {
+	if x != nil {
+		return x.Tier
+	}
+	return ""
 }
 
 type UpsertProviderRequest struct {
@@ -930,7 +938,7 @@ const file_modelmgt_proto_rawDesc = "" +
 	"\aapi_key\x18\x05 \x01(\tR\x06apiKey\x12\x18\n" +
 	"\aenabled\x18\x06 \x01(\bR\aenabled\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\x03R\tupdatedAt\"\x99\x02\n" +
+	"updated_at\x18\a \x01(\x03R\tupdatedAt\"\xad\x02\n" +
 	"\x05Model\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
@@ -944,7 +952,9 @@ const file_modelmgt_proto_rawDesc = "" +
 	"\voutput_cost\x18\a \x01(\x01R\n" +
 	"outputCost\x12\x1c\n" +
 	"\treasoning\x18\b \x01(\bR\treasoning\x12\x18\n" +
-	"\aenabled\x18\t \x01(\bR\aenabled\"U\n" +
+	"\aenabled\x18\t \x01(\bR\aenabled\x12\x12\n" +
+	"\x04tier\x18\n" +
+	" \x01(\tR\x04tier\"U\n" +
 	"\x15UpsertProviderRequest\x12<\n" +
 	"\bprovider\x18\x01 \x01(\v2 .agentluoss.v1.modelmgt.ProviderR\bprovider\"\x18\n" +
 	"\x16UpsertProviderResponse\"8\n" +

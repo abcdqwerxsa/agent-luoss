@@ -44,7 +44,14 @@ func main() {
 		}
 		caps = ad
 	}
-	srv := task.NewServer(pool, rdb, envOr("WORKSPACES_DIR", "/data/workspaces"), reporter, quota, caps)
+	router := task.NewRouter(
+		envOr("MODELS_PATH", "/data/config/models.json"),
+		envOr("JEV_BASE_URL", "https://api.typesafe.ai/v1/systemone"),
+		os.Getenv("JEV_API_KEY"),
+		envOr("JEV_MODEL", "jev-latest"),
+	)
+	srv := task.NewServer(pool, rdb, envOr("WORKSPACES_DIR", "/data/workspaces"), reporter, quota, caps, router)
+	router.Warmup()
 	log.Fatal(grpcx.Serve(mustAtoi(envOr("PORT", "9092")), srv.Register))
 }
 
