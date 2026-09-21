@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { api, TaskInfo } from "../lib/api";
+import { api, TaskInfo, ModelOpt } from "../lib/api";
 import { Icon } from "../lib/icons";
 import { Markdown } from "../lib/md";
 
@@ -29,6 +29,8 @@ export function TaskDetail({ taskId }: { taskId: string }) {
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
   const [notice, setNotice] = useState("");
+  const [models, setModels] = useState<ModelOpt[]>([]);
+  const [modelKey, setModelKey] = useState(""); // "" = keep current, "auto", or provider/model_id
   const [auto, setAuto] = useState(true);
   const [files, setFiles] = useState<Record<string, { name: string; is_dir: boolean; size: number }[]>>({});
   const [dirOpen, setDirOpen] = useState<Record<string, boolean>>({ "": true });
@@ -119,8 +121,10 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     return () => es.close();
   }, [taskId]);
 
+  useEffect(() => { api.models().then((r) => setModels(r.models)).catch(() => {}); }, []);
+
   useEffect(() => {
-    if (auto) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+    if (auto) scrollRef.current?.scrollTo({ top: scrollRef.current?.scrollHeight });
   }, [bubbles, notice, auto]);
 
   const refreshTask = () => api.tasks.get(taskId).then((r) => {
@@ -210,7 +214,10 @@ export function TaskDetail({ taskId }: { taskId: string }) {
       return [...prev, { role: "user", text: msg, tools: [], n }];
     });
     try {
-      await api.tasks.send(taskId, msg, behavior);
+      const model = modelKey === "" ? undefined
+        : modelKey === "auto" ? { provider: "auto", model_id: "auto" }
+        : (() => { const [p, m] = modelKey.split("/"); return { provider: p, model_id: m }; })();
+      await api.tasks.send(taskId, msg, behavior, undefined, model);
       setRunning(true);
     } catch (e: any) {
       setNotice(e.message);
@@ -393,9 +400,19 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                   </span>
                 )}
                 {task && (
-                  <span className="ct-pill mono" title="模型">
+                  <span className="ct-pill mono" title="模型（可切换，下一轮生效）">
                     <Icon name="sparkles" size={12} className="info" />
-                    {task.model_id}
+                    <select
+                      value={modelKey}
+                      onChange={(e) => setModelKey(e.target.value)}
+                      style={{ background: "transparent", border: "none", color: "inherit", font: "inherit", cursor: "pointer", padding: 0 }}
+                    >
+                      <option value="">{task.model_id}（当前）</option>
+                      <option value="auto">Auto · 自动路由</option>
+                      {models.map((m) => (
+                        <option key={`${m.provider_id}/${m.model_id}`} value={`${m.provider_id}/${m.model_id}`}>{m.display_name || m.model_id}</option>
+                      ))}
+                    </select>
                   </span>
                 )}
               </div>

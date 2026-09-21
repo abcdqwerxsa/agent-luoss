@@ -112,6 +112,8 @@ message SendPromptRequest {
   string message = 3;
   repeated agentluoss.v1.runtime.ImageContent images = 4;
   string streaming_behavior = 5;
+  // Optional per-turn model override; provider/model_id "auto" routes via Jev.
+  agentluoss.v1.runtime.ModelRef model = 6;
 }
 
 message SendPromptResponse {

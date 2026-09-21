@@ -166,9 +166,11 @@ func (a *App) deleteTask(c *gin.Context) {
 
 func (a *App) sendPrompt(c *gin.Context) {
 	var req struct {
-		Message          string   `json:"message" binding:"required"`
-		Images           []gin.H  `json:"images"`
-		StreamingBehavior string  `json:"streaming_behavior"`
+		Message           string   `json:"message" binding:"required"`
+		Images            []gin.H  `json:"images"`
+		StreamingBehavior string   `json:"streaming_behavior"`
+		Provider          string   `json:"provider"` // optional per-turn override
+		ModelID           string   `json:"model_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": "message required"})
@@ -183,9 +185,14 @@ func (a *App) sendPrompt(c *gin.Context) {
 		}
 		pbImages = append(pbImages, &imageContent{Data: data, MediaType: mediaType})
 	}
+	var model *taskModel
+	if req.Provider != "" || req.ModelID != "" {
+		model = &taskModel{Provider: req.Provider, ModelId: req.ModelID}
+	}
 	resp, err := a.task.SendPrompt(outCtx(c), &taskpb.SendPromptRequest{
 		TaskId: c.Param("id"), UserId: c.GetString("user_id"),
 		Message: req.Message, Images: pbImages, StreamingBehavior: req.StreamingBehavior,
+		Model: model,
 	})
 	if err != nil {
 		grpcStatus(c, err)

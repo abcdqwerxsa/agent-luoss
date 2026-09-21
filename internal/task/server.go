@@ -360,6 +360,26 @@ func (s *Server) SendPrompt(ctx context.Context, req *taskpb.SendPromptRequest) 
 	if req.GetMessage() == "" {
 		return nil, status.Error(codes.InvalidArgument, "message required")
 	}
+	// Optional per-turn model override; resolved before taking the session
+	// lock (Jev round trip) and recorded on the task row.
+	var override *runtimpb.ModelRef
+	if m := req.GetModel(); m != nil && (m.GetProvider() != "" || m.GetModelId() != "") {
+		p, mID := m.GetProvider(), m.GetModelId()
+		if p == "auto" || mID == "auto" {
+			if s.router == nil {
+				return nil, status.Error(codes.Unimplemented, "auto routing not configured")
+			}
+			res, err := s.router.Resolve(ctx, t.Title, req.GetMessage())
+			if err != nil {
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
+			p, mID = res.Provider, res.ModelID
+			s.synth(t.ID, "auto_route", res)
+		}
+		override = &runtimpb.ModelRef{Provider: p, ModelId: mID}
+		_ = s.store.SetModel(ctx, t.ID, p, mID)
+		t.Provider, t.ModelID = p, mID
+	}
 	if s.quota != nil {
 		if err := s.quota.Allowed(ctx, t.UserID); err != nil {
 			return nil, status.Error(codes.ResourceExhausted, err.Error())
@@ -380,7 +400,7 @@ func (s *Server) SendPrompt(ctx context.Context, req *taskpb.SendPromptRequest) 
 	}
 	_, err = cl.Prompt(ctx, &runtimpb.PromptRequest{
 		TaskId: t.ID, Message: req.GetMessage(), Images: images,
-		StreamingBehavior: req.GetStreamingBehavior(),
+		StreamingBehavior: req.GetStreamingBehavior(), Model: override,
 	})
 	if err != nil {
 		s.registry.ReleaseSessionLock(ctx, t.ID)

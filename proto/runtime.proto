@@ -75,6 +75,9 @@ message PromptRequest {
   repeated ImageContent images = 3;
   // "default" | "steer" | "follow_up"; required when agent is streaming.
   string streaming_behavior = 4;
+  // Optional per-turn model override (resolved model; applies before this
+  // prompt via session.setModel — rejected while streaming).
+  ModelRef model = 5;
 }
 
 message PromptResponse {

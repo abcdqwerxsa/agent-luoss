@@ -496,8 +496,11 @@ type PromptRequest struct {
 	Images  []*ImageContent        `protobuf:"bytes,3,rep,name=images,proto3" json:"images,omitempty"`
 	// "default" | "steer" | "follow_up"; required when agent is streaming.
 	StreamingBehavior string `protobuf:"bytes,4,opt,name=streaming_behavior,json=streamingBehavior,proto3" json:"streaming_behavior,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Optional per-turn model override (resolved model; applies before this
+	// prompt via session.setModel — rejected while streaming).
+	Model         *ModelRef `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PromptRequest) Reset() {
@@ -556,6 +559,13 @@ func (x *PromptRequest) GetStreamingBehavior() string {
 		return x.StreamingBehavior
 	}
 	return ""
+}
+
+func (x *PromptRequest) GetModel() *ModelRef {
+	if x != nil {
+		return x.Model
+	}
+	return nil
 }
 
 type PromptResponse struct {
@@ -1203,12 +1213,13 @@ const file_runtime_proto_rawDesc = "" +
 	"\fImageContent\x12\x12\n" +
 	"\x04data\x18\x01 \x01(\tR\x04data\x12\x1d\n" +
 	"\n" +
-	"media_type\x18\x02 \x01(\tR\tmediaType\"\xae\x01\n" +
+	"media_type\x18\x02 \x01(\tR\tmediaType\"\xe5\x01\n" +
 	"\rPromptRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12;\n" +
 	"\x06images\x18\x03 \x03(\v2#.agentluoss.v1.runtime.ImageContentR\x06images\x12-\n" +
-	"\x12streaming_behavior\x18\x04 \x01(\tR\x11streamingBehavior\",\n" +
+	"\x12streaming_behavior\x18\x04 \x01(\tR\x11streamingBehavior\x125\n" +
+	"\x05model\x18\x05 \x01(\v2\x1f.agentluoss.v1.runtime.ModelRefR\x05model\",\n" +
 	"\x0ePromptResponse\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\bR\baccepted\"~\n" +
 	"\fSteerRequest\x12\x17\n" +
@@ -1301,28 +1312,29 @@ var file_runtime_proto_depIdxs = []int32{
 	4,  // 3: agentluoss.v1.runtime.CreateSessionRequest.skills:type_name -> agentluoss.v1.runtime.Skill
 	21, // 4: agentluoss.v1.runtime.McpServer.env:type_name -> agentluoss.v1.runtime.McpServer.EnvEntry
 	6,  // 5: agentluoss.v1.runtime.PromptRequest.images:type_name -> agentluoss.v1.runtime.ImageContent
-	6,  // 6: agentluoss.v1.runtime.SteerRequest.images:type_name -> agentluoss.v1.runtime.ImageContent
-	2,  // 7: agentluoss.v1.runtime.AgentRuntime.CreateSession:input_type -> agentluoss.v1.runtime.CreateSessionRequest
-	7,  // 8: agentluoss.v1.runtime.AgentRuntime.Prompt:input_type -> agentluoss.v1.runtime.PromptRequest
-	9,  // 9: agentluoss.v1.runtime.AgentRuntime.Steer:input_type -> agentluoss.v1.runtime.SteerRequest
-	11, // 10: agentluoss.v1.runtime.AgentRuntime.Abort:input_type -> agentluoss.v1.runtime.AbortRequest
-	13, // 11: agentluoss.v1.runtime.AgentRuntime.GetSessionState:input_type -> agentluoss.v1.runtime.GetSessionStateRequest
-	15, // 12: agentluoss.v1.runtime.AgentRuntime.CloseSession:input_type -> agentluoss.v1.runtime.CloseSessionRequest
-	17, // 13: agentluoss.v1.runtime.AgentRuntime.Heartbeat:input_type -> agentluoss.v1.runtime.HeartbeatRequest
-	19, // 14: agentluoss.v1.runtime.AgentRuntime.ReloadConfig:input_type -> agentluoss.v1.runtime.ReloadConfigRequest
-	5,  // 15: agentluoss.v1.runtime.AgentRuntime.CreateSession:output_type -> agentluoss.v1.runtime.CreateSessionResponse
-	8,  // 16: agentluoss.v1.runtime.AgentRuntime.Prompt:output_type -> agentluoss.v1.runtime.PromptResponse
-	10, // 17: agentluoss.v1.runtime.AgentRuntime.Steer:output_type -> agentluoss.v1.runtime.SteerResponse
-	12, // 18: agentluoss.v1.runtime.AgentRuntime.Abort:output_type -> agentluoss.v1.runtime.AbortResponse
-	14, // 19: agentluoss.v1.runtime.AgentRuntime.GetSessionState:output_type -> agentluoss.v1.runtime.GetSessionStateResponse
-	16, // 20: agentluoss.v1.runtime.AgentRuntime.CloseSession:output_type -> agentluoss.v1.runtime.CloseSessionResponse
-	18, // 21: agentluoss.v1.runtime.AgentRuntime.Heartbeat:output_type -> agentluoss.v1.runtime.HeartbeatResponse
-	20, // 22: agentluoss.v1.runtime.AgentRuntime.ReloadConfig:output_type -> agentluoss.v1.runtime.ReloadConfigResponse
-	15, // [15:23] is the sub-list for method output_type
-	7,  // [7:15] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	1,  // 6: agentluoss.v1.runtime.PromptRequest.model:type_name -> agentluoss.v1.runtime.ModelRef
+	6,  // 7: agentluoss.v1.runtime.SteerRequest.images:type_name -> agentluoss.v1.runtime.ImageContent
+	2,  // 8: agentluoss.v1.runtime.AgentRuntime.CreateSession:input_type -> agentluoss.v1.runtime.CreateSessionRequest
+	7,  // 9: agentluoss.v1.runtime.AgentRuntime.Prompt:input_type -> agentluoss.v1.runtime.PromptRequest
+	9,  // 10: agentluoss.v1.runtime.AgentRuntime.Steer:input_type -> agentluoss.v1.runtime.SteerRequest
+	11, // 11: agentluoss.v1.runtime.AgentRuntime.Abort:input_type -> agentluoss.v1.runtime.AbortRequest
+	13, // 12: agentluoss.v1.runtime.AgentRuntime.GetSessionState:input_type -> agentluoss.v1.runtime.GetSessionStateRequest
+	15, // 13: agentluoss.v1.runtime.AgentRuntime.CloseSession:input_type -> agentluoss.v1.runtime.CloseSessionRequest
+	17, // 14: agentluoss.v1.runtime.AgentRuntime.Heartbeat:input_type -> agentluoss.v1.runtime.HeartbeatRequest
+	19, // 15: agentluoss.v1.runtime.AgentRuntime.ReloadConfig:input_type -> agentluoss.v1.runtime.ReloadConfigRequest
+	5,  // 16: agentluoss.v1.runtime.AgentRuntime.CreateSession:output_type -> agentluoss.v1.runtime.CreateSessionResponse
+	8,  // 17: agentluoss.v1.runtime.AgentRuntime.Prompt:output_type -> agentluoss.v1.runtime.PromptResponse
+	10, // 18: agentluoss.v1.runtime.AgentRuntime.Steer:output_type -> agentluoss.v1.runtime.SteerResponse
+	12, // 19: agentluoss.v1.runtime.AgentRuntime.Abort:output_type -> agentluoss.v1.runtime.AbortResponse
+	14, // 20: agentluoss.v1.runtime.AgentRuntime.GetSessionState:output_type -> agentluoss.v1.runtime.GetSessionStateResponse
+	16, // 21: agentluoss.v1.runtime.AgentRuntime.CloseSession:output_type -> agentluoss.v1.runtime.CloseSessionResponse
+	18, // 22: agentluoss.v1.runtime.AgentRuntime.Heartbeat:output_type -> agentluoss.v1.runtime.HeartbeatResponse
+	20, // 23: agentluoss.v1.runtime.AgentRuntime.ReloadConfig:output_type -> agentluoss.v1.runtime.ReloadConfigResponse
+	16, // [16:24] is the sub-list for method output_type
+	8,  // [8:16] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_runtime_proto_init() }

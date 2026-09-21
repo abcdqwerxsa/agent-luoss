@@ -102,6 +102,30 @@ async function main() {
       if (session.isStreaming && !behavior) {
         return cb({ code: grpc.status.INVALID_ARGUMENT, message: "streaming; set streaming_behavior (steer|follow_up)" });
       }
+      // Optional per-turn model override: applied before this prompt via
+      // session.setModel (conversation history is preserved; pi keeps the
+      // change session-only). Rejected while streaming.
+      const ov = call.request.model;
+      if (ov && (ov.provider || ov.modelId)) {
+        if (session.isStreaming) {
+          return cb({ code: grpc.status.INVALID_ARGUMENT, message: "cannot switch model while streaming" });
+        }
+        const m = pool.modelRuntime ? pool.modelRuntime.getModel(ov.provider, ov.modelId) : null;
+        if (!m) {
+          return cb({ code: grpc.status.INVALID_ARGUMENT, message: `model not found: ${ov.provider}/${ov.modelId}` });
+        }
+        try {
+          if (m !== session.model) await session.setModel(m);
+        } catch (err: any) {
+          return cb({ code: grpc.status.FAILED_PRECONDITION, message: `set model failed: ${err?.message ?? err}` });
+        }
+        bus.push({
+          taskId: call.request.taskId,
+          type: "model_switched",
+          payload: JSON.stringify({ provider: ov.provider, modelId: ov.modelId }),
+          timestamp: Date.now(),
+        });
+      }
       // fire-and-forget: events stream to task via eventbus; errors become events
       session
         .prompt(call.request.message, { images: images.length ? images : undefined, streamingBehavior: behavior } as any)
