@@ -1,13 +1,43 @@
 // Full-stack e2e verification, run inside the compose network:
 //   docker run --rm --network agentluoss_backend -v $PWD:/w -w /w \
+//     -e ZAI_API_KEY=<key> -e http_proxy= -e https_proxy= \
 //     node:24-bookworm-slim node deploy/e2e.mjs http://gateway:8080
 // Prereq: ZAI_API_KEY env (or any openai-compatible key already seeded).
+// Optional: `npm install xlsx --no-save` in deploy/ to enable Excel structure assertions
+// (excel-master e2e section). When xlsx is not installed, that section degrades to
+// file-existence + non-empty checks instead of crashing.
+import { execSync } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 const UNAME = `e2e_user_${Date.now().toString(36)}`;
 const DEPT = `e2e_dept_${Date.now().toString(36)}`;
 const BASE = process.argv[2] || "http://gateway:8080";
 const API_KEY = process.env.ZAI_API_KEY || process.env.TEST_API_KEY || "";
 const BASE_URL_INPUT = process.env.TEST_BASE_URL || "https://open.bigmodel.cn/api/coding/paas/v4";
 const MODEL_ID = process.env.TEST_MODEL_ID || "glm-5.3-flash";
+
+// Lazy-load the `xlsx` npm package for excel-master assertions; install into a
+// throwaway dir if it's not already on the resolution path. Optional — failures
+// here only skip the structural Excel checks, not the whole e2e.
+let xlsx = null;
+async function loadXlsx() {
+  try {
+    xlsx = await import("xlsx");
+    return xlsx;
+  } catch { /* not on path */ }
+  try {
+    const td = mkdtempSync(join(tmpdir(), "e2e-xlsx-"));
+    execSync(`npm install --prefix ${td} --silent --no-audit --no-fund xlsx`, { stdio: "pipe" });
+    xlsx = await import(join(td, "node_modules", "xlsx", "xlsx.mjs").replace(/\\/g, "/"))
+        .catch(() => import(join(td, "node_modules", "xlsx")));
+    return xlsx;
+  } catch (e) {
+    console.warn("WARN: xlsx module unavailable, Excel structure checks will degrade:", e.message);
+    return null;
+  }
+}
 
 let failures = 0;
 const ok = (name, cond, detail = "") => {
@@ -207,7 +237,105 @@ async function main() {
   ok("expert task settled", ev4.settled, `${ev4.toolCalls} tool calls`);
   ok("expert mcp injected (mcp tool called)", ev4.toolCalls > 0);
 
-  // 14. cleanup: remove everything this run created (idempotent, best-effort)
+  // 14. excel-master expert: upload skill, create expert, run MVP scenario,
+  //     verify the agent produces a real .xlsx with formulas + charts.
+  //     Assertions are STRUCTURAL (no specific numbers) so different LLM outputs
+  //     still pass — we only check: skill uploaded, expert saved, member sees
+  //     it, task settled, .xlsx file exists in workspace, file is non-empty,
+  //     (when xlsx module available) it has formulas + at least 1 chart.
+  let excelTask;
+  {
+    // Build the excel-master skill zip from the repo's skills/excel-master/ tree.
+    // Reuses makeZip() (stored, no compression) — same as e2e-skill above.
+    const { makeZip } = await import("./zip.mjs");
+    const skillFiles = {
+      "excel-master/SKILL.md": readUtf8("../../skills/excel-master/SKILL.md"),
+      "excel-master/README.md": readUtf8("../../skills/excel-master/README.md"),
+      "excel-master/tools/excel_inspect.py": readUtf8("../../skills/excel-master/tools/excel_inspect.py"),
+      "excel-master/tools/excel_build.py": readUtf8("../../skills/excel-master/tools/excel_build.py"),
+      "excel-master/tools/excel_chart.py": readUtf8("../../skills/excel-master/tools/excel_chart.py"),
+      "excel-master/tools/excel_summary.py": readUtf8("../../skills/excel-master/tools/excel_summary.py"),
+      "excel-master/sample_data/cross_border_ecom.json": readUtf8("../../skills/excel-master/sample_data/cross_border_ecom.json"),
+      "excel-master/sample_data/cross_border_ecom.charts.json": readUtf8("../../skills/excel-master/sample_data/cross_border_ecom.charts.json"),
+    };
+    const zip = makeZip(skillFiles);
+    const fd = new FormData();
+    fd.append("file", new Blob([zip]), "excel-master.zip");
+    fd.append("id", "excel-master");
+    fd.append("scopes", JSON.stringify([{ type: "all", value: "" }]));
+    fd.append("enabled", "true");
+    const upx = await fetch(`${BASE}/api/v1/admin/skills/upload`, { method: "POST", headers: { Authorization: H.Authorization }, body: fd });
+    const upxj = await upx.json();
+    ok("excel-master skill uploaded", upx.ok && upxj.skill?.id === "excel-master", JSON.stringify(upxj.skill || upxj).slice(0, 200));
+
+    // Create the expert bundling that skill.
+    const pex = await fetch(`${BASE}/api/v1/admin/experts`, { method: "PUT", headers: H, body: JSON.stringify({
+      id: "excel-master", name: "Excel 专家", description: "Excel 解析/生成/修改",
+      enabled: true, skill_ids: ["excel-master"], mcp_ids: [], scopes: [{ type: "all", value: "" }],
+    })});
+    ok("excel-master expert saved", pex.ok);
+
+    const mexp2 = await (await fetch(`${BASE}/api/v1/experts`, { headers: { Authorization: `Bearer ${member.access_token}` } })).json();
+    ok("excel-master visible to member", (mexp2.experts || []).some((e) => e.id === "excel-master"));
+
+    // Member runs the MVP scenario through the expert.
+    const cex = await fetch(`${BASE}/api/v1/tasks`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${member.access_token}` }, body: JSON.stringify({
+      title: "跨境电商趋势 Excel", mode: "craft", provider: m.provider_id, model_id: m.model_id,
+      first_message: "请根据 excel-master 技能生成一份中国跨境电商交易额与出口占比近 10 年趋势(2015-2025)的 Excel,要求包含年份、交易额、同比增长率(用公式)、出口额、出口占中国出口总额比例(用公式)、数据来源备注 6 列,加双轴折线图与出口额面积图,所有计算字段用公式,任务结束时给 2-3 条关键趋势总结。",
+      expert_id: "excel-master",
+    })});
+    ({ task: excelTask } = await cex.json());
+    ok("excel-master task created with expert_id", cex.ok && excelTask?.expert_id === "excel-master", excelTask?.expert_id);
+
+    const evX = await streamUntil(excelTask.id, { Authorization: `Bearer ${member.access_token}`, "Content-Type": "application/json" }, 240_000);
+    ok("excel-master task settled", evX.settled, `${evX.toolCalls} tool calls`);
+    ok("excel-master task used tools (likely bash+python)", evX.toolCalls > 0);
+
+    // Find the generated .xlsx in the member's workspace.
+    const filesX = await (await fetch(`${BASE}/api/v1/files?path=`, { headers: { Authorization: `Bearer ${member.access_token}` } })).json();
+    const xlsxNode = (filesX.nodes || []).find((n) => n.name && /\.xlsx?$/i.test(n.name) && !n.is_dir);
+    ok("xlsx file in workspace", !!xlsxNode, xlsxNode?.name);
+
+    if (xlsxNode) {
+      // Download and verify it's non-empty + has the xlsx magic bytes.
+      const dl = await fetch(`${BASE}/api/v1/files/download?path=${encodeURIComponent(xlsxNode.name)}`, { headers: { Authorization: `Bearer ${member.access_token}` } });
+      const buf = Buffer.from(await dl.arrayBuffer());
+      ok("xlsx download ok + non-empty", dl.ok && buf.length > 1024, `${buf.length} bytes`);
+      ok("xlsx is a valid zip (PK magic)", buf[0] === 0x50 && buf[1] === 0x4b, `${buf[0]?.toString(16)} ${buf[1]?.toString(16)}`);
+
+      // Structural checks (only when xlsx module is available).
+      const lib = await loadXlsx();
+      if (lib && dl.ok) {
+        try {
+          const wb = lib.read(buf, { cellFormula: true, cellStyles: true });
+          const sheetNames = wb.SheetNames || [];
+          ok("xlsx re-opens with >=1 sheet", sheetNames.length >= 1, sheetNames.join(","));
+          let formulaCount = 0, chartCount = 0;
+          for (const name of sheetNames) {
+            const ws = wb.Sheets[name];
+            for (const addr of Object.keys(ws)) {
+                if (addr[0] === "!") continue;
+                const cell = ws[addr];
+                if (cell && typeof cell.f === "string" && cell.f.startsWith("=")) formulaCount++;
+              }
+            // openpyxl writes charts into xl/charts/* which the `xlsx` package
+            // doesn't expose directly; fall back to zip enumeration below.
+          }
+          ok("xlsx has formula cells", formulaCount > 0, `${formulaCount} formula cells`);
+          // Chart presence: re-open as a zip and look for xl/charts/*.xml.
+          // (No extra dep — node has zlib + the file is small.)
+          const hasCharts = countChartsInZip(buf);
+          ok("xlsx has chart parts", hasCharts > 0, `${hasCharts} chart XML parts`);
+        } catch (e) {
+          ok("xlsx structure parse", false, e.message);
+        }
+      } else {
+        console.log("  (skipped xlsx formula/chart structural checks: xlsx module unavailable)");
+      }
+    }
+  }
+
+  // 15. cleanup: remove everything this run created (idempotent, best-effort)
   const cleanup = async () => {
     const mh = { "Content-Type": "application/json", Authorization: `Bearer ${member.access_token}` };
     for (const t of [task4?.id, task3?.id, task2?.id, task?.id].filter(Boolean)) {
@@ -220,7 +348,9 @@ async function main() {
     const sk = await (await fetch(`${BASE}/api/v1/admin/skills`, { headers: H })).json().catch(() => ({}));
     for (const s of sk.skills || []) {
       if (s.name === "e2e-skill") await fetch(`${BASE}/api/v1/admin/skills/${s.id}`, { method: "DELETE", headers: H }).catch(() => {});
+      if (s.id === "excel-master") await fetch(`${BASE}/api/v1/admin/skills/${s.id}`, { method: "DELETE", headers: H }).catch(() => {});
     }
+    await fetch(`${BASE}/api/v1/admin/experts/excel-master`, { method: "DELETE", headers: H }).catch(() => {});
   };
   await cleanup();
 
@@ -262,5 +392,46 @@ async function streamUntil(taskId, H, timeoutMs) {
 }
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+// ---- helpers used by excel-master e2e section ----
+
+function readUtf8(rel) {
+  // Path is relative to deploy/ (where this script lives), resolved against CWD
+  // because the script is invoked from the repo root in standard usage.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  return fs.readFileSync(path.resolve(process.cwd(), rel), "utf8");
+}
+
+// Count xl/charts/*.xml entries in an xlsx (which is a ZIP archive). We do this
+// with a tiny built-in ZIP central-directory scan so we don't need a zip library.
+function countChartsInZip(buf) {
+  // Find EOCD record (0x06054b50) by scanning backwards.
+  const sig = Buffer.from([0x50, 0x4b, 0x05, 0x06]);
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) {
+    if (buf[i] === sig[0] && buf[i + 1] === sig[1] && buf[i + 2] === sig[2] && buf[i + 3] === sig[3]) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) return 0;
+  const total = buf.readUInt16LE(eocd + 10);
+  let cdOff = buf.readUInt32LE(eocd + 16);
+  let count = 0;
+  for (let i = 0; i < total; i++) {
+    if (cdOff + 46 > buf.length) break;
+    if (buf.readUInt32LE(cdOff) !== 0x02014b50) break;
+    const nameLen = buf.readUInt16LE(cdOff + 28);
+    const extraLen = buf.readUInt16LE(cdOff + 30);
+    const commentLen = buf.readUInt16LE(cdOff + 32);
+    const nameStart = cdOff + 46;
+    if (nameStart + nameLen > buf.length) break;
+    const name = buf.toString("utf8", nameStart, nameStart + nameLen);
+    if (name.startsWith("xl/charts/") && name.endsWith(".xml")) count++;
+    cdOff = nameStart + nameLen + extraLen + commentLen;
+  }
+  return count;
+}
 
 main().catch((e) => { console.error("E2E CRASH:", e.message); process.exit(1); });
