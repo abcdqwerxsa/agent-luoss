@@ -206,6 +206,19 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  const [renaming, setRenaming] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+
+  const saveTitle = () => {
+    const t = titleDraft.trim();
+    setRenaming(false);
+    if (t && t !== task?.title) {
+      api.tasks.patch(taskId, { title: t })
+        .then(() => setTask((prev: any) => (prev ? { ...prev, title: t } : prev)))
+        .catch((e: any) => setNotice(e.message));
+    }
+  };
+
   const send = async (behavior?: string) => {
     if (!input.trim()) return;
     const msg = input;
@@ -216,11 +229,18 @@ export function TaskDetail({ taskId }: { taskId: string }) {
       return [...prev, { role: "user", text: msg, tools: [], n }];
     });
     try {
-      const model = modelKey === "" ? undefined
-        : modelKey === "auto" ? { provider: "auto", model_id: "auto" }
-        : (() => { const [p, m] = modelKey.split("/"); return { provider: p, model_id: m }; })();
-      await api.tasks.send(taskId, msg, behavior, undefined, model, modeKey || undefined);
+      const curKey = task ? `${task.provider}/${task.model_id}` : "";
+      const effMode = modeKey || task?.mode;
+      const effModel = modelKey || curKey;
+      const model = effModel && effModel !== curKey
+        ? effModel === "auto" ? { provider: "auto", model_id: "auto" }
+        : (() => { const [p, m] = effModel.split("/"); return { provider: p, model_id: m }; })()
+        : undefined;
+      const mode = effMode && task && effMode !== task.mode ? effMode : undefined;
+      await api.tasks.send(taskId, msg, behavior, undefined, model, mode);
       setRunning(true);
+      setModelKey("");
+      setModeKey("");
     } catch (e: any) {
       setNotice(e.message);
       setBubbles((prev) => [...prev, { role: "assistant", text: `发送失败：${e.message}`, tools: [] }]);
@@ -296,7 +316,16 @@ export function TaskDetail({ taskId }: { taskId: string }) {
       }}>
         <div className="detail-head">
           <a href="#/tasks" className="back" data-tip="返回任务列表"><Icon name="arrow-left" size={18} /></a>
-          <h3>{task?.title || "任务"}</h3>
+          {renaming ? (
+            <span className="rename-row">
+              <input autoFocus value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveTitle(); if (e.key === "Escape") setRenaming(false); }} />
+              <button className="icon-btn" onClick={saveTitle} data-tip="保存"><Icon name="check" size={14} /></button>
+              <button className="icon-btn" onClick={() => setRenaming(false)} data-tip="取消"><Icon name="x" size={14} /></button>
+            </span>
+          ) : (
+            <h3 style={{ cursor: "pointer" }} data-tip="点击重命名" onClick={() => { setTitleDraft(task?.title || ""); setRenaming(true); }}>{task?.title || "任务"}</h3>
+          )}
           {statusBadge}
           {task?.expert_id ? <span className="chip expert-chip" data-tip={`专家：${task.expert_id}`}><Icon name="sparkles" size={11} />{experts.find((e) => e.id === task.expert_id)?.name || task.expert_id}</span> : null}
           {usage && usage.total_tokens > 0 && (
@@ -397,11 +426,10 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                 {task && (
                   <Select
                     dropUp
-                    value={modeKey}
+                    value={modeKey || task.mode}
                     onChange={setModeKey}
                     data-tip="权限模式（可切换，下一轮生效）"
                     options={[
-                      { value: "", label: task.mode === "ask" ? "只读" : task.mode === "plan" ? "计划" : "完整" },
                       { value: "ask", label: "只读 · 仅查看不改文件" },
                       { value: "craft", label: "完整 · 可读写执行" },
                       { value: "plan", label: "计划 · 先计划再执行" },
@@ -410,19 +438,23 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                 )}
               </div>
               <div className="ct-right">
-                {task && (
-                  <Select
-                    dropUp
-                    value={modelKey}
-                    onChange={setModelKey}
-                    data-tip="模型（可切换，下一轮生效）"
-                    options={[
-                      { value: "", label: task.model_id },
-                      { value: "auto", label: "Auto · 自动路由" },
-                      ...models.map((m) => ({ value: `${m.provider_id}/${m.model_id}`, label: m.display_name || m.model_id })),
-                    ]}
-                  />
-                )}
+                {task && (() => {
+                  const curKey = `${task.provider}/${task.model_id}`;
+                  const opts = [
+                    { value: "auto", label: "Auto · 自动路由" },
+                    ...models.map((m) => ({ value: `${m.provider_id}/${m.model_id}`, label: m.display_name || m.model_id })),
+                  ];
+                  if (!opts.some((o) => o.value === curKey)) opts.push({ value: curKey, label: task.model_id });
+                  return (
+                    <Select
+                      dropUp
+                      value={modelKey || curKey}
+                      onChange={setModelKey}
+                      data-tip="模型（可切换，下一轮生效）"
+                      options={opts}
+                    />
+                  );
+                })()}
                 {running ? (
                   <>
                     <button className="ct-send stop" onClick={abort} data-tip="中止任务"><Icon name="square" size={12} /></button>

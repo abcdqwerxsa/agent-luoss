@@ -24,7 +24,8 @@ export function Experts() {
     try {
       const m = models[0];
       const r = await api.tasks.create({
-        title: ex.name, mode: "craft",
+        title: `${ex.name} · ${new Date().toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}`,
+        mode: "craft",
         provider: m.provider_id, model_id: m.model_id,
         first_message: "", expert_id: ex.id,
       });
