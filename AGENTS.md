@@ -33,6 +33,8 @@ cd deploy && docker compose up -d   # 全栈（本机适配版，见下）
 - `services/agent-runtime/` Node sidecar（`npm run build` 仅类型检查+emit，运行 `node dist/index.js`；pi-mcp-adapter 为 TS 源码包，经 jiti 运行时加载；scripts/smoke*.mjs 冒烟，smoke-caps.mjs 验 MCP/技能注入）
 - `web/` 前端（构建产物打进 Go 镜像 /app/web）
 - `deploy/` compose/Dockerfile/e2e.mjs/load.mjs/zip.mjs（e2e 用纯 JS zip 构造器上传技能）；`deploy/catalog/` 精选第三方技能仓库（只收 MIT/Apache，见其 README）+ `import-catalog.mjs` 批量导入为专家
+- `skills/<id>/` 内置技能源码（zip 提交到 caps）。当前内置：
+  - `excel-master/` Excel 解析/生成/修改专家；Python 脚本用 openpyxl+pandas，runtime 镜像已装包
 
 ## 开发注意事项
 

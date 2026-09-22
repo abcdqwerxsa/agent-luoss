@@ -5,8 +5,9 @@ RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && apt
     libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libcairo2 \
     fonts-noto-cjk fonts-noto-color-emoji \
     && rm -rf /var/lib/apt/lists/*
-# kami (doc-master expert) rendering stack: WeasyPrint HTML→PDF + python-pptx
-RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && pip3 install --no-cache-dir --break-system-packages -i https://pypi.tuna.tsinghua.edu.cn/simple weasyprint python-pptx
+# expert rendering stacks: kami/doc-master (WeasyPrint HTML→PDF + python-pptx),
+# excel-master (openpyxl + pandas for Excel read/write/formulas/charts)
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && pip3 install --no-cache-dir --break-system-packages -i https://pypi.tuna.tsinghua.edu.cn/simple weasyprint python-pptx openpyxl pandas
 # curated local-expert MCP servers (catalog: deploy/catalog): git via pypi (official TS pkg unpublished), memory/sequential-thinking via npm
 RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && pip3 install --no-cache-dir --break-system-packages -i https://pypi.tuna.tsinghua.edu.cn/simple mcp-server-git \
     && npm install -g --registry=https://registry.npmmirror.com @modelcontextprotocol/server-memory @modelcontextprotocol/server-sequential-thinking
