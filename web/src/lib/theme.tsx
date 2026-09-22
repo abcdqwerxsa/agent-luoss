@@ -28,6 +28,7 @@ export function ThemeToggle() {
   return (
     <button
       className="icon-btn"
+      data-tip-down
       data-tip={theme === "dark" ? "切换亮色模式" : "切换暗色模式"}
       onClick={() => setThemeState(toggleTheme())}
     >
