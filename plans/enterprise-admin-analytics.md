@@ -95,7 +95,7 @@
 - [x] 5. 前端 UsageTab：未定价警示条 + DAU/WAU/MAU 卡片 + 专家/部门/高耗任务三表
 - [x] 6. 前端 AuditTab：补全 action 下拉 + actor/resource/时间过滤 + 分页 + 导出
 - [x] 7. 前端 UsersTab：配额列行内编辑；ModelsTab：未定价徽标
-- [ ] 8. 服务器运营：为现有 4 模型补真实价格（sensenova×3、deepseek、kimi）
+- [x] 8. 服务器运营：为现有 4 模型补真实价格（sensenova×3、deepseek、kimi）
 - [ ] 9. 部署验证（e2e 断言扩展 + 真实任务后看新维度出数）
 
 ## Verification

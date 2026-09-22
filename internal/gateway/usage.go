@@ -20,6 +20,7 @@ func (a *App) registerUsageRoutes(authed, admin *gin.RouterGroup) {
 	admin.GET("/admin/usage", a.usageSummary)
 	admin.GET("/admin/usage/export", a.usageExport)
 	admin.GET("/admin/audit", a.auditLogs)
+	admin.GET("/admin/audit/export", a.auditExportRoute)
 	admin.PUT("/admin/quota", a.setQuota)
 }
 
@@ -166,16 +167,21 @@ func (a *App) auditLogs(c *gin.Context) {
 	if v := c.Query("to_ts"); v != "" {
 		_ = vScanInt64(v, &req.ToTs)
 	}
-	if c.Query("export") == "1" {
-		a.auditExport(c, req)
-		return
-	}
 	resp, err := a.usage.ListAuditLogs(outCtx(c), req)
 	if err != nil {
 		grpcStatus(c, err)
 		return
 	}
 	c.JSON(200, gin.H{"logs": resp.Logs, "total": resp.Total})
+}
+
+// auditExportRoute streams the filtered audit log as CSV (admin only).
+func (a *App) auditExportRoute(c *gin.Context) {
+	req := &usagepb.ListAuditLogsRequest{
+		Actor: c.Query("actor"), Action: c.Query("action"), Resource: c.Query("resource"),
+		Limit: 5000,
+	}
+	a.auditExport(c, req)
 }
 
 // auditExport streams the filtered audit log as CSV (admin only).

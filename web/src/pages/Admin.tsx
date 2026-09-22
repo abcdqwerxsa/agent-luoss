@@ -839,7 +839,7 @@ function AuditTab() {
     api.admin.audit("?" + p.toString()).then((r) => { setLogs(r.logs || []); setTotal(r.total || 0); }).catch(() => {});
   };
   useEffect(() => { load(); }, [action, offset]);
-  const exportQ = `action=${action}&actor=${encodeURIComponent(actor.trim())}&resource=${encodeURIComponent(resource.trim())}&export=1&limit=5000&access_token=${encodeURIComponent(auth.token)}`;
+  const exportQ = `action=${action}&actor=${encodeURIComponent(actor.trim())}&resource=${encodeURIComponent(resource.trim())}&limit=5000&access_token=${encodeURIComponent(auth.token)}`;
   return (
     <div className="panel-card">
       <div className="inline-form">
