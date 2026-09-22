@@ -92,7 +92,7 @@ for (const s of CATALOG.skills) {
   const walk = (d, rel) => {
     for (const e of fs.readdirSync(d, { withFileTypes: true })) {
       const p = path.join(d, e.name), r = rel ? `${rel}/${e.name}` : e.name;
-      if (e.isDirectory()) walk(p, r); else files[`${s.dir}/${r}`] = fs.readFileSync(p);
+      if (e.isDirectory()) walk(p, r); else files[`${s.id}/${r}`] = fs.readFileSync(p);
     }
   };
   walk(dir, "");
