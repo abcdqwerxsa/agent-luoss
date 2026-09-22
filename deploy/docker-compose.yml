@@ -17,6 +17,7 @@ x-go-env: &goenv
 
 services:
   postgres:
+    restart: unless-stopped
     image: ${REG:-docker.m.daocloud.io}/library/postgres:17-alpine
     environment:
       POSTGRES_USER: agent
@@ -33,6 +34,7 @@ services:
       backend: { ipv4_address: 172.28.0.2 }
 
   redis:
+    restart: unless-stopped
     image: ${REG:-docker.m.daocloud.io}/library/redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
@@ -46,6 +48,7 @@ services:
       backend: { ipv4_address: 172.28.0.3 }
 
   iam:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["iam"]
     environment:
@@ -60,6 +63,7 @@ services:
       backend: { ipv4_address: 172.28.0.4 }
 
   task:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["task"]
     environment:
@@ -81,6 +85,7 @@ services:
       backend: { ipv4_address: 172.28.0.5 }
 
   artifact:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["artifact"]
     environment:
@@ -95,6 +100,7 @@ services:
       backend: { ipv4_address: 172.28.0.6 }
 
   modelmgt:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["modelmgt"]
     environment:
@@ -110,6 +116,7 @@ services:
       backend: { ipv4_address: 172.28.0.7 }
 
   usage:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["usage"]
     environment:
@@ -123,6 +130,7 @@ services:
       backend: { ipv4_address: 172.28.0.8 }
 
   caps:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["caps"]
     environment:
@@ -172,6 +180,7 @@ services:
       task: { condition: service_started }
 
   runtime2:
+    restart: unless-stopped
     <<: *rt
     environment:
       <<: *rtenv
@@ -186,6 +195,7 @@ services:
       - agent2:/data/agent
 
   gateway:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["gateway"]
     environment:

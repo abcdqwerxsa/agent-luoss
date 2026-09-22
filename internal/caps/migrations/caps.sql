@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS caps.cap_scopes (
   PRIMARY KEY (cap_type, cap_id, type, value)
 );
 
--- Experts: named bundles of skills/MCP servers for quick-start ("ppt-master").
+-- Experts: named bundles of skills/MCP servers for quick-start ("doc-master").
 CREATE TABLE IF NOT EXISTS caps.experts (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,

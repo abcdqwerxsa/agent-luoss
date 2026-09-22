@@ -29,8 +29,8 @@ export function Login({ onLogin }: { onLogin: () => void }) {
       <div className="login-theme-toggle"><ThemeToggle /></div>
       <div className="login-brand">
         <div className="login-brand-head">
-          <span className="brand-logo"><Icon name="bot" size={20} /></span>
-          <span className="brand-name">AgentLuoss</span>
+          <span className="brand-logo"><img src="/logo.svg" alt="ailswork" /></span>
+          <span className="brand-name">ailswork</span>
         </div>
         <div className="login-hero">
           <span className="login-tag">企业通用智能体平台</span>

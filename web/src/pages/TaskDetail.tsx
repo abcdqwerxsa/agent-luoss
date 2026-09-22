@@ -1,7 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
-import { api, TaskInfo } from "../lib/api";
+import { api, TaskInfo, ModelOpt } from "../lib/api";
 import { Icon } from "../lib/icons";
 import { Markdown } from "../lib/md";
+import { Select } from "../lib/select";
+import Loader from "../components/Loader";
+import ThinkingTrace from "../components/ThinkingTrace";
+import StreamText from "../components/StreamText";
+import DiffView from "../components/DiffView";
+import PlanApproval from "../components/PlanApproval";
 
 interface ToolCard { id: string; tool: string; args: string; output: string; done: boolean; error?: boolean }
 interface Bubble { role: "user" | "assistant"; text: string; thinking?: string; tools: ToolCard[]; streaming?: boolean; n?: number }
@@ -29,6 +35,10 @@ export function TaskDetail({ taskId }: { taskId: string }) {
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
   const [notice, setNotice] = useState("");
+  const [models, setModels] = useState<ModelOpt[]>([]);
+  const [modelKey, setModelKey] = useState(""); // "" = keep current, "auto", or provider/model_id
+  const [modeKey, setModeKey] = useState("");   // "" = keep current, or ask|craft|plan
+  const [planPromptAt, setPlanPromptAt] = useState(-1); // bubbles count when the plan approval was last shown
   const [auto, setAuto] = useState(true);
   const [files, setFiles] = useState<Record<string, { name: string; is_dir: boolean; size: number }[]>>({});
   const [dirOpen, setDirOpen] = useState<Record<string, boolean>>({ "": true });
@@ -119,8 +129,10 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     return () => es.close();
   }, [taskId]);
 
+  useEffect(() => { api.models().then((r) => setModels(r.models)).catch(() => {}); }, []);
+
   useEffect(() => {
-    if (auto) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
+    if (auto) scrollRef.current?.scrollTo({ top: scrollRef.current?.scrollHeight });
   }, [bubbles, notice, auto]);
 
   const refreshTask = () => api.tasks.get(taskId).then((r) => {
@@ -200,23 +212,67 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const send = async (behavior?: string) => {
-    if (!input.trim()) return;
-    const msg = input;
-    setInput("");
+  const [renaming, setRenaming] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+
+  const saveTitle = () => {
+    const t = titleDraft.trim();
+    setRenaming(false);
+    if (t && t !== task?.title) {
+      api.tasks.patch(taskId, { title: t })
+        .then(() => setTask((prev: any) => (prev ? { ...prev, title: t } : prev)))
+        .catch((e: any) => setNotice(e.message));
+    }
+  };
+
+  const delTask = () => {
+    if (confirm(`删除任务「${task?.title || taskId}」？此操作不可恢复。`)) {
+      api.tasks.del(taskId).then(() => { location.hash = "#/tasks"; }).catch((e: any) => setNotice(e.message));
+    }
+  };
+
+  const sendText = async (msg: string, behavior?: string) => {
     setBubbles((prev) => {
       const n = (prev.filter((b) => b.role === "user").at(-1)?.n ?? 0) + 1;
       setCurN(n);
       return [...prev, { role: "user", text: msg, tools: [], n }];
     });
     try {
-      await api.tasks.send(taskId, msg, behavior);
+      const curKey = task ? `${task.provider}/${task.model_id}` : "";
+      const effMode = modeKey || task?.mode;
+      const effModel = modelKey || curKey;
+      const model = effModel && effModel !== curKey
+        ? effModel === "auto" ? { provider: "auto", model_id: "auto" }
+        : (() => { const [p, m] = effModel.split("/"); return { provider: p, model_id: m }; })()
+        : undefined;
+      const mode = effMode && task && effMode !== task.mode ? effMode : undefined;
+      await api.tasks.send(taskId, msg, behavior, undefined, model, mode);
       setRunning(true);
+      setModelKey("");
+      setModeKey("");
     } catch (e: any) {
       setNotice(e.message);
       setBubbles((prev) => [...prev, { role: "assistant", text: `发送失败：${e.message}`, tools: [] }]);
     }
   };
+
+  const send = (behavior?: string) => {
+    if (!input.trim()) return;
+    const msg = input;
+    setInput("");
+    void sendText(msg, behavior);
+  };
+
+  // generative-UI action loop: buttons inside rendered json-ui blocks send
+  // their message back into the conversation as if typed by the user.
+  useEffect(() => {
+    const onAction = (e: Event) => {
+      const msg = (e as CustomEvent).detail?.message;
+      if (typeof msg === "string" && msg.trim() && !running) void sendText(msg.trim());
+    };
+    window.addEventListener("genui:action", onAction);
+    return () => window.removeEventListener("genui:action", onAction);
+  });
 
   const abort = async () => {
     try { await api.tasks.abort(taskId); } catch (e: any) { setNotice(e.message); }
@@ -270,7 +326,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
         );
       }
       return (
-        <div key={full} className="fnode" style={{ paddingLeft: depth * 14 + 24 }} onClick={() => download(full)} title="点击下载">
+        <div key={full} className="fnode" style={{ paddingLeft: depth * 14 + 24 }} onClick={() => download(full)} data-tip="点击下载">
           <Icon name="file-text" size={13} />
           {n.name} <span className="fsize">{n.size}B</span>
         </div>
@@ -286,13 +342,24 @@ export function TaskDetail({ taskId }: { taskId: string }) {
         if (atBottom !== auto) setAuto(atBottom);
       }}>
         <div className="detail-head">
-          <a href="#/tasks" className="back" title="返回任务列表"><Icon name="arrow-left" size={18} /></a>
-          <h3>{task?.title || "任务"}</h3>
+          <a href="#/tasks" className="back" data-tip-down data-tip="返回任务列表"><Icon name="arrow-left" size={18} /></a>
+          {renaming ? (
+            <span className="rename-row">
+              <input autoFocus value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveTitle(); if (e.key === "Escape") setRenaming(false); }} />
+              <button className="icon-btn" onClick={saveTitle} data-tip-down data-tip="保存 (Enter)"><Icon name="check" size={14} /></button>
+              <button className="icon-btn" onClick={() => setRenaming(false)} data-tip-down data-tip="取消 (Esc)"><Icon name="x" size={14} /></button>
+            </span>
+          ) : (
+            <span className="title-wrap">
+              <h3 onClick={() => { setTitleDraft(task?.title || ""); setRenaming(true); }}>{task?.title || "任务"}</h3>
+              <button className="icon-btn" data-tip-down data-tip="重命名" onClick={() => { setTitleDraft(task?.title || ""); setRenaming(true); }}><Icon name="edit" size={13} /></button>
+            </span>
+          )}
           {statusBadge}
-          {task && <span className="chip">{task.mode} · {task.model_id}</span>}
-          {task?.expert_id ? <span className="chip expert-chip" title={`专家：${task.expert_id}`}><Icon name="sparkles" size={11} />{experts.find((e) => e.id === task.expert_id)?.name || task.expert_id}</span> : null}
+          {task?.expert_id ? <span className="chip expert-chip" data-tip-down data-tip={`专家：${task.expert_id}`}><Icon name="sparkles" size={11} />{experts.find((e) => e.id === task.expert_id)?.name || task.expert_id}</span> : null}
           {usage && usage.total_tokens > 0 && (
-            <span className="chip mono" title={usage.by_model.map((m) => `${m.provider}/${m.model_id}: in ${+m.input_tokens || 0} out ${+m.output_tokens || 0} cache ${+m.cache_read_tokens || 0}/${+m.cache_write_tokens || 0} ($${(+m.cost_usd || 0).toFixed(6)})`).join("\n")}>
+            <span className="chip mono" data-tip-down data-tip={usage.by_model.map((m) => `${m.provider}/${m.model_id}: in ${+m.input_tokens || 0} out ${+m.output_tokens || 0} cache ${+m.cache_read_tokens || 0}/${+m.cache_write_tokens || 0} ($${(+m.cost_usd || 0).toFixed(6)})`).join("\n")}>
               {usage.total_tokens.toLocaleString()} tok · ${(+usage.cost_usd || 0).toFixed(4)}
             </span>
           )}
@@ -300,7 +367,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
             const pct = Math.min(100, Math.round((ctxUse.tokens / ctxUse.window) * 100));
             const lvl = pct >= 85 ? "danger" : pct >= 60 ? "warn" : "ok";
             return (
-              <span className={`ctx-chip ${lvl}`} title={`当前上下文占用 ${ctxUse.tokens.toLocaleString()} / ${ctxUse.window.toLocaleString()} tokens（${pct}%）`}>
+              <span className={`ctx-chip ${lvl}`} data-tip-down data-tip={`当前上下文占用 ${ctxUse.tokens.toLocaleString()} / ${ctxUse.window.toLocaleString()} tokens（${pct}%）`}>
                 <span className="ctx-label">上下文</span>
                 <span className="ctx-bar"><span className="ctx-fill" style={{ width: `${pct}%` }} /></span>
                 <span className="mono">{pct}%</span>
@@ -309,9 +376,9 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           })()}
           <span className="spacer" />
           <div className="msg-nav">
-            <button className="icon-btn" onClick={() => jump(curN - 1)} title="上一条指令 (Alt+↑)" disabled={curN <= 1}><Icon name="chevron-right" size={15} className="rot270" /></button>
-            <button className="icon-btn" onClick={() => jump(curN + 1)} title="下一条指令 (Alt+↓)" disabled={!userMsgs.length || curN >= userMsgs.length}><Icon name="chevron-right" size={15} className="rot90" /></button>
-            <button className="icon-btn" onClick={() => setNavOpen(!navOpen)} title="指令定位"><Icon name="search" size={15} /></button>
+            <button className="icon-btn" onClick={() => jump(curN - 1)} data-tip-down data-tip="上一条指令 (Alt+↑)" disabled={curN <= 1}><Icon name="chevron-right" size={15} className="rot270" /></button>
+            <button className="icon-btn" onClick={() => jump(curN + 1)} data-tip-down data-tip="下一条指令 (Alt+↓)" disabled={!userMsgs.length || curN >= userMsgs.length}><Icon name="chevron-right" size={15} className="rot90" /></button>
+            <button className="icon-btn" onClick={() => setNavOpen(!navOpen)} data-tip-down data-tip="指令定位"><Icon name="search" size={15} /></button>
             {navOpen && (
               <div className="msg-nav-pop">
                 <div className="mnp-head">指令列表（{userMsgs.length} 条）</div>
@@ -326,8 +393,11 @@ export function TaskDetail({ taskId }: { taskId: string }) {
               </div>
             )}
           </div>
-          <button className="icon-btn" onClick={() => setShowFiles(!showFiles)} title={showFiles ? "隐藏产物面板" : "显示产物面板"}>
+          <button className="icon-btn" onClick={() => setShowFiles(!showFiles)} data-tip-down data-tip={showFiles ? "隐藏产物面板" : "显示产物面板"}>
             <Icon name="panel-right" size={15} />
+          </button>
+          <button className="icon-btn danger" onClick={delTask} data-tip-down data-tip="删除任务">
+            <Icon name="trash" size={15} />
           </button>
         </div>
 
@@ -344,30 +414,38 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           {bubbles.map((b, i) => (
             <div key={i} id={b.n ? `um-${b.n}` : undefined} className={`bubble ${b.role} ${b.n && b.n === flashN ? "flash" : ""}`}>
               {b.role === "user" && b.n && <span className="msg-ord mono">#{b.n}</span>}
-              {b.role === "assistant" && b.thinking && (
-                <details className="thinking">
-                  <summary><Icon name="lightbulb" size={13} />思考过程<Icon name="chevron-down" size={12} /></summary>
-                  <div>{b.thinking}</div>
-                </details>
+              {b.role === "assistant" && (b.thinking || b.tools.length > 0) && (
+                <ThinkingTrace
+                  working={!!b.streaming}
+                  active="执行中"
+                  done={b.tools.length ? `执行了 ${b.tools.length} 步` : "思考过程"}
+                  rows={b.tools.map((t) => ({
+                    primary: t.tool,
+                    secondary: t.error ? "失败" : t.done ? "完成" : "…",
+                    mono: true,
+                    detail: (
+                      <div>
+                        <pre className="toolargs">{t.args}</pre>
+                        {t.output && (t.output.match(/^[+-][^+-]/m) ? <DiffView diff={t.output} /> : <pre className="toolout">{t.output}</pre>)}
+                      </div>
+                    ),
+                  }))}
+                >
+                  {b.thinking && <div className="trace-thinking">{b.thinking}</div>}
+                </ThinkingTrace>
               )}
-              {b.tools.map((t) => (
-                <details key={t.id} className={`toolcard ${t.error ? "err" : ""}`}>
-                  <summary>
-                    <span className="toolname"><Icon name={toolIcon(t.tool)} size={13} />{t.tool}</span>
-                    <span className="toolargs-preview">{t.args}</span>
-                    <span className={`toolstate ${!t.done ? "run" : t.error ? "err" : "ok"}`}>
-                      {!t.done ? "运行中…" : t.error ? "失败" : "完成"}
-                    </span>
-                  </summary>
-                  <pre className="toolargs">{t.args}</pre>
-                  {t.output && <pre className="toolout">{t.output}</pre>}
-                </details>
-              ))}
-              {b.text ? <Markdown text={b.text} /> : b.streaming ? <span className="cursor" /> : null}
+              {b.text ? (b.streaming ? <StreamText text={b.text} /> : <Markdown text={b.text} />) : b.streaming ? <Loader label="生成中" /> : null}
             </div>
           ))}
           {bubbles.length === 0 && <div className="empty">发送第一条消息开始任务</div>}
         </div>
+
+        {task?.mode === "plan" && !running && bubbles.length > 0 && bubbles.at(-1)?.role === "assistant" && planPromptAt !== bubbles.length && (
+          <PlanApproval
+            onConfirm={() => { setPlanPromptAt(bubbles.length); void sendText("确认执行以上计划"); }}
+            onRevise={() => setPlanPromptAt(bubbles.length)}
+          />
+        )}
 
         <div className="composer">
           <div className="composer-box">
@@ -382,38 +460,49 @@ export function TaskDetail({ taskId }: { taskId: string }) {
             />
             <div className="composer-toolbar">
               <div className="ct-left">
-                <label className="ct-btn" title="上传文件到工作区">
+                <label className="ct-btn" data-tip="上传文件到工作区">
                   <Icon name="plus" size={15} />
                   <input type="file" hidden onChange={(e) => e.target.files?.[0] && uploadFile(e.target.files[0])} />
                 </label>
                 {task && (
-                  <span className="ct-pill" title="执行模式（创建任务时确定）">
-                    <Icon name={MODE_ICON[task.mode] || "sparkles"} size={13} className="accent" />
-                    {MODE_NAME[task.mode] || task.mode}
-                  </span>
-                )}
-                {task && (
-                  <span className="ct-pill mono" title="模型">
-                    <Icon name="sparkles" size={12} className="info" />
-                    {task.model_id}
-                  </span>
+                  <Select
+                    dropUp
+                    value={modeKey || task.mode}
+                    onChange={setModeKey}
+                    data-tip="权限模式（可切换，下一轮生效）"
+                    options={[
+                      { value: "ask", label: "只读 · 仅查看不改文件" },
+                      { value: "craft", label: "完整 · 可读写执行" },
+                      { value: "plan", label: "计划 · 先计划再执行" },
+                    ]}
+                  />
                 )}
               </div>
               <div className="ct-right">
-                <button
-                  className={`ct-auto ${auto ? "on" : ""}`}
-                  onClick={() => { setAuto(true); scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }}
-                  title="自动滚动到最新消息"
-                >
-                  <Icon name="zap" size={13} />Auto
-                </button>
+                {task && (() => {
+                  const curKey = `${task.provider}/${task.model_id}`;
+                  const opts = [
+                    { value: "auto", label: "Auto · 自动路由" },
+                    ...models.map((m) => ({ value: `${m.provider_id}/${m.model_id}`, label: m.display_name || m.model_id })),
+                  ];
+                  if (!opts.some((o) => o.value === curKey)) opts.push({ value: curKey, label: task.model_id });
+                  return (
+                    <Select
+                      dropUp
+                      value={modelKey || curKey}
+                      onChange={setModelKey}
+                      data-tip="模型（可切换，下一轮生效）"
+                      options={opts}
+                    />
+                  );
+                })()}
                 {running ? (
                   <>
-                    <button className="ct-send stop" onClick={abort} title="中止任务"><Icon name="square" size={12} /></button>
+                    <button className="ct-send stop" onClick={abort} data-tip="中止任务"><Icon name="square" size={12} /></button>
                     <button className="btn ghost sm" onClick={() => send("follow_up")} disabled={!input.trim()}>排队追问</button>
                   </>
                 ) : (
-                  <button className="ct-send" onClick={() => send()} disabled={!input.trim()} title="发送"><Icon name="arrow-up" size={16} /></button>
+                  <button className="ct-send" onClick={() => send()} disabled={!input.trim()} data-tip="发送"><Icon name="arrow-up" size={16} /></button>
                 )}
               </div>
             </div>
@@ -426,8 +515,8 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           <div className="files-head">
             <Icon name="folder" size={15} />
             <h4>工作区文件</h4>
-            <button className="icon-btn" onClick={() => loadFiles("")} title="刷新"><Icon name="refresh-cw" size={13} /></button>
-            <button className="icon-btn" onClick={() => setShowFiles(false)} title="收起面板"><Icon name="x" size={13} /></button>
+            <button className="icon-btn" onClick={() => loadFiles("")} data-tip-down data-tip="刷新"><Icon name="refresh-cw" size={13} /></button>
+            <button className="icon-btn" onClick={() => setShowFiles(false)} data-tip-down data-tip="收起面板"><Icon name="x" size={13} /></button>
           </div>
           <div className="ftree">{fileTree("", 0)}</div>
           <p className="hint">点击文件下载，点击目录展开</p>

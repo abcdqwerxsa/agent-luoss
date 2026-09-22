@@ -28,7 +28,8 @@ export function ThemeToggle() {
   return (
     <button
       className="icon-btn"
-      title={theme === "dark" ? "切换亮色模式" : "切换暗色模式"}
+      data-tip-down
+      data-tip={theme === "dark" ? "切换亮色模式" : "切换暗色模式"}
       onClick={() => setThemeState(toggleTheme())}
     >
       <Icon name={theme === "dark" ? "sun" : "moon"} size={15} />

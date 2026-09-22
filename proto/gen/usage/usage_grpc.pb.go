@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	Usage_ReportUsage_FullMethodName     = "/agentluoss.v1.usage.Usage/ReportUsage"
+	Usage_ReportToolCall_FullMethodName  = "/agentluoss.v1.usage.Usage/ReportToolCall"
 	Usage_CheckQuota_FullMethodName      = "/agentluoss.v1.usage.Usage/CheckQuota"
 	Usage_SetQuota_FullMethodName        = "/agentluoss.v1.usage.Usage/SetQuota"
 	Usage_GetUsageSummary_FullMethodName = "/agentluoss.v1.usage.Usage/GetUsageSummary"
@@ -34,6 +35,7 @@ const (
 type UsageClient interface {
 	// ---- internal (task-svc funnels agent usage) ----
 	ReportUsage(ctx context.Context, in *ReportUsageRequest, opts ...grpc.CallOption) (*ReportUsageResponse, error)
+	ReportToolCall(ctx context.Context, in *ReportToolCallRequest, opts ...grpc.CallOption) (*ReportToolCallResponse, error)
 	CheckQuota(ctx context.Context, in *CheckQuotaRequest, opts ...grpc.CallOption) (*CheckQuotaResponse, error)
 	// ---- admin-facing (via gateway) ----
 	SetQuota(ctx context.Context, in *SetQuotaRequest, opts ...grpc.CallOption) (*SetQuotaResponse, error)
@@ -56,6 +58,16 @@ func (c *usageClient) ReportUsage(ctx context.Context, in *ReportUsageRequest, o
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ReportUsageResponse)
 	err := c.cc.Invoke(ctx, Usage_ReportUsage_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *usageClient) ReportToolCall(ctx context.Context, in *ReportToolCallRequest, opts ...grpc.CallOption) (*ReportToolCallResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReportToolCallResponse)
+	err := c.cc.Invoke(ctx, Usage_ReportToolCall_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -128,6 +140,7 @@ func (c *usageClient) GetMyUsage(ctx context.Context, in *GetMyUsageRequest, opt
 type UsageServer interface {
 	// ---- internal (task-svc funnels agent usage) ----
 	ReportUsage(context.Context, *ReportUsageRequest) (*ReportUsageResponse, error)
+	ReportToolCall(context.Context, *ReportToolCallRequest) (*ReportToolCallResponse, error)
 	CheckQuota(context.Context, *CheckQuotaRequest) (*CheckQuotaResponse, error)
 	// ---- admin-facing (via gateway) ----
 	SetQuota(context.Context, *SetQuotaRequest) (*SetQuotaResponse, error)
@@ -148,6 +161,9 @@ type UnimplementedUsageServer struct{}
 
 func (UnimplementedUsageServer) ReportUsage(context.Context, *ReportUsageRequest) (*ReportUsageResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ReportUsage not implemented")
+}
+func (UnimplementedUsageServer) ReportToolCall(context.Context, *ReportToolCallRequest) (*ReportToolCallResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ReportToolCall not implemented")
 }
 func (UnimplementedUsageServer) CheckQuota(context.Context, *CheckQuotaRequest) (*CheckQuotaResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CheckQuota not implemented")
@@ -202,6 +218,24 @@ func _Usage_ReportUsage_Handler(srv interface{}, ctx context.Context, dec func(i
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UsageServer).ReportUsage(ctx, req.(*ReportUsageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Usage_ReportToolCall_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReportToolCallRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UsageServer).ReportToolCall(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Usage_ReportToolCall_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UsageServer).ReportToolCall(ctx, req.(*ReportToolCallRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -324,6 +358,10 @@ var Usage_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ReportUsage",
 			Handler:    _Usage_ReportUsage_Handler,
+		},
+		{
+			MethodName: "ReportToolCall",
+			Handler:    _Usage_ReportToolCall_Handler,
 		},
 		{
 			MethodName: "CheckQuota",

@@ -7,7 +7,7 @@ export function makeZip(files) {
   let offset = 0;
   for (const [name, content] of Object.entries(files)) {
     const nameB = enc.encode(name);
-    const data = enc.encode(content);
+    const data = typeof content === "string" ? enc.encode(content) : content;
     const crc = crc32(data);
     const lh = new DataView(new ArrayBuffer(30));
     lh.setUint32(0, 0x04034b50, true);
