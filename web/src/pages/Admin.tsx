@@ -574,7 +574,7 @@ function ExpertsTab() {
               </div>
             </div>
           ))}
-          {!experts.length && <div className="empty-hint">暂无专家，点击右上「添加」创建（如 ppt-master）</div>}
+          {!experts.length && <div className="empty-hint">暂无专家，点击右上「添加」创建（如 doc-master）</div>}
         </div>
       </div>
 
@@ -586,7 +586,7 @@ function ExpertsTab() {
             <button className="btn" onClick={() => setEditing(false)}>收起</button>
           </div>
           <div className="grid-form">
-            <input placeholder="id (slug，如 ppt-master)" value={form.id} onChange={(e) => setForm({ ...form, id: e.target.value })} />
+            <input placeholder="id (slug，如 doc-master)" value={form.id} onChange={(e) => setForm({ ...form, id: e.target.value })} />
             <input placeholder="名称（用户可见）" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <input placeholder="一句话描述（如：一键生成专业排版的 PPT/PDF）" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>

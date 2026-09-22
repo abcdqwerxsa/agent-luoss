@@ -5,7 +5,7 @@ RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && apt
     libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libcairo2 \
     fonts-noto-cjk fonts-noto-color-emoji \
     && rm -rf /var/lib/apt/lists/*
-# kami (ppt-master expert) rendering stack: WeasyPrint HTML→PDF + python-pptx
+# kami (doc-master expert) rendering stack: WeasyPrint HTML→PDF + python-pptx
 RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && pip3 install --no-cache-dir --break-system-packages -i https://pypi.tuna.tsinghua.edu.cn/simple weasyprint python-pptx
 WORKDIR /app
 COPY services/agent-runtime/package.json services/agent-runtime/package-lock.json* ./
