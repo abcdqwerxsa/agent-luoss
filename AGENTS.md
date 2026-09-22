@@ -32,7 +32,7 @@ cd deploy && docker compose up -d   # 全栈（本机适配版，见下）
 - `cmd/<svc>/main.go` 入口（iam:9091 task:9092 artifact:9093 modelmgt:9094 usage:9095 caps:9096）；改环境变量看各 main.go 顶部的 envOr
 - `services/agent-runtime/` Node sidecar（`npm run build` 仅类型检查+emit，运行 `node dist/index.js`；pi-mcp-adapter 为 TS 源码包，经 jiti 运行时加载；scripts/smoke*.mjs 冒烟，smoke-caps.mjs 验 MCP/技能注入）
 - `web/` 前端（构建产物打进 Go 镜像 /app/web）
-- `deploy/` compose/Dockerfile/e2e.mjs/load.mjs/zip.mjs（e2e 用纯 JS zip 构造器上传技能）
+- `deploy/` compose/Dockerfile/e2e.mjs/load.mjs/zip.mjs（e2e 用纯 JS zip 构造器上传技能）；`deploy/catalog/` 精选第三方技能仓库（只收 MIT/Apache，见其 README）+ `import-catalog.mjs` 批量导入为专家
 
 ## 开发注意事项
 
