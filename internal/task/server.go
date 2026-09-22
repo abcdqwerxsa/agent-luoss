@@ -50,7 +50,8 @@ type QuotaChecker interface {
 // UsageReporter receives per-message token/cost reports (implemented by the
 // usage service client; noop keeps task-svc standalone in tests).
 type UsageReporter interface {
-	Report(ctx context.Context, taskID, userID, provider, modelID string, u usageDelta)
+	Report(ctx context.Context, taskID, userID, provider, modelID, expertID string, u usageDelta)
+	ReportTool(ctx context.Context, userID, expertID, tool string)
 }
 
 type usageDelta struct {
@@ -60,7 +61,8 @@ type usageDelta struct {
 
 type noopUsage struct{}
 
-func (noopUsage) Report(context.Context, string, string, string, string, usageDelta) {}
+func (noopUsage) Report(context.Context, string, string, string, string, string, usageDelta) {}
+func (noopUsage) ReportTool(context.Context, string, string, string) {}
 
 // CapsResolver fetches the effective MCP servers/skills for a user
 // (implemented by the caps service client; fail-open when nil/unavailable).
@@ -360,9 +362,39 @@ func (s *Server) SendPrompt(ctx context.Context, req *taskpb.SendPromptRequest) 
 	if req.GetMessage() == "" {
 		return nil, status.Error(codes.InvalidArgument, "message required")
 	}
+	// Optional per-turn model override; resolved before taking the session
+	// lock (Jev round trip) and recorded on the task row.
+	var override *runtimpb.ModelRef
+	if m := req.GetModel(); m != nil && (m.GetProvider() != "" || m.GetModelId() != "") {
+		p, mID := m.GetProvider(), m.GetModelId()
+		if p == "auto" || mID == "auto" {
+			if s.router == nil {
+				return nil, status.Error(codes.Unimplemented, "auto routing not configured")
+			}
+			res, err := s.router.Resolve(ctx, t.Title, req.GetMessage())
+			if err != nil {
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
+			p, mID = res.Provider, res.ModelID
+			s.synth(t.ID, "auto_route", res)
+		}
+		override = &runtimpb.ModelRef{Provider: p, ModelId: mID}
+		_ = s.store.SetModel(ctx, t.ID, p, mID)
+		t.Provider, t.ModelID = p, mID
+	}
 	if s.quota != nil {
 		if err := s.quota.Allowed(ctx, t.UserID); err != nil {
 			return nil, status.Error(codes.ResourceExhausted, err.Error())
+		}
+	}
+	// Optional per-turn permission mode switch ("ask" | "craft" | "plan").
+	if m := req.GetMode(); m != "" {
+		if m != "ask" && m != "craft" && m != "plan" {
+			return nil, status.Error(codes.InvalidArgument, "invalid mode: "+m)
+		}
+		if m != t.Mode {
+			_ = s.store.SetMode(ctx, t.ID, m)
+			t.Mode = m
 		}
 	}
 	if !s.registry.AcquireSessionLock(ctx, t.ID, 15*time.Minute) {
@@ -380,7 +412,7 @@ func (s *Server) SendPrompt(ctx context.Context, req *taskpb.SendPromptRequest) 
 	}
 	_, err = cl.Prompt(ctx, &runtimpb.PromptRequest{
 		TaskId: t.ID, Message: req.GetMessage(), Images: images,
-		StreamingBehavior: req.GetStreamingBehavior(),
+		StreamingBehavior: req.GetStreamingBehavior(), Model: override, Mode: req.GetMode(),
 	})
 	if err != nil {
 		s.registry.ReleaseSessionLock(ctx, t.ID)
@@ -531,6 +563,8 @@ func (s *Server) onEvent(ctx context.Context, ev *taskpb.AgentEvent) {
 		s.registry.ReleaseSessionLock(ctx, ev.GetTaskId())
 	case "message_end":
 		s.reportUsage(ctx, ev)
+	case "tool_execution_start":
+		s.reportToolCall(ctx, ev)
 	case "context_usage":
 		s.rdb.Set(ctx, "task:ctx:"+ev.GetTaskId(), ev.GetPayload(), 0)
 	case "error":
@@ -573,11 +607,26 @@ func (s *Server) reportUsage(ctx context.Context, ev *taskpb.AgentEvent) {
 	if err != nil {
 		return
 	}
-	s.usage.Report(ctx, ev.GetTaskId(), t.UserID, m.Provider, m.Model, usageDelta{
+	s.usage.Report(ctx, ev.GetTaskId(), t.UserID, m.Provider, m.Model, t.ExpertID, usageDelta{
 		Input: m.Usage.Input, Output: m.Usage.Output,
 		CacheRead: m.Usage.CacheRead, CacheWrite: m.Usage.CacheWrite,
 		CostUSD: m.Usage.Cost.Total,
 	})
+}
+
+// reportToolCall meters one tool execution (pi event payload carries toolName).
+func (s *Server) reportToolCall(ctx context.Context, ev *taskpb.AgentEvent) {
+	var p struct {
+		ToolName string `json:"toolName"`
+	}
+	if err := json.Unmarshal([]byte(ev.GetPayload()), &p); err != nil || p.ToolName == "" {
+		return
+	}
+	t, err := s.store.Get(ctx, ev.GetTaskId())
+	if err != nil {
+		return
+	}
+	s.usage.ReportTool(ctx, t.UserID, t.ExpertID, p.ToolName)
 }
 
 // ---- history ----

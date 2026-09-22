@@ -61,13 +61,14 @@ export const api = {
 
   tasks: {
     list: (q = "") => req<{ tasks: TaskInfo[]; total: number }>("GET", `/api/v1/tasks${q}`),
+    del: (id: string) => req("DELETE", `/api/v1/tasks/${id}`),
     create: (t: { title: string; mode: string; provider: string; model_id: string; first_message: string; expert_id?: string }) =>
       req<{ task: TaskInfo }>("POST", "/api/v1/tasks", t),
     get: (id: string) => req<{ task: TaskInfo; context_tokens?: number; context_window?: number }>("GET", `/api/v1/tasks/${id}`),
     remove: (id: string) => req("DELETE", `/api/v1/tasks/${id}`),
     patch: (id: string, t: { title?: string; archive?: boolean }) => req("PATCH", `/api/v1/tasks/${id}`, t),
-    send: (id: string, message: string, streaming_behavior?: string, images?: { data: string; media_type: string }[]) =>
-      req("POST", `/api/v1/tasks/${id}/messages`, { message, streaming_behavior, images }),
+    send: (id: string, message: string, streaming_behavior?: string, images?: { data: string; media_type: string }[], model?: { provider: string; model_id: string }, mode?: string) =>
+      req("POST", `/api/v1/tasks/${id}/messages`, { message, streaming_behavior, images, provider: model?.provider, model_id: model?.model_id, mode }),
     steer: (id: string, message: string) => req("POST", `/api/v1/tasks/${id}/steer`, { message }),
     abort: (id: string) => req("POST", `/api/v1/tasks/${id}/abort`),
     history: (id: string) => req<{ messages: { role: string; content: unknown; model?: string; toolCallId?: string; toolName?: string; isError?: boolean }[] }>("GET", `/api/v1/tasks/${id}/messages`),
@@ -119,6 +120,12 @@ export const api = {
       rows: { day: string; user_id: string; total_tokens: number; cost_usd: number; task_count: number }[];
       by_model: { provider: string; model_id: string; input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_write_tokens: number; total_tokens: number; cost_usd: number; task_count: number }[];
       top_users: { user_id: string; total_tokens: number; cost_usd: number; task_count: number }[];
+      by_expert: { expert_id: string; name: string; total_tokens: number; cost_usd: number; task_count: number }[];
+      by_department: { department: string; total_tokens: number; cost_usd: number; users: number; task_count: number }[];
+      by_task: { task_id: string; title: string; user_id: string; total_tokens: number; cost_usd: number }[];
+      by_tool: { tool: string; calls: number }[];
+      dau: number; wau: number; mau: number;
+      quotas: { user_id: string; monthly_limit_usd: number; month_used_usd: number }[];
     }>("GET", `/api/v1/admin/usage${q ? (q.startsWith("?") ? q : `?${q}`) : ""}`),
     audit: (q = "") => req<{ logs: { id: number; actor: string; action: string; resource: string; ts: number; ip: string }[]; total: number }>("GET", `/api/v1/admin/audit${q}`),
     setQuota: (user_id: string, monthly_limit_usd: number) => req("PUT", "/api/v1/admin/quota", { user_id, monthly_limit_usd }),

@@ -32,7 +32,7 @@ cd deploy && docker compose up -d   # 全栈（本机适配版，见下）
 - `cmd/<svc>/main.go` 入口（iam:9091 task:9092 artifact:9093 modelmgt:9094 usage:9095 caps:9096）；改环境变量看各 main.go 顶部的 envOr
 - `services/agent-runtime/` Node sidecar（`npm run build` 仅类型检查+emit，运行 `node dist/index.js`；pi-mcp-adapter 为 TS 源码包，经 jiti 运行时加载；scripts/smoke*.mjs 冒烟，smoke-caps.mjs 验 MCP/技能注入）
 - `web/` 前端（构建产物打进 Go 镜像 /app/web）
-- `deploy/` compose/Dockerfile/e2e.mjs/load.mjs/zip.mjs（e2e 用纯 JS zip 构造器上传技能）
+- `deploy/` compose/Dockerfile/e2e.mjs/load.mjs/zip.mjs（e2e 用纯 JS zip 构造器上传技能）；`deploy/catalog/` 精选第三方技能仓库（只收 MIT/Apache，见其 README）+ `import-catalog.mjs` 批量导入为专家
 
 ## 开发注意事项
 
@@ -47,6 +47,8 @@ cd deploy && docker compose up -d   # 全栈（本机适配版，见下）
 - gateway 的 admin 路由组前缀为空串，注册时必须写全路径（如 `/admin/mcp`，不是 `/mcp`）
 
 ## 部署
+
+构建/测试服务器：`ssh -p 2225 root@192.168.28.165`（代码在 `/root/agent-luoss`，栈用 docker-compose.standard.yml，网关 `127.0.0.1:18090`）。
 
 `deploy/docker-compose.yml` 为**本开发机适配版**（内核缺 iptables DNAT + 内嵌 DNS）：静态 IP 172.28.0.0/24、runtime host 网络、全容器清空代理 env。正常主机用 `deploy/docker-compose.standard.yml`（服务名 DNS + 发布 8080）。
 

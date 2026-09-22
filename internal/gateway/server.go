@@ -173,8 +173,9 @@ func (a *App) authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h := c.GetHeader("Authorization")
 		token := strings.TrimPrefix(h, "Bearer ")
-		if token == "" && strings.HasSuffix(c.Request.URL.Path, "/events") {
-			// EventSource cannot send headers; SSE endpoint accepts query token
+		// EventSource cannot send headers; SSE endpoint accepts query token.
+		// Downloads (<a href>) cannot either: /export paths accept it too.
+		if token == "" && (strings.HasSuffix(c.Request.URL.Path, "/events") || strings.HasSuffix(c.Request.URL.Path, "/export")) {
 			token = c.Query("access_token")
 		}
 		if token == "" {

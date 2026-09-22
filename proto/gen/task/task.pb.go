@@ -756,8 +756,12 @@ type SendPromptRequest struct {
 	Message           string                  `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	Images            []*runtime.ImageContent `protobuf:"bytes,4,rep,name=images,proto3" json:"images,omitempty"`
 	StreamingBehavior string                  `protobuf:"bytes,5,opt,name=streaming_behavior,json=streamingBehavior,proto3" json:"streaming_behavior,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Optional per-turn model override; provider/model_id "auto" routes via Jev.
+	Model *runtime.ModelRef `protobuf:"bytes,6,opt,name=model,proto3" json:"model,omitempty"`
+	// Optional per-turn mode/permission switch ("ask" | "craft" | "plan").
+	Mode          string `protobuf:"bytes,7,opt,name=mode,proto3" json:"mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SendPromptRequest) Reset() {
@@ -821,6 +825,20 @@ func (x *SendPromptRequest) GetImages() []*runtime.ImageContent {
 func (x *SendPromptRequest) GetStreamingBehavior() string {
 	if x != nil {
 		return x.StreamingBehavior
+	}
+	return ""
+}
+
+func (x *SendPromptRequest) GetModel() *runtime.ModelRef {
+	if x != nil {
+		return x.Model
+	}
+	return nil
+}
+
+func (x *SendPromptRequest) GetMode() string {
+	if x != nil {
+		return x.Mode
 	}
 	return ""
 }
@@ -1586,13 +1604,15 @@ const file_task_proto_rawDesc = "" +
 	"\x04task\x18\x01 \x01(\v2\x1c.agentluoss.v1.task.TaskInfoR\x04task\",\n" +
 	"\x11DeleteTaskRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\"\x14\n" +
-	"\x12DeleteTaskResponse\"\xcb\x01\n" +
+	"\x12DeleteTaskResponse\"\x96\x02\n" +
 	"\x11SendPromptRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\x12;\n" +
 	"\x06images\x18\x04 \x03(\v2#.agentluoss.v1.runtime.ImageContentR\x06images\x12-\n" +
-	"\x12streaming_behavior\x18\x05 \x01(\tR\x11streamingBehavior\"F\n" +
+	"\x12streaming_behavior\x18\x05 \x01(\tR\x11streamingBehavior\x125\n" +
+	"\x05model\x18\x06 \x01(\v2\x1f.agentluoss.v1.runtime.ModelRefR\x05model\x12\x12\n" +
+	"\x04mode\x18\a \x01(\tR\x04mode\"F\n" +
 	"\x12SendPromptResponse\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\bR\baccepted\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\"^\n" +
@@ -1721,37 +1741,38 @@ var file_task_proto_depIdxs = []int32{
 	1,  // 7: agentluoss.v1.task.ListTasksResponse.tasks:type_name -> agentluoss.v1.task.TaskInfo
 	1,  // 8: agentluoss.v1.task.UpdateTaskResponse.task:type_name -> agentluoss.v1.task.TaskInfo
 	29, // 9: agentluoss.v1.task.SendPromptRequest.images:type_name -> agentluoss.v1.runtime.ImageContent
-	2,  // 10: agentluoss.v1.task.Task.CreateTask:input_type -> agentluoss.v1.task.CreateTaskRequest
-	4,  // 11: agentluoss.v1.task.Task.GetTask:input_type -> agentluoss.v1.task.GetTaskRequest
-	6,  // 12: agentluoss.v1.task.Task.ListTasks:input_type -> agentluoss.v1.task.ListTasksRequest
-	8,  // 13: agentluoss.v1.task.Task.UpdateTask:input_type -> agentluoss.v1.task.UpdateTaskRequest
-	10, // 14: agentluoss.v1.task.Task.DeleteTask:input_type -> agentluoss.v1.task.DeleteTaskRequest
-	12, // 15: agentluoss.v1.task.Task.SendPrompt:input_type -> agentluoss.v1.task.SendPromptRequest
-	14, // 16: agentluoss.v1.task.Task.SteerTask:input_type -> agentluoss.v1.task.SteerTaskRequest
-	16, // 17: agentluoss.v1.task.Task.AbortTask:input_type -> agentluoss.v1.task.AbortTaskRequest
-	18, // 18: agentluoss.v1.task.Task.StreamEvents:input_type -> agentluoss.v1.task.StreamEventsRequest
-	20, // 19: agentluoss.v1.task.Task.RegisterRuntime:input_type -> agentluoss.v1.task.RegisterRuntimeRequest
-	22, // 20: agentluoss.v1.task.Task.RuntimeHeartbeat:input_type -> agentluoss.v1.task.RuntimeHeartbeatRequest
-	19, // 21: agentluoss.v1.task.Task.PushEvents:input_type -> agentluoss.v1.task.AgentEvent
-	25, // 22: agentluoss.v1.task.Task.GetMessages:input_type -> agentluoss.v1.task.GetMessagesRequest
-	3,  // 23: agentluoss.v1.task.Task.CreateTask:output_type -> agentluoss.v1.task.CreateTaskResponse
-	5,  // 24: agentluoss.v1.task.Task.GetTask:output_type -> agentluoss.v1.task.GetTaskResponse
-	7,  // 25: agentluoss.v1.task.Task.ListTasks:output_type -> agentluoss.v1.task.ListTasksResponse
-	9,  // 26: agentluoss.v1.task.Task.UpdateTask:output_type -> agentluoss.v1.task.UpdateTaskResponse
-	11, // 27: agentluoss.v1.task.Task.DeleteTask:output_type -> agentluoss.v1.task.DeleteTaskResponse
-	13, // 28: agentluoss.v1.task.Task.SendPrompt:output_type -> agentluoss.v1.task.SendPromptResponse
-	15, // 29: agentluoss.v1.task.Task.SteerTask:output_type -> agentluoss.v1.task.SteerTaskResponse
-	17, // 30: agentluoss.v1.task.Task.AbortTask:output_type -> agentluoss.v1.task.AbortTaskResponse
-	19, // 31: agentluoss.v1.task.Task.StreamEvents:output_type -> agentluoss.v1.task.AgentEvent
-	21, // 32: agentluoss.v1.task.Task.RegisterRuntime:output_type -> agentluoss.v1.task.RegisterRuntimeResponse
-	23, // 33: agentluoss.v1.task.Task.RuntimeHeartbeat:output_type -> agentluoss.v1.task.RuntimeHeartbeatResponse
-	24, // 34: agentluoss.v1.task.Task.PushEvents:output_type -> agentluoss.v1.task.PushEventsResponse
-	26, // 35: agentluoss.v1.task.Task.GetMessages:output_type -> agentluoss.v1.task.GetMessagesResponse
-	23, // [23:36] is the sub-list for method output_type
-	10, // [10:23] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	28, // 10: agentluoss.v1.task.SendPromptRequest.model:type_name -> agentluoss.v1.runtime.ModelRef
+	2,  // 11: agentluoss.v1.task.Task.CreateTask:input_type -> agentluoss.v1.task.CreateTaskRequest
+	4,  // 12: agentluoss.v1.task.Task.GetTask:input_type -> agentluoss.v1.task.GetTaskRequest
+	6,  // 13: agentluoss.v1.task.Task.ListTasks:input_type -> agentluoss.v1.task.ListTasksRequest
+	8,  // 14: agentluoss.v1.task.Task.UpdateTask:input_type -> agentluoss.v1.task.UpdateTaskRequest
+	10, // 15: agentluoss.v1.task.Task.DeleteTask:input_type -> agentluoss.v1.task.DeleteTaskRequest
+	12, // 16: agentluoss.v1.task.Task.SendPrompt:input_type -> agentluoss.v1.task.SendPromptRequest
+	14, // 17: agentluoss.v1.task.Task.SteerTask:input_type -> agentluoss.v1.task.SteerTaskRequest
+	16, // 18: agentluoss.v1.task.Task.AbortTask:input_type -> agentluoss.v1.task.AbortTaskRequest
+	18, // 19: agentluoss.v1.task.Task.StreamEvents:input_type -> agentluoss.v1.task.StreamEventsRequest
+	20, // 20: agentluoss.v1.task.Task.RegisterRuntime:input_type -> agentluoss.v1.task.RegisterRuntimeRequest
+	22, // 21: agentluoss.v1.task.Task.RuntimeHeartbeat:input_type -> agentluoss.v1.task.RuntimeHeartbeatRequest
+	19, // 22: agentluoss.v1.task.Task.PushEvents:input_type -> agentluoss.v1.task.AgentEvent
+	25, // 23: agentluoss.v1.task.Task.GetMessages:input_type -> agentluoss.v1.task.GetMessagesRequest
+	3,  // 24: agentluoss.v1.task.Task.CreateTask:output_type -> agentluoss.v1.task.CreateTaskResponse
+	5,  // 25: agentluoss.v1.task.Task.GetTask:output_type -> agentluoss.v1.task.GetTaskResponse
+	7,  // 26: agentluoss.v1.task.Task.ListTasks:output_type -> agentluoss.v1.task.ListTasksResponse
+	9,  // 27: agentluoss.v1.task.Task.UpdateTask:output_type -> agentluoss.v1.task.UpdateTaskResponse
+	11, // 28: agentluoss.v1.task.Task.DeleteTask:output_type -> agentluoss.v1.task.DeleteTaskResponse
+	13, // 29: agentluoss.v1.task.Task.SendPrompt:output_type -> agentluoss.v1.task.SendPromptResponse
+	15, // 30: agentluoss.v1.task.Task.SteerTask:output_type -> agentluoss.v1.task.SteerTaskResponse
+	17, // 31: agentluoss.v1.task.Task.AbortTask:output_type -> agentluoss.v1.task.AbortTaskResponse
+	19, // 32: agentluoss.v1.task.Task.StreamEvents:output_type -> agentluoss.v1.task.AgentEvent
+	21, // 33: agentluoss.v1.task.Task.RegisterRuntime:output_type -> agentluoss.v1.task.RegisterRuntimeResponse
+	23, // 34: agentluoss.v1.task.Task.RuntimeHeartbeat:output_type -> agentluoss.v1.task.RuntimeHeartbeatResponse
+	24, // 35: agentluoss.v1.task.Task.PushEvents:output_type -> agentluoss.v1.task.PushEventsResponse
+	26, // 36: agentluoss.v1.task.Task.GetMessages:output_type -> agentluoss.v1.task.GetMessagesResponse
+	24, // [24:37] is the sub-list for method output_type
+	11, // [11:24] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_task_proto_init() }

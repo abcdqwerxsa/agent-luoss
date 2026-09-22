@@ -32,7 +32,8 @@ type ReportUsageRequest struct {
 	CacheReadTokens  int64                  `protobuf:"varint,7,opt,name=cache_read_tokens,json=cacheReadTokens,proto3" json:"cache_read_tokens,omitempty"`
 	CacheWriteTokens int64                  `protobuf:"varint,8,opt,name=cache_write_tokens,json=cacheWriteTokens,proto3" json:"cache_write_tokens,omitempty"`
 	CostUsd          float64                `protobuf:"fixed64,9,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
-	Ts               int64                  `protobuf:"varint,10,opt,name=ts,proto3" json:"ts,omitempty"` // unix ms
+	Ts               int64                  `protobuf:"varint,10,opt,name=ts,proto3" json:"ts,omitempty"`                            // unix ms
+	ExpertId         string                 `protobuf:"bytes,11,opt,name=expert_id,json=expertId,proto3" json:"expert_id,omitempty"` // "" = no expert bound
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -137,6 +138,13 @@ func (x *ReportUsageRequest) GetTs() int64 {
 	return 0
 }
 
+func (x *ReportUsageRequest) GetExpertId() string {
+	if x != nil {
+		return x.ExpertId
+	}
+	return ""
+}
+
 type ReportUsageResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -173,6 +181,110 @@ func (*ReportUsageResponse) Descriptor() ([]byte, []int) {
 	return file_usage_proto_rawDescGZIP(), []int{1}
 }
 
+type ReportToolCallRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	ExpertId      string                 `protobuf:"bytes,2,opt,name=expert_id,json=expertId,proto3" json:"expert_id,omitempty"`
+	Tool          string                 `protobuf:"bytes,3,opt,name=tool,proto3" json:"tool,omitempty"`
+	Ts            int64                  `protobuf:"varint,4,opt,name=ts,proto3" json:"ts,omitempty"` // unix ms
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportToolCallRequest) Reset() {
+	*x = ReportToolCallRequest{}
+	mi := &file_usage_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportToolCallRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportToolCallRequest) ProtoMessage() {}
+
+func (x *ReportToolCallRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_usage_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportToolCallRequest.ProtoReflect.Descriptor instead.
+func (*ReportToolCallRequest) Descriptor() ([]byte, []int) {
+	return file_usage_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ReportToolCallRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *ReportToolCallRequest) GetExpertId() string {
+	if x != nil {
+		return x.ExpertId
+	}
+	return ""
+}
+
+func (x *ReportToolCallRequest) GetTool() string {
+	if x != nil {
+		return x.Tool
+	}
+	return ""
+}
+
+func (x *ReportToolCallRequest) GetTs() int64 {
+	if x != nil {
+		return x.Ts
+	}
+	return 0
+}
+
+type ReportToolCallResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportToolCallResponse) Reset() {
+	*x = ReportToolCallResponse{}
+	mi := &file_usage_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportToolCallResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportToolCallResponse) ProtoMessage() {}
+
+func (x *ReportToolCallResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_usage_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportToolCallResponse.ProtoReflect.Descriptor instead.
+func (*ReportToolCallResponse) Descriptor() ([]byte, []int) {
+	return file_usage_proto_rawDescGZIP(), []int{3}
+}
+
 type CheckQuotaRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -182,7 +294,7 @@ type CheckQuotaRequest struct {
 
 func (x *CheckQuotaRequest) Reset() {
 	*x = CheckQuotaRequest{}
-	mi := &file_usage_proto_msgTypes[2]
+	mi := &file_usage_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -194,7 +306,7 @@ func (x *CheckQuotaRequest) String() string {
 func (*CheckQuotaRequest) ProtoMessage() {}
 
 func (x *CheckQuotaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[2]
+	mi := &file_usage_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -207,7 +319,7 @@ func (x *CheckQuotaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckQuotaRequest.ProtoReflect.Descriptor instead.
 func (*CheckQuotaRequest) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{2}
+	return file_usage_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *CheckQuotaRequest) GetUserId() string {
@@ -229,7 +341,7 @@ type CheckQuotaResponse struct {
 
 func (x *CheckQuotaResponse) Reset() {
 	*x = CheckQuotaResponse{}
-	mi := &file_usage_proto_msgTypes[3]
+	mi := &file_usage_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -241,7 +353,7 @@ func (x *CheckQuotaResponse) String() string {
 func (*CheckQuotaResponse) ProtoMessage() {}
 
 func (x *CheckQuotaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[3]
+	mi := &file_usage_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -254,7 +366,7 @@ func (x *CheckQuotaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckQuotaResponse.ProtoReflect.Descriptor instead.
 func (*CheckQuotaResponse) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{3}
+	return file_usage_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CheckQuotaResponse) GetAllowed() bool {
@@ -295,7 +407,7 @@ type SetQuotaRequest struct {
 
 func (x *SetQuotaRequest) Reset() {
 	*x = SetQuotaRequest{}
-	mi := &file_usage_proto_msgTypes[4]
+	mi := &file_usage_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -307,7 +419,7 @@ func (x *SetQuotaRequest) String() string {
 func (*SetQuotaRequest) ProtoMessage() {}
 
 func (x *SetQuotaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[4]
+	mi := &file_usage_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -320,7 +432,7 @@ func (x *SetQuotaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetQuotaRequest.ProtoReflect.Descriptor instead.
 func (*SetQuotaRequest) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{4}
+	return file_usage_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SetQuotaRequest) GetUserId() string {
@@ -345,7 +457,7 @@ type SetQuotaResponse struct {
 
 func (x *SetQuotaResponse) Reset() {
 	*x = SetQuotaResponse{}
-	mi := &file_usage_proto_msgTypes[5]
+	mi := &file_usage_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -357,7 +469,7 @@ func (x *SetQuotaResponse) String() string {
 func (*SetQuotaResponse) ProtoMessage() {}
 
 func (x *SetQuotaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[5]
+	mi := &file_usage_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -370,7 +482,7 @@ func (x *SetQuotaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetQuotaResponse.ProtoReflect.Descriptor instead.
 func (*SetQuotaResponse) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{5}
+	return file_usage_proto_rawDescGZIP(), []int{7}
 }
 
 type GetUsageSummaryRequest struct {
@@ -385,7 +497,7 @@ type GetUsageSummaryRequest struct {
 
 func (x *GetUsageSummaryRequest) Reset() {
 	*x = GetUsageSummaryRequest{}
-	mi := &file_usage_proto_msgTypes[6]
+	mi := &file_usage_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -397,7 +509,7 @@ func (x *GetUsageSummaryRequest) String() string {
 func (*GetUsageSummaryRequest) ProtoMessage() {}
 
 func (x *GetUsageSummaryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[6]
+	mi := &file_usage_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -410,7 +522,7 @@ func (x *GetUsageSummaryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUsageSummaryRequest.ProtoReflect.Descriptor instead.
 func (*GetUsageSummaryRequest) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{6}
+	return file_usage_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetUsageSummaryRequest) GetUserId() string {
@@ -450,13 +562,14 @@ type UsageRow struct {
 	TotalTokens   int64                  `protobuf:"varint,5,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
 	CostUsd       float64                `protobuf:"fixed64,6,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
 	TaskCount     int32                  `protobuf:"varint,7,opt,name=task_count,json=taskCount,proto3" json:"task_count,omitempty"`
+	Username      string                 `protobuf:"bytes,8,opt,name=username,proto3" json:"username,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UsageRow) Reset() {
 	*x = UsageRow{}
-	mi := &file_usage_proto_msgTypes[7]
+	mi := &file_usage_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -468,7 +581,7 @@ func (x *UsageRow) String() string {
 func (*UsageRow) ProtoMessage() {}
 
 func (x *UsageRow) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[7]
+	mi := &file_usage_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -481,7 +594,7 @@ func (x *UsageRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UsageRow.ProtoReflect.Descriptor instead.
 func (*UsageRow) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{7}
+	return file_usage_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UsageRow) GetDay() string {
@@ -533,18 +646,33 @@ func (x *UsageRow) GetTaskCount() int32 {
 	return 0
 }
 
+func (x *UsageRow) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
 type GetUsageSummaryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Rows          []*UsageRow            `protobuf:"bytes,1,rep,name=rows,proto3" json:"rows,omitempty"`
 	ByModel       []*ModelUsageRow       `protobuf:"bytes,2,rep,name=by_model,json=byModel,proto3" json:"by_model,omitempty"`    // aggregated over the same window
 	TopUsers      []*UserUsageRow        `protobuf:"bytes,3,rep,name=top_users,json=topUsers,proto3" json:"top_users,omitempty"` // ranked by cost, max 20
+	ByExpert      []*ExpertUsageRow      `protobuf:"bytes,4,rep,name=by_expert,json=byExpert,proto3" json:"by_expert,omitempty"`
+	ByDepartment  []*DeptUsageRow        `protobuf:"bytes,5,rep,name=by_department,json=byDepartment,proto3" json:"by_department,omitempty"`
+	ByTask        []*TaskUsageRow        `protobuf:"bytes,6,rep,name=by_task,json=byTask,proto3" json:"by_task,omitempty"` // highest-cost tasks, max 20
+	Dau           int64                  `protobuf:"varint,7,opt,name=dau,proto3" json:"dau,omitempty"`
+	Wau           int64                  `protobuf:"varint,8,opt,name=wau,proto3" json:"wau,omitempty"`
+	Mau           int64                  `protobuf:"varint,9,opt,name=mau,proto3" json:"mau,omitempty"`
+	ByTool        []*ToolUsageRow        `protobuf:"bytes,10,rep,name=by_tool,json=byTool,proto3" json:"by_tool,omitempty"`
+	Quotas        []*UserQuotaRow        `protobuf:"bytes,11,rep,name=quotas,proto3" json:"quotas,omitempty"` // all users: limit + month spend
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetUsageSummaryResponse) Reset() {
 	*x = GetUsageSummaryResponse{}
-	mi := &file_usage_proto_msgTypes[8]
+	mi := &file_usage_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -556,7 +684,7 @@ func (x *GetUsageSummaryResponse) String() string {
 func (*GetUsageSummaryResponse) ProtoMessage() {}
 
 func (x *GetUsageSummaryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[8]
+	mi := &file_usage_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -569,7 +697,7 @@ func (x *GetUsageSummaryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUsageSummaryResponse.ProtoReflect.Descriptor instead.
 func (*GetUsageSummaryResponse) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{8}
+	return file_usage_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetUsageSummaryResponse) GetRows() []*UsageRow {
@@ -593,6 +721,402 @@ func (x *GetUsageSummaryResponse) GetTopUsers() []*UserUsageRow {
 	return nil
 }
 
+func (x *GetUsageSummaryResponse) GetByExpert() []*ExpertUsageRow {
+	if x != nil {
+		return x.ByExpert
+	}
+	return nil
+}
+
+func (x *GetUsageSummaryResponse) GetByDepartment() []*DeptUsageRow {
+	if x != nil {
+		return x.ByDepartment
+	}
+	return nil
+}
+
+func (x *GetUsageSummaryResponse) GetByTask() []*TaskUsageRow {
+	if x != nil {
+		return x.ByTask
+	}
+	return nil
+}
+
+func (x *GetUsageSummaryResponse) GetDau() int64 {
+	if x != nil {
+		return x.Dau
+	}
+	return 0
+}
+
+func (x *GetUsageSummaryResponse) GetWau() int64 {
+	if x != nil {
+		return x.Wau
+	}
+	return 0
+}
+
+func (x *GetUsageSummaryResponse) GetMau() int64 {
+	if x != nil {
+		return x.Mau
+	}
+	return 0
+}
+
+func (x *GetUsageSummaryResponse) GetByTool() []*ToolUsageRow {
+	if x != nil {
+		return x.ByTool
+	}
+	return nil
+}
+
+func (x *GetUsageSummaryResponse) GetQuotas() []*UserQuotaRow {
+	if x != nil {
+		return x.Quotas
+	}
+	return nil
+}
+
+type ExpertUsageRow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExpertId      string                 `protobuf:"bytes,1,opt,name=expert_id,json=expertId,proto3" json:"expert_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	TotalTokens   int64                  `protobuf:"varint,3,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	CostUsd       float64                `protobuf:"fixed64,4,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
+	TaskCount     int32                  `protobuf:"varint,5,opt,name=task_count,json=taskCount,proto3" json:"task_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExpertUsageRow) Reset() {
+	*x = ExpertUsageRow{}
+	mi := &file_usage_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExpertUsageRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExpertUsageRow) ProtoMessage() {}
+
+func (x *ExpertUsageRow) ProtoReflect() protoreflect.Message {
+	mi := &file_usage_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExpertUsageRow.ProtoReflect.Descriptor instead.
+func (*ExpertUsageRow) Descriptor() ([]byte, []int) {
+	return file_usage_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ExpertUsageRow) GetExpertId() string {
+	if x != nil {
+		return x.ExpertId
+	}
+	return ""
+}
+
+func (x *ExpertUsageRow) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ExpertUsageRow) GetTotalTokens() int64 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *ExpertUsageRow) GetCostUsd() float64 {
+	if x != nil {
+		return x.CostUsd
+	}
+	return 0
+}
+
+func (x *ExpertUsageRow) GetTaskCount() int32 {
+	if x != nil {
+		return x.TaskCount
+	}
+	return 0
+}
+
+type DeptUsageRow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Department    string                 `protobuf:"bytes,1,opt,name=department,proto3" json:"department,omitempty"`
+	TotalTokens   int64                  `protobuf:"varint,2,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	CostUsd       float64                `protobuf:"fixed64,3,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
+	Users         int32                  `protobuf:"varint,4,opt,name=users,proto3" json:"users,omitempty"`
+	TaskCount     int32                  `protobuf:"varint,5,opt,name=task_count,json=taskCount,proto3" json:"task_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeptUsageRow) Reset() {
+	*x = DeptUsageRow{}
+	mi := &file_usage_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeptUsageRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeptUsageRow) ProtoMessage() {}
+
+func (x *DeptUsageRow) ProtoReflect() protoreflect.Message {
+	mi := &file_usage_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeptUsageRow.ProtoReflect.Descriptor instead.
+func (*DeptUsageRow) Descriptor() ([]byte, []int) {
+	return file_usage_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *DeptUsageRow) GetDepartment() string {
+	if x != nil {
+		return x.Department
+	}
+	return ""
+}
+
+func (x *DeptUsageRow) GetTotalTokens() int64 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *DeptUsageRow) GetCostUsd() float64 {
+	if x != nil {
+		return x.CostUsd
+	}
+	return 0
+}
+
+func (x *DeptUsageRow) GetUsers() int32 {
+	if x != nil {
+		return x.Users
+	}
+	return 0
+}
+
+func (x *DeptUsageRow) GetTaskCount() int32 {
+	if x != nil {
+		return x.TaskCount
+	}
+	return 0
+}
+
+type TaskUsageRow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TaskId        string                 `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	TotalTokens   int64                  `protobuf:"varint,4,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
+	CostUsd       float64                `protobuf:"fixed64,5,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TaskUsageRow) Reset() {
+	*x = TaskUsageRow{}
+	mi := &file_usage_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskUsageRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskUsageRow) ProtoMessage() {}
+
+func (x *TaskUsageRow) ProtoReflect() protoreflect.Message {
+	mi := &file_usage_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskUsageRow.ProtoReflect.Descriptor instead.
+func (*TaskUsageRow) Descriptor() ([]byte, []int) {
+	return file_usage_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *TaskUsageRow) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
+}
+
+func (x *TaskUsageRow) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *TaskUsageRow) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *TaskUsageRow) GetTotalTokens() int64 {
+	if x != nil {
+		return x.TotalTokens
+	}
+	return 0
+}
+
+func (x *TaskUsageRow) GetCostUsd() float64 {
+	if x != nil {
+		return x.CostUsd
+	}
+	return 0
+}
+
+type ToolUsageRow struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tool          string                 `protobuf:"bytes,1,opt,name=tool,proto3" json:"tool,omitempty"`
+	Calls         int64                  `protobuf:"varint,2,opt,name=calls,proto3" json:"calls,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ToolUsageRow) Reset() {
+	*x = ToolUsageRow{}
+	mi := &file_usage_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ToolUsageRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ToolUsageRow) ProtoMessage() {}
+
+func (x *ToolUsageRow) ProtoReflect() protoreflect.Message {
+	mi := &file_usage_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ToolUsageRow.ProtoReflect.Descriptor instead.
+func (*ToolUsageRow) Descriptor() ([]byte, []int) {
+	return file_usage_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ToolUsageRow) GetTool() string {
+	if x != nil {
+		return x.Tool
+	}
+	return ""
+}
+
+func (x *ToolUsageRow) GetCalls() int64 {
+	if x != nil {
+		return x.Calls
+	}
+	return 0
+}
+
+type UserQuotaRow struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	UserId          string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	MonthlyLimitUsd float64                `protobuf:"fixed64,2,opt,name=monthly_limit_usd,json=monthlyLimitUsd,proto3" json:"monthly_limit_usd,omitempty"`
+	MonthUsedUsd    float64                `protobuf:"fixed64,3,opt,name=month_used_usd,json=monthUsedUsd,proto3" json:"month_used_usd,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *UserQuotaRow) Reset() {
+	*x = UserQuotaRow{}
+	mi := &file_usage_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserQuotaRow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserQuotaRow) ProtoMessage() {}
+
+func (x *UserQuotaRow) ProtoReflect() protoreflect.Message {
+	mi := &file_usage_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserQuotaRow.ProtoReflect.Descriptor instead.
+func (*UserQuotaRow) Descriptor() ([]byte, []int) {
+	return file_usage_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *UserQuotaRow) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UserQuotaRow) GetMonthlyLimitUsd() float64 {
+	if x != nil {
+		return x.MonthlyLimitUsd
+	}
+	return 0
+}
+
+func (x *UserQuotaRow) GetMonthUsedUsd() float64 {
+	if x != nil {
+		return x.MonthUsedUsd
+	}
+	return 0
+}
+
 type ModelUsageRow struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	Provider         string                 `protobuf:"bytes,1,opt,name=provider,proto3" json:"provider,omitempty"`
@@ -610,7 +1134,7 @@ type ModelUsageRow struct {
 
 func (x *ModelUsageRow) Reset() {
 	*x = ModelUsageRow{}
-	mi := &file_usage_proto_msgTypes[9]
+	mi := &file_usage_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -622,7 +1146,7 @@ func (x *ModelUsageRow) String() string {
 func (*ModelUsageRow) ProtoMessage() {}
 
 func (x *ModelUsageRow) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[9]
+	mi := &file_usage_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -635,7 +1159,7 @@ func (x *ModelUsageRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ModelUsageRow.ProtoReflect.Descriptor instead.
 func (*ModelUsageRow) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{9}
+	return file_usage_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ModelUsageRow) GetProvider() string {
@@ -706,14 +1230,15 @@ type UserUsageRow struct {
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	TotalTokens   int64                  `protobuf:"varint,2,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
 	CostUsd       float64                `protobuf:"fixed64,3,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
-	TaskCount     int32                  `protobuf:"varint,4,opt,name=task_count,json=taskCount,proto3" json:"task_count,omitempty"`
+	TaskCount     int32                  `protobuf:"varint,4,opt,name=task_count,json=taskCount,proto3" json:"task_count,omitempty"` // distinct tasks (from raw events)
+	DisplayName   string                 `protobuf:"bytes,5,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UserUsageRow) Reset() {
 	*x = UserUsageRow{}
-	mi := &file_usage_proto_msgTypes[10]
+	mi := &file_usage_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -725,7 +1250,7 @@ func (x *UserUsageRow) String() string {
 func (*UserUsageRow) ProtoMessage() {}
 
 func (x *UserUsageRow) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[10]
+	mi := &file_usage_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -738,7 +1263,7 @@ func (x *UserUsageRow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserUsageRow.ProtoReflect.Descriptor instead.
 func (*UserUsageRow) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{10}
+	return file_usage_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *UserUsageRow) GetUserId() string {
@@ -769,6 +1294,13 @@ func (x *UserUsageRow) GetTaskCount() int32 {
 	return 0
 }
 
+func (x *UserUsageRow) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
 type GetMyUsageRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -778,7 +1310,7 @@ type GetMyUsageRequest struct {
 
 func (x *GetMyUsageRequest) Reset() {
 	*x = GetMyUsageRequest{}
-	mi := &file_usage_proto_msgTypes[11]
+	mi := &file_usage_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -790,7 +1322,7 @@ func (x *GetMyUsageRequest) String() string {
 func (*GetMyUsageRequest) ProtoMessage() {}
 
 func (x *GetMyUsageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[11]
+	mi := &file_usage_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -803,7 +1335,7 @@ func (x *GetMyUsageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMyUsageRequest.ProtoReflect.Descriptor instead.
 func (*GetMyUsageRequest) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{11}
+	return file_usage_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetMyUsageRequest) GetUserId() string {
@@ -824,7 +1356,7 @@ type GetMyUsageResponse struct {
 
 func (x *GetMyUsageResponse) Reset() {
 	*x = GetMyUsageResponse{}
-	mi := &file_usage_proto_msgTypes[12]
+	mi := &file_usage_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -836,7 +1368,7 @@ func (x *GetMyUsageResponse) String() string {
 func (*GetMyUsageResponse) ProtoMessage() {}
 
 func (x *GetMyUsageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[12]
+	mi := &file_usage_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -849,7 +1381,7 @@ func (x *GetMyUsageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMyUsageResponse.ProtoReflect.Descriptor instead.
 func (*GetMyUsageResponse) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{12}
+	return file_usage_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetMyUsageResponse) GetMonthUsedUsd() float64 {
@@ -882,7 +1414,7 @@ type GetTaskUsageRequest struct {
 
 func (x *GetTaskUsageRequest) Reset() {
 	*x = GetTaskUsageRequest{}
-	mi := &file_usage_proto_msgTypes[13]
+	mi := &file_usage_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -894,7 +1426,7 @@ func (x *GetTaskUsageRequest) String() string {
 func (*GetTaskUsageRequest) ProtoMessage() {}
 
 func (x *GetTaskUsageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[13]
+	mi := &file_usage_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -907,7 +1439,7 @@ func (x *GetTaskUsageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskUsageRequest.ProtoReflect.Descriptor instead.
 func (*GetTaskUsageRequest) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{13}
+	return file_usage_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetTaskUsageRequest) GetTaskId() string {
@@ -928,7 +1460,7 @@ type GetTaskUsageResponse struct {
 
 func (x *GetTaskUsageResponse) Reset() {
 	*x = GetTaskUsageResponse{}
-	mi := &file_usage_proto_msgTypes[14]
+	mi := &file_usage_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -940,7 +1472,7 @@ func (x *GetTaskUsageResponse) String() string {
 func (*GetTaskUsageResponse) ProtoMessage() {}
 
 func (x *GetTaskUsageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[14]
+	mi := &file_usage_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -953,7 +1485,7 @@ func (x *GetTaskUsageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskUsageResponse.ProtoReflect.Descriptor instead.
 func (*GetTaskUsageResponse) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{14}
+	return file_usage_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetTaskUsageResponse) GetByModel() []*ModelUsageRow {
@@ -985,13 +1517,14 @@ type ListAuditLogsRequest struct {
 	ToTs          int64                  `protobuf:"varint,4,opt,name=to_ts,json=toTs,proto3" json:"to_ts,omitempty"`
 	Limit         int32                  `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
 	Offset        int32                  `protobuf:"varint,6,opt,name=offset,proto3" json:"offset,omitempty"`
+	Resource      string                 `protobuf:"bytes,7,opt,name=resource,proto3" json:"resource,omitempty"` // keyword, ILIKE match on resource
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListAuditLogsRequest) Reset() {
 	*x = ListAuditLogsRequest{}
-	mi := &file_usage_proto_msgTypes[15]
+	mi := &file_usage_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1003,7 +1536,7 @@ func (x *ListAuditLogsRequest) String() string {
 func (*ListAuditLogsRequest) ProtoMessage() {}
 
 func (x *ListAuditLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[15]
+	mi := &file_usage_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1016,7 +1549,7 @@ func (x *ListAuditLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuditLogsRequest.ProtoReflect.Descriptor instead.
 func (*ListAuditLogsRequest) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{15}
+	return file_usage_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListAuditLogsRequest) GetActor() string {
@@ -1061,6 +1594,13 @@ func (x *ListAuditLogsRequest) GetOffset() int32 {
 	return 0
 }
 
+func (x *ListAuditLogsRequest) GetResource() string {
+	if x != nil {
+		return x.Resource
+	}
+	return ""
+}
+
 type AuditLog struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1076,7 +1616,7 @@ type AuditLog struct {
 
 func (x *AuditLog) Reset() {
 	*x = AuditLog{}
-	mi := &file_usage_proto_msgTypes[16]
+	mi := &file_usage_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1088,7 +1628,7 @@ func (x *AuditLog) String() string {
 func (*AuditLog) ProtoMessage() {}
 
 func (x *AuditLog) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[16]
+	mi := &file_usage_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1101,7 +1641,7 @@ func (x *AuditLog) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuditLog.ProtoReflect.Descriptor instead.
 func (*AuditLog) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{16}
+	return file_usage_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *AuditLog) GetId() string {
@@ -1163,7 +1703,7 @@ type ListAuditLogsResponse struct {
 
 func (x *ListAuditLogsResponse) Reset() {
 	*x = ListAuditLogsResponse{}
-	mi := &file_usage_proto_msgTypes[17]
+	mi := &file_usage_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1175,7 +1715,7 @@ func (x *ListAuditLogsResponse) String() string {
 func (*ListAuditLogsResponse) ProtoMessage() {}
 
 func (x *ListAuditLogsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_usage_proto_msgTypes[17]
+	mi := &file_usage_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1188,7 +1728,7 @@ func (x *ListAuditLogsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAuditLogsResponse.ProtoReflect.Descriptor instead.
 func (*ListAuditLogsResponse) Descriptor() ([]byte, []int) {
-	return file_usage_proto_rawDescGZIP(), []int{17}
+	return file_usage_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ListAuditLogsResponse) GetLogs() []*AuditLog {
@@ -1209,7 +1749,7 @@ var File_usage_proto protoreflect.FileDescriptor
 
 const file_usage_proto_rawDesc = "" +
 	"\n" +
-	"\vusage.proto\x12\x13agentluoss.v1.usage\"\xca\x02\n" +
+	"\vusage.proto\x12\x13agentluoss.v1.usage\"\xe7\x02\n" +
 	"\x12ReportUsageRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x1a\n" +
@@ -1221,8 +1761,15 @@ const file_usage_proto_rawDesc = "" +
 	"\x12cache_write_tokens\x18\b \x01(\x03R\x10cacheWriteTokens\x12\x19\n" +
 	"\bcost_usd\x18\t \x01(\x01R\acostUsd\x12\x0e\n" +
 	"\x02ts\x18\n" +
-	" \x01(\x03R\x02ts\"\x15\n" +
-	"\x13ReportUsageResponse\",\n" +
+	" \x01(\x03R\x02ts\x12\x1b\n" +
+	"\texpert_id\x18\v \x01(\tR\bexpertId\"\x15\n" +
+	"\x13ReportUsageResponse\"q\n" +
+	"\x15ReportToolCallRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
+	"\texpert_id\x18\x02 \x01(\tR\bexpertId\x12\x12\n" +
+	"\x04tool\x18\x03 \x01(\tR\x04tool\x12\x0e\n" +
+	"\x02ts\x18\x04 \x01(\x03R\x02ts\"\x18\n" +
+	"\x16ReportToolCallResponse\",\n" +
 	"\x11CheckQuotaRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"~\n" +
 	"\x12CheckQuotaResponse\x12\x18\n" +
@@ -1238,7 +1785,7 @@ const file_usage_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x12\n" +
 	"\x04days\x18\x02 \x01(\x05R\x04days\x12\x17\n" +
 	"\afrom_ts\x18\x03 \x01(\x03R\x06fromTs\x12\x13\n" +
-	"\x05to_ts\x18\x04 \x01(\x03R\x04toTs\"\xda\x01\n" +
+	"\x05to_ts\x18\x04 \x01(\x03R\x04toTs\"\xf6\x01\n" +
 	"\bUsageRow\x12\x10\n" +
 	"\x03day\x18\x01 \x01(\tR\x03day\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12!\n" +
@@ -1247,11 +1794,50 @@ const file_usage_proto_rawDesc = "" +
 	"\ftotal_tokens\x18\x05 \x01(\x03R\vtotalTokens\x12\x19\n" +
 	"\bcost_usd\x18\x06 \x01(\x01R\acostUsd\x12\x1d\n" +
 	"\n" +
-	"task_count\x18\a \x01(\x05R\ttaskCount\"\xcb\x01\n" +
+	"task_count\x18\a \x01(\x05R\ttaskCount\x12\x1a\n" +
+	"\busername\x18\b \x01(\tR\busername\"\xbe\x04\n" +
 	"\x17GetUsageSummaryResponse\x121\n" +
 	"\x04rows\x18\x01 \x03(\v2\x1d.agentluoss.v1.usage.UsageRowR\x04rows\x12=\n" +
 	"\bby_model\x18\x02 \x03(\v2\".agentluoss.v1.usage.ModelUsageRowR\abyModel\x12>\n" +
-	"\ttop_users\x18\x03 \x03(\v2!.agentluoss.v1.usage.UserUsageRowR\btopUsers\"\xc5\x02\n" +
+	"\ttop_users\x18\x03 \x03(\v2!.agentluoss.v1.usage.UserUsageRowR\btopUsers\x12@\n" +
+	"\tby_expert\x18\x04 \x03(\v2#.agentluoss.v1.usage.ExpertUsageRowR\bbyExpert\x12F\n" +
+	"\rby_department\x18\x05 \x03(\v2!.agentluoss.v1.usage.DeptUsageRowR\fbyDepartment\x12:\n" +
+	"\aby_task\x18\x06 \x03(\v2!.agentluoss.v1.usage.TaskUsageRowR\x06byTask\x12\x10\n" +
+	"\x03dau\x18\a \x01(\x03R\x03dau\x12\x10\n" +
+	"\x03wau\x18\b \x01(\x03R\x03wau\x12\x10\n" +
+	"\x03mau\x18\t \x01(\x03R\x03mau\x12:\n" +
+	"\aby_tool\x18\n" +
+	" \x03(\v2!.agentluoss.v1.usage.ToolUsageRowR\x06byTool\x129\n" +
+	"\x06quotas\x18\v \x03(\v2!.agentluoss.v1.usage.UserQuotaRowR\x06quotas\"\x9e\x01\n" +
+	"\x0eExpertUsageRow\x12\x1b\n" +
+	"\texpert_id\x18\x01 \x01(\tR\bexpertId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
+	"\ftotal_tokens\x18\x03 \x01(\x03R\vtotalTokens\x12\x19\n" +
+	"\bcost_usd\x18\x04 \x01(\x01R\acostUsd\x12\x1d\n" +
+	"\n" +
+	"task_count\x18\x05 \x01(\x05R\ttaskCount\"\xa1\x01\n" +
+	"\fDeptUsageRow\x12\x1e\n" +
+	"\n" +
+	"department\x18\x01 \x01(\tR\n" +
+	"department\x12!\n" +
+	"\ftotal_tokens\x18\x02 \x01(\x03R\vtotalTokens\x12\x19\n" +
+	"\bcost_usd\x18\x03 \x01(\x01R\acostUsd\x12\x14\n" +
+	"\x05users\x18\x04 \x01(\x05R\x05users\x12\x1d\n" +
+	"\n" +
+	"task_count\x18\x05 \x01(\x05R\ttaskCount\"\x94\x01\n" +
+	"\fTaskUsageRow\x12\x17\n" +
+	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\x12!\n" +
+	"\ftotal_tokens\x18\x04 \x01(\x03R\vtotalTokens\x12\x19\n" +
+	"\bcost_usd\x18\x05 \x01(\x01R\acostUsd\"8\n" +
+	"\fToolUsageRow\x12\x12\n" +
+	"\x04tool\x18\x01 \x01(\tR\x04tool\x12\x14\n" +
+	"\x05calls\x18\x02 \x01(\x03R\x05calls\"y\n" +
+	"\fUserQuotaRow\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12*\n" +
+	"\x11monthly_limit_usd\x18\x02 \x01(\x01R\x0fmonthlyLimitUsd\x12$\n" +
+	"\x0emonth_used_usd\x18\x03 \x01(\x01R\fmonthUsedUsd\"\xc5\x02\n" +
 	"\rModelUsageRow\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x19\n" +
 	"\bmodel_id\x18\x02 \x01(\tR\amodelId\x12!\n" +
@@ -1262,13 +1848,14 @@ const file_usage_proto_rawDesc = "" +
 	"\ftotal_tokens\x18\a \x01(\x03R\vtotalTokens\x12\x19\n" +
 	"\bcost_usd\x18\b \x01(\x01R\acostUsd\x12\x1d\n" +
 	"\n" +
-	"task_count\x18\t \x01(\x05R\ttaskCount\"\x84\x01\n" +
+	"task_count\x18\t \x01(\x05R\ttaskCount\"\xa7\x01\n" +
 	"\fUserUsageRow\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
 	"\ftotal_tokens\x18\x02 \x01(\x03R\vtotalTokens\x12\x19\n" +
 	"\bcost_usd\x18\x03 \x01(\x01R\acostUsd\x12\x1d\n" +
 	"\n" +
-	"task_count\x18\x04 \x01(\x05R\ttaskCount\",\n" +
+	"task_count\x18\x04 \x01(\x05R\ttaskCount\x12!\n" +
+	"\fdisplay_name\x18\x05 \x01(\tR\vdisplayName\",\n" +
 	"\x11GetMyUsageRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xa2\x01\n" +
 	"\x12GetMyUsageResponse\x12$\n" +
@@ -1281,14 +1868,15 @@ const file_usage_proto_rawDesc = "" +
 	"\x14GetTaskUsageResponse\x12=\n" +
 	"\bby_model\x18\x01 \x03(\v2\".agentluoss.v1.usage.ModelUsageRowR\abyModel\x12!\n" +
 	"\ftotal_tokens\x18\x02 \x01(\x03R\vtotalTokens\x12\x19\n" +
-	"\bcost_usd\x18\x03 \x01(\x01R\acostUsd\"\xa0\x01\n" +
+	"\bcost_usd\x18\x03 \x01(\x01R\acostUsd\"\xbc\x01\n" +
 	"\x14ListAuditLogsRequest\x12\x14\n" +
 	"\x05actor\x18\x01 \x01(\tR\x05actor\x12\x16\n" +
 	"\x06action\x18\x02 \x01(\tR\x06action\x12\x17\n" +
 	"\afrom_ts\x18\x03 \x01(\x03R\x06fromTs\x12\x13\n" +
 	"\x05to_ts\x18\x04 \x01(\x03R\x04toTs\x12\x14\n" +
 	"\x05limit\x18\x05 \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06offset\x18\x06 \x01(\x05R\x06offset\"\x9c\x01\n" +
+	"\x06offset\x18\x06 \x01(\x05R\x06offset\x12\x1a\n" +
+	"\bresource\x18\a \x01(\tR\bresource\"\x9c\x01\n" +
 	"\bAuditLog\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x16\n" +
@@ -1299,9 +1887,10 @@ const file_usage_proto_rawDesc = "" +
 	"\x02ts\x18\a \x01(\x03R\x02ts\"`\n" +
 	"\x15ListAuditLogsResponse\x121\n" +
 	"\x04logs\x18\x01 \x03(\v2\x1d.agentluoss.v1.usage.AuditLogR\x04logs\x12\x14\n" +
-	"\x05total\x18\x02 \x01(\x05R\x05total2\xbb\x05\n" +
+	"\x05total\x18\x02 \x01(\x05R\x05total2\xa6\x06\n" +
 	"\x05Usage\x12`\n" +
-	"\vReportUsage\x12'.agentluoss.v1.usage.ReportUsageRequest\x1a(.agentluoss.v1.usage.ReportUsageResponse\x12]\n" +
+	"\vReportUsage\x12'.agentluoss.v1.usage.ReportUsageRequest\x1a(.agentluoss.v1.usage.ReportUsageResponse\x12i\n" +
+	"\x0eReportToolCall\x12*.agentluoss.v1.usage.ReportToolCallRequest\x1a+.agentluoss.v1.usage.ReportToolCallResponse\x12]\n" +
 	"\n" +
 	"CheckQuota\x12&.agentluoss.v1.usage.CheckQuotaRequest\x1a'.agentluoss.v1.usage.CheckQuotaResponse\x12W\n" +
 	"\bSetQuota\x12$.agentluoss.v1.usage.SetQuotaRequest\x1a%.agentluoss.v1.usage.SetQuotaResponse\x12l\n" +
@@ -1323,53 +1912,67 @@ func file_usage_proto_rawDescGZIP() []byte {
 	return file_usage_proto_rawDescData
 }
 
-var file_usage_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_usage_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_usage_proto_goTypes = []any{
 	(*ReportUsageRequest)(nil),      // 0: agentluoss.v1.usage.ReportUsageRequest
 	(*ReportUsageResponse)(nil),     // 1: agentluoss.v1.usage.ReportUsageResponse
-	(*CheckQuotaRequest)(nil),       // 2: agentluoss.v1.usage.CheckQuotaRequest
-	(*CheckQuotaResponse)(nil),      // 3: agentluoss.v1.usage.CheckQuotaResponse
-	(*SetQuotaRequest)(nil),         // 4: agentluoss.v1.usage.SetQuotaRequest
-	(*SetQuotaResponse)(nil),        // 5: agentluoss.v1.usage.SetQuotaResponse
-	(*GetUsageSummaryRequest)(nil),  // 6: agentluoss.v1.usage.GetUsageSummaryRequest
-	(*UsageRow)(nil),                // 7: agentluoss.v1.usage.UsageRow
-	(*GetUsageSummaryResponse)(nil), // 8: agentluoss.v1.usage.GetUsageSummaryResponse
-	(*ModelUsageRow)(nil),           // 9: agentluoss.v1.usage.ModelUsageRow
-	(*UserUsageRow)(nil),            // 10: agentluoss.v1.usage.UserUsageRow
-	(*GetMyUsageRequest)(nil),       // 11: agentluoss.v1.usage.GetMyUsageRequest
-	(*GetMyUsageResponse)(nil),      // 12: agentluoss.v1.usage.GetMyUsageResponse
-	(*GetTaskUsageRequest)(nil),     // 13: agentluoss.v1.usage.GetTaskUsageRequest
-	(*GetTaskUsageResponse)(nil),    // 14: agentluoss.v1.usage.GetTaskUsageResponse
-	(*ListAuditLogsRequest)(nil),    // 15: agentluoss.v1.usage.ListAuditLogsRequest
-	(*AuditLog)(nil),                // 16: agentluoss.v1.usage.AuditLog
-	(*ListAuditLogsResponse)(nil),   // 17: agentluoss.v1.usage.ListAuditLogsResponse
+	(*ReportToolCallRequest)(nil),   // 2: agentluoss.v1.usage.ReportToolCallRequest
+	(*ReportToolCallResponse)(nil),  // 3: agentluoss.v1.usage.ReportToolCallResponse
+	(*CheckQuotaRequest)(nil),       // 4: agentluoss.v1.usage.CheckQuotaRequest
+	(*CheckQuotaResponse)(nil),      // 5: agentluoss.v1.usage.CheckQuotaResponse
+	(*SetQuotaRequest)(nil),         // 6: agentluoss.v1.usage.SetQuotaRequest
+	(*SetQuotaResponse)(nil),        // 7: agentluoss.v1.usage.SetQuotaResponse
+	(*GetUsageSummaryRequest)(nil),  // 8: agentluoss.v1.usage.GetUsageSummaryRequest
+	(*UsageRow)(nil),                // 9: agentluoss.v1.usage.UsageRow
+	(*GetUsageSummaryResponse)(nil), // 10: agentluoss.v1.usage.GetUsageSummaryResponse
+	(*ExpertUsageRow)(nil),          // 11: agentluoss.v1.usage.ExpertUsageRow
+	(*DeptUsageRow)(nil),            // 12: agentluoss.v1.usage.DeptUsageRow
+	(*TaskUsageRow)(nil),            // 13: agentluoss.v1.usage.TaskUsageRow
+	(*ToolUsageRow)(nil),            // 14: agentluoss.v1.usage.ToolUsageRow
+	(*UserQuotaRow)(nil),            // 15: agentluoss.v1.usage.UserQuotaRow
+	(*ModelUsageRow)(nil),           // 16: agentluoss.v1.usage.ModelUsageRow
+	(*UserUsageRow)(nil),            // 17: agentluoss.v1.usage.UserUsageRow
+	(*GetMyUsageRequest)(nil),       // 18: agentluoss.v1.usage.GetMyUsageRequest
+	(*GetMyUsageResponse)(nil),      // 19: agentluoss.v1.usage.GetMyUsageResponse
+	(*GetTaskUsageRequest)(nil),     // 20: agentluoss.v1.usage.GetTaskUsageRequest
+	(*GetTaskUsageResponse)(nil),    // 21: agentluoss.v1.usage.GetTaskUsageResponse
+	(*ListAuditLogsRequest)(nil),    // 22: agentluoss.v1.usage.ListAuditLogsRequest
+	(*AuditLog)(nil),                // 23: agentluoss.v1.usage.AuditLog
+	(*ListAuditLogsResponse)(nil),   // 24: agentluoss.v1.usage.ListAuditLogsResponse
 }
 var file_usage_proto_depIdxs = []int32{
-	7,  // 0: agentluoss.v1.usage.GetUsageSummaryResponse.rows:type_name -> agentluoss.v1.usage.UsageRow
-	9,  // 1: agentluoss.v1.usage.GetUsageSummaryResponse.by_model:type_name -> agentluoss.v1.usage.ModelUsageRow
-	10, // 2: agentluoss.v1.usage.GetUsageSummaryResponse.top_users:type_name -> agentluoss.v1.usage.UserUsageRow
-	7,  // 3: agentluoss.v1.usage.GetMyUsageResponse.recent_days:type_name -> agentluoss.v1.usage.UsageRow
-	9,  // 4: agentluoss.v1.usage.GetTaskUsageResponse.by_model:type_name -> agentluoss.v1.usage.ModelUsageRow
-	16, // 5: agentluoss.v1.usage.ListAuditLogsResponse.logs:type_name -> agentluoss.v1.usage.AuditLog
-	0,  // 6: agentluoss.v1.usage.Usage.ReportUsage:input_type -> agentluoss.v1.usage.ReportUsageRequest
-	2,  // 7: agentluoss.v1.usage.Usage.CheckQuota:input_type -> agentluoss.v1.usage.CheckQuotaRequest
-	4,  // 8: agentluoss.v1.usage.Usage.SetQuota:input_type -> agentluoss.v1.usage.SetQuotaRequest
-	6,  // 9: agentluoss.v1.usage.Usage.GetUsageSummary:input_type -> agentluoss.v1.usage.GetUsageSummaryRequest
-	15, // 10: agentluoss.v1.usage.Usage.ListAuditLogs:input_type -> agentluoss.v1.usage.ListAuditLogsRequest
-	13, // 11: agentluoss.v1.usage.Usage.GetTaskUsage:input_type -> agentluoss.v1.usage.GetTaskUsageRequest
-	11, // 12: agentluoss.v1.usage.Usage.GetMyUsage:input_type -> agentluoss.v1.usage.GetMyUsageRequest
-	1,  // 13: agentluoss.v1.usage.Usage.ReportUsage:output_type -> agentluoss.v1.usage.ReportUsageResponse
-	3,  // 14: agentluoss.v1.usage.Usage.CheckQuota:output_type -> agentluoss.v1.usage.CheckQuotaResponse
-	5,  // 15: agentluoss.v1.usage.Usage.SetQuota:output_type -> agentluoss.v1.usage.SetQuotaResponse
-	8,  // 16: agentluoss.v1.usage.Usage.GetUsageSummary:output_type -> agentluoss.v1.usage.GetUsageSummaryResponse
-	17, // 17: agentluoss.v1.usage.Usage.ListAuditLogs:output_type -> agentluoss.v1.usage.ListAuditLogsResponse
-	14, // 18: agentluoss.v1.usage.Usage.GetTaskUsage:output_type -> agentluoss.v1.usage.GetTaskUsageResponse
-	12, // 19: agentluoss.v1.usage.Usage.GetMyUsage:output_type -> agentluoss.v1.usage.GetMyUsageResponse
-	13, // [13:20] is the sub-list for method output_type
-	6,  // [6:13] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	9,  // 0: agentluoss.v1.usage.GetUsageSummaryResponse.rows:type_name -> agentluoss.v1.usage.UsageRow
+	16, // 1: agentluoss.v1.usage.GetUsageSummaryResponse.by_model:type_name -> agentluoss.v1.usage.ModelUsageRow
+	17, // 2: agentluoss.v1.usage.GetUsageSummaryResponse.top_users:type_name -> agentluoss.v1.usage.UserUsageRow
+	11, // 3: agentluoss.v1.usage.GetUsageSummaryResponse.by_expert:type_name -> agentluoss.v1.usage.ExpertUsageRow
+	12, // 4: agentluoss.v1.usage.GetUsageSummaryResponse.by_department:type_name -> agentluoss.v1.usage.DeptUsageRow
+	13, // 5: agentluoss.v1.usage.GetUsageSummaryResponse.by_task:type_name -> agentluoss.v1.usage.TaskUsageRow
+	14, // 6: agentluoss.v1.usage.GetUsageSummaryResponse.by_tool:type_name -> agentluoss.v1.usage.ToolUsageRow
+	15, // 7: agentluoss.v1.usage.GetUsageSummaryResponse.quotas:type_name -> agentluoss.v1.usage.UserQuotaRow
+	9,  // 8: agentluoss.v1.usage.GetMyUsageResponse.recent_days:type_name -> agentluoss.v1.usage.UsageRow
+	16, // 9: agentluoss.v1.usage.GetTaskUsageResponse.by_model:type_name -> agentluoss.v1.usage.ModelUsageRow
+	23, // 10: agentluoss.v1.usage.ListAuditLogsResponse.logs:type_name -> agentluoss.v1.usage.AuditLog
+	0,  // 11: agentluoss.v1.usage.Usage.ReportUsage:input_type -> agentluoss.v1.usage.ReportUsageRequest
+	2,  // 12: agentluoss.v1.usage.Usage.ReportToolCall:input_type -> agentluoss.v1.usage.ReportToolCallRequest
+	4,  // 13: agentluoss.v1.usage.Usage.CheckQuota:input_type -> agentluoss.v1.usage.CheckQuotaRequest
+	6,  // 14: agentluoss.v1.usage.Usage.SetQuota:input_type -> agentluoss.v1.usage.SetQuotaRequest
+	8,  // 15: agentluoss.v1.usage.Usage.GetUsageSummary:input_type -> agentluoss.v1.usage.GetUsageSummaryRequest
+	22, // 16: agentluoss.v1.usage.Usage.ListAuditLogs:input_type -> agentluoss.v1.usage.ListAuditLogsRequest
+	20, // 17: agentluoss.v1.usage.Usage.GetTaskUsage:input_type -> agentluoss.v1.usage.GetTaskUsageRequest
+	18, // 18: agentluoss.v1.usage.Usage.GetMyUsage:input_type -> agentluoss.v1.usage.GetMyUsageRequest
+	1,  // 19: agentluoss.v1.usage.Usage.ReportUsage:output_type -> agentluoss.v1.usage.ReportUsageResponse
+	3,  // 20: agentluoss.v1.usage.Usage.ReportToolCall:output_type -> agentluoss.v1.usage.ReportToolCallResponse
+	5,  // 21: agentluoss.v1.usage.Usage.CheckQuota:output_type -> agentluoss.v1.usage.CheckQuotaResponse
+	7,  // 22: agentluoss.v1.usage.Usage.SetQuota:output_type -> agentluoss.v1.usage.SetQuotaResponse
+	10, // 23: agentluoss.v1.usage.Usage.GetUsageSummary:output_type -> agentluoss.v1.usage.GetUsageSummaryResponse
+	24, // 24: agentluoss.v1.usage.Usage.ListAuditLogs:output_type -> agentluoss.v1.usage.ListAuditLogsResponse
+	21, // 25: agentluoss.v1.usage.Usage.GetTaskUsage:output_type -> agentluoss.v1.usage.GetTaskUsageResponse
+	19, // 26: agentluoss.v1.usage.Usage.GetMyUsage:output_type -> agentluoss.v1.usage.GetMyUsageResponse
+	19, // [19:27] is the sub-list for method output_type
+	11, // [11:19] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_usage_proto_init() }
@@ -1383,7 +1986,7 @@ func file_usage_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_usage_proto_rawDesc), len(file_usage_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

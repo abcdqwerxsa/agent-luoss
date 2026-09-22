@@ -113,7 +113,8 @@ func (s *Server) Render(ctx context.Context) error {
 				mm["maxTokens"] = m.MaxTokens
 			}
 			if m.InputCost > 0 || m.OutputCost > 0 {
-				mm["cost"] = map[string]any{"input": m.InputCost, "output": m.OutputCost}
+				// pi schema requires all four cost fields when cost is present
+				mm["cost"] = map[string]any{"input": m.InputCost, "output": m.OutputCost, "cacheRead": 0, "cacheWrite": 0}
 			}
 			if m.Reasoning {
 				mm["reasoning"] = true
