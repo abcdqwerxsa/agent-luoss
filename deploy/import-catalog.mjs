@@ -81,7 +81,7 @@ const J = { ...H, "Content-Type": "application/json" };
 
 // 1. skills: zip each vendored dir and upload with deterministic id
 for (const s of CATALOG.skills) {
-  const dir = path.join(SKILLS_DIR, s.dir);
+  const dir = s.base === "builtin" ? path.join(BUILTIN_SKILLS_DIR, s.dir.replace("../../skills/", "")) : path.join(SKILLS_DIR, s.dir);
   ok(fs.existsSync(path.join(dir, "SKILL.md")), `skill ${s.id}: SKILL.md present`);
   const files = {};
   const walk = (d, rel) => {
