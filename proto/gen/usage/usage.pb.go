@@ -562,6 +562,7 @@ type UsageRow struct {
 	TotalTokens   int64                  `protobuf:"varint,5,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
 	CostUsd       float64                `protobuf:"fixed64,6,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
 	TaskCount     int32                  `protobuf:"varint,7,opt,name=task_count,json=taskCount,proto3" json:"task_count,omitempty"`
+	Username      string                 `protobuf:"bytes,8,opt,name=username,proto3" json:"username,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -643,6 +644,13 @@ func (x *UsageRow) GetTaskCount() int32 {
 		return x.TaskCount
 	}
 	return 0
+}
+
+func (x *UsageRow) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
 }
 
 type GetUsageSummaryResponse struct {
@@ -1222,7 +1230,8 @@ type UserUsageRow struct {
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	TotalTokens   int64                  `protobuf:"varint,2,opt,name=total_tokens,json=totalTokens,proto3" json:"total_tokens,omitempty"`
 	CostUsd       float64                `protobuf:"fixed64,3,opt,name=cost_usd,json=costUsd,proto3" json:"cost_usd,omitempty"`
-	TaskCount     int32                  `protobuf:"varint,4,opt,name=task_count,json=taskCount,proto3" json:"task_count,omitempty"`
+	TaskCount     int32                  `protobuf:"varint,4,opt,name=task_count,json=taskCount,proto3" json:"task_count,omitempty"` // distinct tasks (from raw events)
+	DisplayName   string                 `protobuf:"bytes,5,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1283,6 +1292,13 @@ func (x *UserUsageRow) GetTaskCount() int32 {
 		return x.TaskCount
 	}
 	return 0
+}
+
+func (x *UserUsageRow) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
 }
 
 type GetMyUsageRequest struct {
@@ -1769,7 +1785,7 @@ const file_usage_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x12\n" +
 	"\x04days\x18\x02 \x01(\x05R\x04days\x12\x17\n" +
 	"\afrom_ts\x18\x03 \x01(\x03R\x06fromTs\x12\x13\n" +
-	"\x05to_ts\x18\x04 \x01(\x03R\x04toTs\"\xda\x01\n" +
+	"\x05to_ts\x18\x04 \x01(\x03R\x04toTs\"\xf6\x01\n" +
 	"\bUsageRow\x12\x10\n" +
 	"\x03day\x18\x01 \x01(\tR\x03day\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12!\n" +
@@ -1778,7 +1794,8 @@ const file_usage_proto_rawDesc = "" +
 	"\ftotal_tokens\x18\x05 \x01(\x03R\vtotalTokens\x12\x19\n" +
 	"\bcost_usd\x18\x06 \x01(\x01R\acostUsd\x12\x1d\n" +
 	"\n" +
-	"task_count\x18\a \x01(\x05R\ttaskCount\"\xbe\x04\n" +
+	"task_count\x18\a \x01(\x05R\ttaskCount\x12\x1a\n" +
+	"\busername\x18\b \x01(\tR\busername\"\xbe\x04\n" +
 	"\x17GetUsageSummaryResponse\x121\n" +
 	"\x04rows\x18\x01 \x03(\v2\x1d.agentluoss.v1.usage.UsageRowR\x04rows\x12=\n" +
 	"\bby_model\x18\x02 \x03(\v2\".agentluoss.v1.usage.ModelUsageRowR\abyModel\x12>\n" +
@@ -1831,13 +1848,14 @@ const file_usage_proto_rawDesc = "" +
 	"\ftotal_tokens\x18\a \x01(\x03R\vtotalTokens\x12\x19\n" +
 	"\bcost_usd\x18\b \x01(\x01R\acostUsd\x12\x1d\n" +
 	"\n" +
-	"task_count\x18\t \x01(\x05R\ttaskCount\"\x84\x01\n" +
+	"task_count\x18\t \x01(\x05R\ttaskCount\"\xa7\x01\n" +
 	"\fUserUsageRow\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
 	"\ftotal_tokens\x18\x02 \x01(\x03R\vtotalTokens\x12\x19\n" +
 	"\bcost_usd\x18\x03 \x01(\x01R\acostUsd\x12\x1d\n" +
 	"\n" +
-	"task_count\x18\x04 \x01(\x05R\ttaskCount\",\n" +
+	"task_count\x18\x04 \x01(\x05R\ttaskCount\x12!\n" +
+	"\fdisplay_name\x18\x05 \x01(\tR\vdisplayName\",\n" +
 	"\x11GetMyUsageRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xa2\x01\n" +
 	"\x12GetMyUsageResponse\x12$\n" +

@@ -746,8 +746,9 @@ function UsageTab() {
           <thead><tr><th>#</th><th>用户</th><th>Tokens</th><th>费用</th><th>任务数</th></tr></thead>
           <tbody>
             {topUsers.map((u, i) => (
-              <tr key={i}><td>{i + 1}</td><td className="mono small">{u.user_id?.slice(0, 10)}</td><td>{fmt(u.total_tokens)}</td><td>${(+u.cost_usd || 0).toFixed(6)}</td><td>{u.task_count}</td></tr>
+              <tr key={i} data-tip={u.user_id}><td>{i + 1}</td><td>{u.display_name || <span className="mono small">{u.user_id?.slice(0, 10)}</span>}</td><td>{fmt(u.total_tokens)}</td><td>${(+u.cost_usd || 0).toFixed(6)}</td><td>{u.task_count}</td></tr>
             ))}
+            {!topUsers.length && <tr><td colSpan={5} className="hint">暂无数据</td></tr>}
           </tbody>
         </table>
       </div>
@@ -809,11 +810,11 @@ function UsageTab() {
       </div>
 
       <div className="panel-card">
-        <h4>明细（用户 × 日）</h4>
+        <h4>明细（用户 × 日，仅现存用户；次数=消息上报次数）</h4>
         <table>
-          <thead><tr><th>日期</th><th>用户</th><th>Tokens</th><th>费用</th><th>任务数</th></tr></thead>
+          <thead><tr><th>日期</th><th>用户</th><th>Tokens</th><th>费用</th><th>消息数</th></tr></thead>
           <tbody>
-            {rows.map((r, i) => <tr key={i}><td>{r.day}</td><td className="mono small">{r.user_id?.slice(0, 10)}</td><td>{fmt(r.total_tokens)}</td><td>${(+r.cost_usd || 0).toFixed(6)}</td><td>{r.task_count}</td></tr>)}
+            {rows.map((r, i) => <tr key={i} data-tip={r.user_id}><td>{r.day}</td><td>{r.username || <span className="mono small">{r.user_id?.slice(0, 10)}</span>}</td><td>{fmt(r.total_tokens)}</td><td>${(+r.cost_usd || 0).toFixed(6)}</td><td>{r.task_count}</td></tr>)}
           </tbody>
         </table>
       </div>

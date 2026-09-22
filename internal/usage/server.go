@@ -168,19 +168,20 @@ func (s *Server) GetUsageSummary(ctx context.Context, req *usagepb.GetUsageSumma
 	admin := user == ""
 	resp := &usagepb.GetUsageSummaryResponse{}
 
-	// per user/day rows (fast path via usage_daily)
+	// per user/day rows (fast path via usage_daily; JOIN iam hides deleted users)
 	rows, err := s.db.Query(ctx, `
-		SELECT to_char(day,'YYYY-MM-DD'), user_id, input_tokens, output_tokens, total_tokens, cost_usd, task_count
-		FROM usage.usage_daily
-		WHERE day >= $1::date AND day <= $2::date AND ($3 = '' OR user_id = $3)
-		ORDER BY day DESC LIMIT 500`, from, to, user)
+		SELECT to_char(ud.day,'YYYY-MM-DD'), ud.user_id, coalesce(nullif(u.display_name,''), u.username),
+		       ud.input_tokens, ud.output_tokens, ud.total_tokens, ud.cost_usd, ud.task_count
+		FROM usage.usage_daily ud JOIN iam.users u ON u.id = ud.user_id
+		WHERE ud.day >= $1::date AND ud.day <= $2::date AND ($3 = '' OR ud.user_id = $3)
+		ORDER BY ud.day DESC LIMIT 500`, from, to, user)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var r usagepb.UsageRow
-		if err := rows.Scan(&r.Day, &r.UserId, &r.InputTokens, &r.OutputTokens, &r.TotalTokens, &r.CostUsd, &r.TaskCount); err != nil {
+		if err := rows.Scan(&r.Day, &r.UserId, &r.Username, &r.InputTokens, &r.OutputTokens, &r.TotalTokens, &r.CostUsd, &r.TaskCount); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		resp.Rows = append(resp.Rows, &r)
@@ -215,20 +216,25 @@ func (s *Server) GetUsageSummary(ctx context.Context, req *usagepb.GetUsageSumma
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// top users (admin view only)
+	// top users (admin view only; JOIN iam filters deleted users and yields names).
+	// task_count = distinct tasks from raw events (usage_daily.task_count is
+	// per-message report count, not tasks).
 	if admin {
 		urows, err := s.db.Query(ctx, `
-			SELECT user_id, sum(total_tokens), sum(cost_usd), sum(task_count)
-			FROM usage.usage_daily
-			WHERE day >= $1::date AND day <= $2::date
-			GROUP BY user_id ORDER BY sum(cost_usd) DESC LIMIT 20`, from, to)
+			SELECT e.user_id, coalesce(nullif(u.display_name,''), u.username),
+			       sum(e.input_tokens+e.output_tokens+e.cache_read_tokens+e.cache_write_tokens),
+			       sum(e.cost_usd), count(DISTINCT e.task_id)
+			FROM usage.usage_events e
+			JOIN iam.users u ON u.id = e.user_id
+			WHERE e.ts >= $1 AND e.ts <= $2
+			GROUP BY 1,2 ORDER BY sum(e.cost_usd) DESC LIMIT 20`, from, to)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		defer urows.Close()
 		for urows.Next() {
 			var u usagepb.UserUsageRow
-			if err := urows.Scan(&u.UserId, &u.TotalTokens, &u.CostUsd, &u.TaskCount); err != nil {
+			if err := urows.Scan(&u.UserId, &u.DisplayName, &u.TotalTokens, &u.CostUsd, &u.TaskCount); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 			resp.TopUsers = append(resp.TopUsers, &u)
