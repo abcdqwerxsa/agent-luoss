@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SKILLS_DIR = path.join(HERE, "catalog", "skills");
+const BUILTIN_SKILLS_DIR = path.join(HERE, "..", "skills"); // repo built-in skills (excel-master …)
 
 // Upstream: github.com/anthropics/skills @ 34040c9 (2026-09-10), Apache-2.0
 // Upstream: github.com/modelcontextprotocol/servers (npm @modelcontextprotocol/server-*), MIT/Apache-2.0
@@ -28,6 +29,7 @@ const CATALOG = {
     { id: "internal-comms", dir: "internal-comms" },
     { id: "infographic-storyteller", dir: "infographic-storyteller" }, // first-party, Apache-2.0
     { id: "generative-ui-builder", dir: "generative-ui-builder" }, // first-party, Apache-2.0
+    { id: "excel-master", dir: "../../skills/excel-master", base: "builtin" }, // repo built-in (feat/excel PR)
   ],
   mcps: [
     { id: "official-git", name: "Git", transport: "stdio", command: "mcp-server-git", args: [] },
@@ -63,6 +65,9 @@ const CATALOG = {
     { id: "ui-studio", name: "智能交互·界面工坊",
       description: "在聊天内生成可交互仪表盘/指标卡/表格，按钮可回环继续对话（json-ui 白名单组件渲染）",
       skill_ids: ["generative-ui-builder"], mcp_ids: [] },
+    { id: "excel-master", name: "办公协作·Excel 专家",
+      description: "Excel 解析/生成/修改/图表：openpyxl+pandas 脚本链，支持跨境电商等模板场景",
+      skill_ids: ["excel-master"], mcp_ids: [] },
   ],
 };
 
