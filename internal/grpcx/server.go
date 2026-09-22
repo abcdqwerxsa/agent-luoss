@@ -22,7 +22,7 @@ func Serve(port int, register func(s *grpc.Server)) error {
 	if err != nil {
 		return fmt.Errorf("listen :%d: %w", port, err)
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.MaxRecvMsgSize(16<<20), grpc.MaxSendMsgSize(16<<20))
 	healthpb.RegisterHealthServer(s, health.NewServer())
 	reflection.Register(s)
 	if register != nil {
