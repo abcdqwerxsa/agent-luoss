@@ -7,6 +7,7 @@ option go_package = "agentluoss/proto/gen/usage;usagepb";
 service Usage {
   // ---- internal (task-svc funnels agent usage) ----
   rpc ReportUsage(ReportUsageRequest) returns (ReportUsageResponse);
+  rpc ReportToolCall(ReportToolCallRequest) returns (ReportToolCallResponse);
   rpc CheckQuota(CheckQuotaRequest) returns (CheckQuotaResponse);
 
   // ---- admin-facing (via gateway) ----
@@ -29,9 +30,19 @@ message ReportUsageRequest {
   int64 cache_write_tokens = 8;
   double cost_usd = 9;
   int64 ts = 10; // unix ms
+  string expert_id = 11; // "" = no expert bound
 }
 
 message ReportUsageResponse {}
+
+message ReportToolCallRequest {
+  string user_id = 1;
+  string expert_id = 2;
+  string tool = 3;
+  int64 ts = 4; // unix ms
+}
+
+message ReportToolCallResponse {}
 
 message CheckQuotaRequest {
   string user_id = 1;
@@ -72,6 +83,49 @@ message GetUsageSummaryResponse {
   repeated UsageRow rows = 1;
   repeated ModelUsageRow by_model = 2;   // aggregated over the same window
   repeated UserUsageRow top_users = 3;  // ranked by cost, max 20
+  repeated ExpertUsageRow by_expert = 4;
+  repeated DeptUsageRow by_department = 5;
+  repeated TaskUsageRow by_task = 6;     // highest-cost tasks, max 20
+  int64 dau = 7;
+  int64 wau = 8;
+  int64 mau = 9;
+  repeated ToolUsageRow by_tool = 10;
+  repeated UserQuotaRow quotas = 11;    // all users: limit + month spend
+}
+
+message ExpertUsageRow {
+  string expert_id = 1;
+  string name = 2;
+  int64 total_tokens = 3;
+  double cost_usd = 4;
+  int32 task_count = 5;
+}
+
+message DeptUsageRow {
+  string department = 1;
+  int64 total_tokens = 2;
+  double cost_usd = 3;
+  int32 users = 4;
+  int32 task_count = 5;
+}
+
+message TaskUsageRow {
+  string task_id = 1;
+  string title = 2;
+  string user_id = 3;
+  int64 total_tokens = 4;
+  double cost_usd = 5;
+}
+
+message ToolUsageRow {
+  string tool = 1;
+  int64 calls = 2;
+}
+
+message UserQuotaRow {
+  string user_id = 1;
+  double monthly_limit_usd = 2;
+  double month_used_usd = 3;
 }
 
 message ModelUsageRow {
@@ -120,6 +174,7 @@ message ListAuditLogsRequest {
   int64 to_ts = 4;
   int32 limit = 5;
   int32 offset = 6;
+  string resource = 7; // keyword, ILIKE match on resource
 }
 
 message AuditLog {

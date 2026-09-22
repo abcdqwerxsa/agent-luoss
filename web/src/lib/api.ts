@@ -120,6 +120,12 @@ export const api = {
       rows: { day: string; user_id: string; total_tokens: number; cost_usd: number; task_count: number }[];
       by_model: { provider: string; model_id: string; input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_write_tokens: number; total_tokens: number; cost_usd: number; task_count: number }[];
       top_users: { user_id: string; total_tokens: number; cost_usd: number; task_count: number }[];
+      by_expert: { expert_id: string; name: string; total_tokens: number; cost_usd: number; task_count: number }[];
+      by_department: { department: string; total_tokens: number; cost_usd: number; users: number; task_count: number }[];
+      by_task: { task_id: string; title: string; user_id: string; total_tokens: number; cost_usd: number }[];
+      by_tool: { tool: string; calls: number }[];
+      dau: number; wau: number; mau: number;
+      quotas: { user_id: string; monthly_limit_usd: number; month_used_usd: number }[];
     }>("GET", `/api/v1/admin/usage${q ? (q.startsWith("?") ? q : `?${q}`) : ""}`),
     audit: (q = "") => req<{ logs: { id: number; actor: string; action: string; resource: string; ts: number; ip: string }[]; total: number }>("GET", `/api/v1/admin/audit${q}`),
     setQuota: (user_id: string, monthly_limit_usd: number) => req("PUT", "/api/v1/admin/quota", { user_id, monthly_limit_usd }),

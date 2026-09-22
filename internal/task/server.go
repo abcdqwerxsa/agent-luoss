@@ -50,7 +50,8 @@ type QuotaChecker interface {
 // UsageReporter receives per-message token/cost reports (implemented by the
 // usage service client; noop keeps task-svc standalone in tests).
 type UsageReporter interface {
-	Report(ctx context.Context, taskID, userID, provider, modelID string, u usageDelta)
+	Report(ctx context.Context, taskID, userID, provider, modelID, expertID string, u usageDelta)
+	ReportTool(ctx context.Context, userID, expertID, tool string)
 }
 
 type usageDelta struct {
@@ -60,7 +61,8 @@ type usageDelta struct {
 
 type noopUsage struct{}
 
-func (noopUsage) Report(context.Context, string, string, string, string, usageDelta) {}
+func (noopUsage) Report(context.Context, string, string, string, string, string, usageDelta) {}
+func (noopUsage) ReportTool(context.Context, string, string, string) {}
 
 // CapsResolver fetches the effective MCP servers/skills for a user
 // (implemented by the caps service client; fail-open when nil/unavailable).
@@ -561,6 +563,8 @@ func (s *Server) onEvent(ctx context.Context, ev *taskpb.AgentEvent) {
 		s.registry.ReleaseSessionLock(ctx, ev.GetTaskId())
 	case "message_end":
 		s.reportUsage(ctx, ev)
+	case "tool_execution_start":
+		s.reportToolCall(ctx, ev)
 	case "context_usage":
 		s.rdb.Set(ctx, "task:ctx:"+ev.GetTaskId(), ev.GetPayload(), 0)
 	case "error":
@@ -603,11 +607,26 @@ func (s *Server) reportUsage(ctx context.Context, ev *taskpb.AgentEvent) {
 	if err != nil {
 		return
 	}
-	s.usage.Report(ctx, ev.GetTaskId(), t.UserID, m.Provider, m.Model, usageDelta{
+	s.usage.Report(ctx, ev.GetTaskId(), t.UserID, m.Provider, m.Model, t.ExpertID, usageDelta{
 		Input: m.Usage.Input, Output: m.Usage.Output,
 		CacheRead: m.Usage.CacheRead, CacheWrite: m.Usage.CacheWrite,
 		CostUSD: m.Usage.Cost.Total,
 	})
+}
+
+// reportToolCall meters one tool execution (pi event payload carries toolName).
+func (s *Server) reportToolCall(ctx context.Context, ev *taskpb.AgentEvent) {
+	var p struct {
+		ToolName string `json:"toolName"`
+	}
+	if err := json.Unmarshal([]byte(ev.GetPayload()), &p); err != nil || p.ToolName == "" {
+		return
+	}
+	t, err := s.store.Get(ctx, ev.GetTaskId())
+	if err != nil {
+		return
+	}
+	s.usage.ReportTool(ctx, t.UserID, t.ExpertID, p.ToolName)
 }
 
 // ---- history ----

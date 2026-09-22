@@ -7,9 +7,9 @@ RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && apt
     && rm -rf /var/lib/apt/lists/*
 # kami (doc-master expert) rendering stack: WeasyPrint HTML→PDF + python-pptx
 RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && pip3 install --no-cache-dir --break-system-packages -i https://pypi.tuna.tsinghua.edu.cn/simple weasyprint python-pptx
-# curated local-expert MCP servers (git/memory/sequential-thinking; catalog: deploy/catalog)
-RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && npm install -g --registry=https://registry.npmmirror.com \
-    @modelcontextprotocol/server-git @modelcontextprotocol/server-memory @modelcontextprotocol/server-sequential-thinking
+# curated local-expert MCP servers (catalog: deploy/catalog): git via pypi (official TS pkg unpublished), memory/sequential-thinking via npm
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && pip3 install --no-cache-dir --break-system-packages -i https://pypi.tuna.tsinghua.edu.cn/simple mcp-server-git \
+    && npm install -g --registry=https://registry.npmmirror.com @modelcontextprotocol/server-memory @modelcontextprotocol/server-sequential-thinking
 WORKDIR /app
 COPY services/agent-runtime/package.json services/agent-runtime/package-lock.json* ./
 RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && npm install --registry=https://registry.npmmirror.com

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { api, User, Scope, McpServerInfo, SkillInfo } from "../lib/api";
+import { api, auth, User, Scope, McpServerInfo, SkillInfo } from "../lib/api";
 import { Select } from "../lib/select";
 import { Icon } from "../lib/icons";
 
@@ -59,6 +59,7 @@ function ScopeEditor({ depts, value, onChange }: { depts: { id: string; name: st
 function UsersTab() {
   const [users, setUsers] = useState<User[]>([]);
   const [depts, setDepts] = useState<{ id: string; name: string }[]>([]);
+  const [quotas, setQuotas] = useState<Record<string, { limit: number; used: number }>>({});
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [display, setDisplay] = useState("");
@@ -68,6 +69,11 @@ function UsersTab() {
   const refresh = () => {
     api.admin.users().then((r) => setUsers(r.users)).catch((e) => setMsg(e.message));
     api.admin.departments().then((r) => setDepts(r.departments)).catch(() => {});
+    api.admin.usage("?days=1").then((r) => {
+      const m: Record<string, { limit: number; used: number }> = {};
+      for (const q of r.quotas || []) m[q.user_id] = { limit: +q.monthly_limit_usd || 0, used: +q.month_used_usd || 0 };
+      setQuotas(m);
+    }).catch(() => {});
   };
   useEffect(() => { refresh(); }, []);
   const create = async () => {
@@ -85,19 +91,38 @@ function UsersTab() {
         <span className="msg">{msg}</span>
       </div>
       <table>
-        <thead><tr><th>用户名</th><th>显示名</th><th>角色</th><th>部门</th><th>状态</th><th>操作</th></tr></thead>
+        <thead><tr><th>用户名</th><th>显示名</th><th>角色</th><th>部门</th><th>月度配额（$/月，0=∞）</th><th>状态</th><th>操作</th></tr></thead>
         <tbody>
           {users.map((u) => (
             <tr key={u.id}>
               <td>{u.username}</td><td>{u.display_name}</td>
               <td><Select value={u.role} onChange={(v) => api.admin.updateUser(u.id, { role: v }).then(refresh).catch((er) => setMsg(er.message))} options={[{ value: "member", label: "member" }, { value: "admin", label: "admin" }]} /></td>
               <td><Select value={u.department_id || ""} onChange={(v) => api.admin.updateUser(u.id, { department_id: v || "-" }).then(refresh).catch((er) => setMsg(er.message))} options={[{ value: "", label: "无部门" }, ...depts.map((d) => ({ value: d.id, label: d.name }))]} /></td>
+              <td><QuotaCell id={u.id} q={quotas[u.id]} onSaved={refresh} /></td>
               <td><span className={`badge ${u.status === "active" ? "idle" : "failed"}`}>{u.status}</span></td>
               <td><button className="btn danger" onClick={() => confirm(`删除用户 ${u.username}？`) && api.admin.deleteUser(u.id).then(refresh).catch((er) => setMsg(er.message))}>删除</button></td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function QuotaCell({ id, q, onSaved }: { id: string; q?: { limit: number; used: number }; onSaved: () => void }) {
+  const [v, setV] = useState("");
+  const [saving, setSaving] = useState(false);
+  const cur = q ? String(q.limit) : "";
+  const shown = v === "" ? cur : v;
+  const save = async () => {
+    setSaving(true);
+    try { await api.admin.setQuota(id, +shown || 0); onSaved(); } catch { /* list shows stale on failure */ }
+    setSaving(false);
+  };
+  return (
+    <div className="inline-form" style={{ gap: 4 }} data-tip={q ? `本月已用 $${(q.used || 0).toFixed(4)}` : ""} data-tip-down>
+      <input type="number" placeholder="∞" value={shown} onChange={(e) => setV(e.target.value)} style={{ maxWidth: 84 }} />
+      <button className="btn small" disabled={saving || shown === cur} onClick={save}>存</button>
     </div>
   );
 }
@@ -296,7 +321,7 @@ function ModelsTab() {
                   <td className="mono">{m.model_id}</td>
                   <td>{m.display_name || <span className="hint">—</span>}</td>
                   <td>{m.context_window ? (+m.context_window / 1000).toFixed(0) + "k" : "—"}</td>
-                  <td className="mono small">{(+m.input_cost || 0)} / {(+m.output_cost || 0)}</td>
+                  <td className="mono small">{!+ (m.input_cost || 0) && !+ (m.output_cost || 0) ? <span className="badge failed">未定价</span> : `${(+m.input_cost || 0)} / ${(+m.output_cost || 0)}`}</td>
                   <td>
                     <Select
                       className="tier-select"
@@ -624,11 +649,16 @@ function UsageTab() {
   const [rows, setRows] = useState<any[]>([]);
   const [byModel, setByModel] = useState<any[]>([]);
   const [topUsers, setTopUsers] = useState<any[]>([]);
+  const [dims, setDims] = useState<any>({});
+  const [unpriced, setUnpriced] = useState<any[]>([]);
   const [mine, setMine] = useState<any>(null);
   const [days, setDays] = useState(7);
   useEffect(() => {
-    api.admin.usage(`?days=${days}`).then((r) => { setRows(r.rows || []); setByModel(r.by_model || []); setTopUsers(r.top_users || []); }).catch(() => {});
+    api.admin.usage(`?days=${days}`).then((r) => {
+      setRows(r.rows || []); setByModel(r.by_model || []); setTopUsers(r.top_users || []); setDims(r);
+    }).catch(() => {});
     api.usageMe().then(setMine).catch(() => {});
+    api.models().then((r) => setUnpriced((r.models || []).filter((m) => !+(m.input_cost || 0) && !+(m.output_cost || 0)))).catch(() => {});
   }, [days]);
 
   // aggregate by day for chart + totals
@@ -658,7 +688,19 @@ function UsageTab() {
           <button key={d} className={`btn ${days === d ? "primary" : ""}`} onClick={() => setDays(d)}>{d} 天</button>
         ))}
         <span className="spacer" />
-        <a className="btn" href={`/api/v1/admin/usage/export?days=${days}`} target="_blank" rel="noreferrer">导出 CSV</a>
+        <a className="btn" href={`/api/v1/admin/usage/export?days=${days}&access_token=${encodeURIComponent(auth.token)}`} target="_blank" rel="noreferrer">导出 CSV</a>
+      </div>
+
+      {!!unpriced.length && (
+        <div className="panel-card" style={{ borderLeft: "3px solid #e6a23c" }}>
+          <b>⚠ {unpriced.length} 个模型未定价</b>：{unpriced.map((m) => m.model_id).join("、")} —— 用量将继续记录 tokens，但费用恒为 $0。请到「模型」页补填价格（$/1M tokens）。
+        </div>
+      )}
+
+      <div className="panel-card" style={{ display: "flex", gap: 24 }}>
+        <span><b className="mono" style={{ fontSize: 22 }}>{dims.dau ?? "—"}</b><span className="hint"> 今日活跃</span></span>
+        <span><b className="mono" style={{ fontSize: 22 }}>{dims.wau ?? "—"}</b><span className="hint"> 7 日活跃</span></span>
+        <span><b className="mono" style={{ fontSize: 22 }}>{dims.mau ?? "—"}</b><span className="hint"> 30 日活跃</span></span>
       </div>
 
       {mine && (
@@ -711,6 +753,62 @@ function UsageTab() {
       </div>
 
       <div className="panel-card">
+        <h4><Icon name="sparkles" size={14} />专家维度</h4>
+        <table>
+          <thead><tr><th>专家</th><th>ID</th><th>Tokens</th><th>费用</th><th>任务数</th></tr></thead>
+          <tbody>
+            {(dims.by_expert || []).map((e: any, i: number) => (
+              <tr key={i}><td>{e.name}</td><td className="mono small">{e.expert_id}</td><td>{fmt(e.total_tokens)}</td><td>${(+e.cost_usd || 0).toFixed(6)}</td><td>{e.task_count}</td></tr>
+            ))}
+            {!(dims.by_expert || []).length && <tr><td colSpan={5} className="hint">暂无专家维度数据（仅统计新会话）</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="panel-card">
+        <h4><Icon name="user" size={14} />部门维度</h4>
+        <table>
+          <thead><tr><th>部门</th><th>Tokens</th><th>费用</th><th>人数</th><th>任务数</th></tr></thead>
+          <tbody>
+            {(dims.by_department || []).map((d: any, i: number) => (
+              <tr key={i}><td>{d.department}</td><td>{fmt(d.total_tokens)}</td><td>${(+d.cost_usd || 0).toFixed(6)}</td><td>{d.users}</td><td>{d.task_count}</td></tr>
+            ))}
+            {!(dims.by_department || []).length && <tr><td colSpan={5} className="hint">暂无数据</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="panel-card">
+        <h4><Icon name="zap" size={14} />高消耗任务（Top 20，按费用）</h4>
+        <table>
+          <thead><tr><th>任务</th><th>标题</th><th>用户</th><th>Tokens</th><th>费用</th></tr></thead>
+          <tbody>
+            {(dims.by_task || []).map((t: any, i: number) => (
+              <tr key={t.task_id}>
+                <td><a className="mono small" href={`#/task/${t.task_id}`}>{t.task_id?.slice(0, 14)}…</a></td>
+                <td>{t.title?.slice(0, 24) || "—"}</td><td className="mono small">{t.user_id?.slice(0, 10)}</td>
+                <td>{fmt(t.total_tokens)}</td><td>${(+t.cost_usd || 0).toFixed(6)}</td>
+              </tr>
+            ))}
+            {!(dims.by_task || []).length && <tr><td colSpan={5} className="hint">暂无数据</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="panel-card">
+        <h4><Icon name="plug" size={14} />工具调用 Top 20</h4>
+        <table>
+          <thead><tr><th>工具</th><th>调用次数</th></tr></thead>
+          <tbody>
+            {(dims.by_tool || []).map((t: any, i: number) => (
+              <tr key={i}><td className="mono">{t.tool}</td><td>{fmt(t.calls)}</td></tr>
+            ))}
+            {!(dims.by_tool || []).length && <tr><td colSpan={2} className="hint">暂无数据（仅统计新会话）</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="panel-card">
         <h4>明细（用户 × 日）</h4>
         <table>
           <thead><tr><th>日期</th><th>用户</th><th>Tokens</th><th>费用</th><th>任务数</th></tr></thead>
@@ -723,23 +821,47 @@ function UsageTab() {
   );
 }
 
+const AUDIT_ACTIONS = ["auth.login", "task.create", "task.abort", "task.delete", "user.create", "user.update", "user.delete", "iam.dept_create", "iam.dept_update", "iam.dept_delete", "model.upsert_provider", "model.upsert_model", "model.delete_provider", "model.delete_model", "caps.mcp_upsert", "caps.mcp_delete", "caps.skill_upload", "caps.skill_update", "caps.skill_delete", "caps.expert_upsert", "caps.expert_delete"];
+
 function AuditTab() {
   const [logs, setLogs] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [action, setAction] = useState("");
-  useEffect(() => {
-    api.admin.audit(action ? `?action=${action}` : "").then((r) => setLogs(r.logs || [])).catch(() => {});
-  }, [action]);
+  const [actor, setActor] = useState("");
+  const [resource, setResource] = useState("");
+  const LIMIT = 50;
+  const load = () => {
+    const p = new URLSearchParams({ limit: String(LIMIT), offset: String(offset) });
+    if (action) p.set("action", action);
+    if (actor.trim()) p.set("actor", actor.trim());
+    if (resource.trim()) p.set("resource", resource.trim());
+    api.admin.audit("?" + p.toString()).then((r) => { setLogs(r.logs || []); setTotal(r.total || 0); }).catch(() => {});
+  };
+  useEffect(() => { load(); }, [action, offset]);
+  const exportQ = `action=${action}&actor=${encodeURIComponent(actor.trim())}&resource=${encodeURIComponent(resource.trim())}&export=1&limit=5000&access_token=${encodeURIComponent(auth.token)}`;
   return (
     <div className="panel-card">
       <div className="inline-form">
-        <Select value={action} onChange={setAction} options={[{ value: "", label: "全部动作" }, ...["auth.login", "task.create", "task.abort", "task.delete", "user.create", "user.update", "user.delete", "iam.dept_create", "iam.dept_update", "iam.dept_delete", "model.upsert_provider", "model.upsert_model", "model.delete_provider", "model.delete_model", "caps.mcp_upsert", "caps.mcp_delete", "caps.skill_upload", "caps.skill_update", "caps.skill_delete"].map((a) => ({ value: a, label: a }))]} />
+        <Select value={action} onChange={(v) => { setAction(v); setOffset(0); }} options={[{ value: "", label: "全部动作" }, ...AUDIT_ACTIONS.map((a) => ({ value: a, label: a }))]} />
+        <input placeholder="操作者 user id" value={actor} onChange={(e) => setActor(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (setOffset(0), load())} style={{ maxWidth: 160 }} />
+        <input placeholder="资源关键字（如 task/）" value={resource} onChange={(e) => setResource(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (setOffset(0), load())} style={{ maxWidth: 180 }} />
+        <button className="btn" onClick={() => { setOffset(0); load(); }}>查询</button>
+        <span className="spacer" />
+        <a className="btn" href={`/api/v1/admin/audit?${exportQ}`} target="_blank" rel="noreferrer">导出 CSV</a>
       </div>
       <table>
         <thead><tr><th>时间</th><th>操作者</th><th>动作</th><th>资源</th><th>IP</th></tr></thead>
         <tbody>
           {logs.map((l) => <tr key={l.id}><td>{new Date(l.ts).toLocaleString()}</td><td>{l.actor?.slice(0, 10)}</td><td><span className="mono">{l.action}</span></td><td>{l.resource}</td><td>{l.ip}</td></tr>)}
+          {!logs.length && <tr><td colSpan={5} className="hint">无匹配记录</td></tr>}
         </tbody>
       </table>
+      <div className="inline-form" style={{ marginTop: 8 }}>
+        <button className="btn small" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>上一页</button>
+        <span className="hint">{total ? `${offset + 1}–${Math.min(offset + LIMIT, total)} / 共 ${total} 条` : "0 条"}</span>
+        <button className="btn small" disabled={offset + LIMIT >= total} onClick={() => setOffset(offset + LIMIT)}>下一页</button>
+      </div>
     </div>
   );
 }
