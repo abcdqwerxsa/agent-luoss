@@ -21,14 +21,20 @@ export function Markdown({ text }: { text: string }) {
             const child = React.Children.toArray(children)[0];
             if (React.isValidElement(child)) {
               const cls = String((child.props as any)?.className || "");
-              if (cls.includes("language-infographic") || cls.includes("language-json-ui")) return <>{children}</>;
+              if (cls.includes("language-infographic") || cls.includes("language-jsonui") || cls.includes("language-json-ui")) return <>{children}</>;
             }
             return <pre>{children}</pre>;
           },
           code: ({ className, children }) => {
-            const lang = /language-(\w+)/.exec(className || "")?.[1];
+            const m = /language-([\w-]+)/.exec(className || "");
+            const lang = m?.[1];
             if (lang === "infographic") return <InfographicBlock dsl={String(children)} />;
-            if (lang === "json-ui") return <GenerativeUIBlock code={String(children)} />;
+            if (lang === "jsonui" || lang === "json-ui") {
+              // react-markdown splits hyphenated info strings into lang+meta and
+              // prepends the meta ("ui\n") to the code content — strip it.
+              const body = lang === "json-ui" ? String(children).replace(/^ui\r?\n/, "") : String(children);
+              return <GenerativeUIBlock code={body} />;
+            }
             return <code className={className}>{children}</code>;
           },
         }}
@@ -41,22 +47,29 @@ export function Markdown({ text }: { text: string }) {
 
 function InfographicBlock({ dsl }: { dsl: string }) {
   const ref = useRef<HTMLDivElement>(null);
+  const instRef = useRef<any>(null);
   const [failed, setFailed] = React.useState(false);
   useEffect(() => {
     if (!dsl.trim()) return;
     let disposed = false;
-    let inst: any;
+    // Reuse the instance across streaming deltas: official incremental mode
+    // is render(buffer) repeatedly on the same instance.
+    if (instRef.current) {
+      try { instRef.current.render(dsl); } catch { setFailed(true); }
+      return;
+    }
     import("@antv/infographic").then(({ Infographic }) => {
       if (disposed || !ref.current) return;
       try {
-        inst = new Infographic({ container: ref.current, width: "100%", padding: 16 });
-        inst.render(dsl);
+        instRef.current = new Infographic({ container: ref.current, width: "100%", padding: 16 });
+        instRef.current.render(dsl);
       } catch {
         setFailed(true);
       }
     }).catch(() => setFailed(true));
-    return () => { disposed = true; try { inst?.destroy?.(); } catch { /* noop */ } };
+    return () => { disposed = true; };
   }, [dsl]);
+  useEffect(() => () => { try { instRef.current?.destroy?.(); } catch { /* noop */ } }, []);
   if (failed) {
     return <pre className="infographic-fallback">{dsl}</pre>;
   }
