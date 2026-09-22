@@ -557,25 +557,33 @@ function ExpertsTab() {
           <button className="btn primary" onClick={() => { setForm(empty); setScopes([]); setEditing(true); }}><Icon name="plus" size={13} />添加</button>
         </div>
         {msg && <div className="msg">{msg}</div>}
-        <div className="provider-cards">
-          {experts.map((e) => (
-            <div key={e.id} className={`provider-card ${e.enabled ? "" : "off"}`}>
-              <span className="pc-del" onClick={() => confirm(`删除专家 ${e.name}？`) && api.admin.deleteExpert(e.id).then(refresh).catch((er) => setMsg(er.message))}>删除</span>
-              <span className="pc-name">{e.name}</span>
-              <span className="pc-meta mono">{e.id}</span>
-              <span className="pc-meta ellipsis" data-tip={e.description}>{e.description || "—"}</span>
-              <span className="pc-meta">技能×{e.skill_ids?.length || 0} · MCP×{e.mcp_ids?.length || 0} · 👥 {scopeSummary(e.scopes)}</span>
-              <div className="cap-actions">
-                <button className="btn small" onClick={() => { setForm({ id: e.id, name: e.name, description: e.description, enabled: e.enabled, skill_ids: e.skill_ids || [], mcp_ids: e.mcp_ids || [] }); setScopes(e.scopes || []); setEditing(true); }}>编辑</button>
-                <label className="switch" data-tip={e.enabled ? "下架" : "上架"}>
-                  <input type="checkbox" checked={e.enabled} onChange={() => api.admin.putExpert({ ...e, enabled: !e.enabled, scopes: e.scopes || [] }).then(refresh).catch((er) => setMsg(er.message))} />
-                  <span className="slider" />
-                </label>
-              </div>
-            </div>
-          ))}
-          {!experts.length && <div className="empty-hint">暂无专家，点击右上「添加」创建（如 doc-master）</div>}
-        </div>
+        <table>
+          <thead><tr><th>名称 / ID</th><th>类别</th><th>描述</th><th>构成</th><th>可见范围</th><th>状态</th><th style={{ width: 130 }}>操作</th></tr></thead>
+          <tbody>
+            {experts.map((e) => (
+              <tr key={e.id} className={e.enabled ? "" : "off"}>
+                <td><b>{e.name}</b><div className="mono pc-meta">{e.id}</div></td>
+                <td>{e.name.includes("·") ? e.name.split("·")[0] : "—"}</td>
+                <td className="ellipsis" style={{ maxWidth: 260 }} data-tip={e.description}>{e.description || "—"}</td>
+                <td>技能×{e.skill_ids?.length || 0} · MCP×{e.mcp_ids?.length || 0}</td>
+                <td>{scopeSummary(e.scopes)}</td>
+                <td>
+                  <label className="switch" data-tip={e.enabled ? "下架" : "上架"}>
+                    <input type="checkbox" checked={e.enabled} onChange={() => api.admin.putExpert({ ...e, enabled: !e.enabled, scopes: e.scopes || [] }).then(refresh).catch((er) => setMsg(er.message))} />
+                    <span className="slider" />
+                  </label>
+                </td>
+                <td>
+                  <div className="cap-actions">
+                    <button className="btn small" onClick={() => { setForm({ id: e.id, name: e.name, description: e.description, enabled: e.enabled, skill_ids: e.skill_ids || [], mcp_ids: e.mcp_ids || [] }); setScopes(e.scopes || []); setEditing(true); }}>编辑</button>
+                    <button className="btn small" onClick={() => confirm(`删除专家 ${e.name}？`) && api.admin.deleteExpert(e.id).then(refresh).catch((er) => setMsg(er.message))}>删除</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!experts.length && <div className="empty-hint">暂无专家，点击右上「添加」创建（如 doc-master）</div>}
       </div>
 
       {editing && (

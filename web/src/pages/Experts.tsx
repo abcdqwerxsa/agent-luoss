@@ -9,6 +9,12 @@ export function Experts() {
   const [models, setModels] = useState<ModelOpt[]>([]);
   const [err, setErr] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [cat, setCat] = useState("全部");
+
+  // category = name prefix before「·」(import-catalog convention); uncategorized → 其他
+  const catOf = (name: string) => (name.includes("·") ? name.split("·")[0] : "其他");
+  const cats = ["全部", ...Array.from(new Set(experts.map((e) => catOf(e.name))))];
+  const shown = cat === "全部" ? experts : experts.filter((e) => catOf(e.name) === cat);
 
   useEffect(() => {
     api.experts().then((r) => setExperts(r.experts || [])).catch((e) => setErr(e.message));
@@ -44,8 +50,16 @@ export function Experts() {
 
       {err && <div className="error">{err}</div>}
 
+      {cats.length > 2 && (
+        <div className="expert-cats">
+          {cats.map((c) => (
+            <button key={c} type="button" className={`chip cat-chip ${cat === c ? "chip-on" : ""}`} onClick={() => setCat(c)}>{c}</button>
+          ))}
+        </div>
+      )}
+
       <div className="expert-plaza">
-        {experts.map((ex) => (
+        {shown.map((ex) => (
           <div key={ex.id} className="expert-big card">
             <div className="eb-head">
               <span className="eb-icon"><Icon name="sparkles" size={20} /></span>
@@ -67,6 +81,7 @@ export function Experts() {
         {!experts.length && !err && (
           <div className="empty">暂无可用专家{auth.user?.role === "admin" ? "，去 管理后台 → 专家 添加" : ""}</div>
         )}
+        {!!experts.length && !shown.length && <div className="empty">该类别暂无专家</div>}
       </div>
     </div>
   );
