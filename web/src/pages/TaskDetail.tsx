@@ -263,6 +263,17 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     void sendText(msg, behavior);
   };
 
+  // generative-UI action loop: buttons inside rendered json-ui blocks send
+  // their message back into the conversation as if typed by the user.
+  useEffect(() => {
+    const onAction = (e: Event) => {
+      const msg = (e as CustomEvent).detail?.message;
+      if (typeof msg === "string" && msg.trim() && !running) void sendText(msg.trim());
+    };
+    window.addEventListener("genui:action", onAction);
+    return () => window.removeEventListener("genui:action", onAction);
+  });
+
   const abort = async () => {
     try { await api.tasks.abort(taskId); } catch (e: any) { setNotice(e.message); }
   };

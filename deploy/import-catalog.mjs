@@ -27,6 +27,7 @@ const CATALOG = {
     { id: "algorithmic-art", dir: "algorithmic-art" },
     { id: "internal-comms", dir: "internal-comms" },
     { id: "infographic-storyteller", dir: "infographic-storyteller" }, // first-party, Apache-2.0
+    { id: "generative-ui-builder", dir: "generative-ui-builder" }, // first-party, Apache-2.0
   ],
   mcps: [
     { id: "official-git", name: "Git", transport: "stdio", command: "mcp-server-git", args: [] },
@@ -59,6 +60,9 @@ const CATALOG = {
     { id: "data-viz", name: "数据分析·信息图工坊",
       description: "把数据与结构化信息直接渲染成聊天内信息图（AntV Infographic DSL→SVG；平台内置渲染）",
       skill_ids: ["infographic-storyteller"], mcp_ids: [] },
+    { id: "ui-studio", name: "智能交互·界面工坊",
+      description: "在聊天内生成可交互仪表盘/指标卡/表格，按钮可回环继续对话（json-ui 白名单组件渲染）",
+      skill_ids: ["generative-ui-builder"], mcp_ids: [] },
   ],
 };
 

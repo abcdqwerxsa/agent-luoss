@@ -6,6 +6,7 @@
 import React, { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { GenerativeUIBlock } from "./genui";
 
 export function Markdown({ text }: { text: string }) {
   return (
@@ -18,14 +19,16 @@ export function Markdown({ text }: { text: string }) {
           ),
           pre: ({ children }) => {
             const child = React.Children.toArray(children)[0];
-            if (React.isValidElement(child) && String((child.props as any)?.className || "").includes("language-infographic")) {
-              return <>{children}</>;
+            if (React.isValidElement(child)) {
+              const cls = String((child.props as any)?.className || "");
+              if (cls.includes("language-infographic") || cls.includes("language-json-ui")) return <>{children}</>;
             }
             return <pre>{children}</pre>;
           },
           code: ({ className, children }) => {
             const lang = /language-(\w+)/.exec(className || "")?.[1];
             if (lang === "infographic") return <InfographicBlock dsl={String(children)} />;
+            if (lang === "json-ui") return <GenerativeUIBlock code={String(children)} />;
             return <code className={className}>{children}</code>;
           },
         }}

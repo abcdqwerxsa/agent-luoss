@@ -9,10 +9,13 @@
   },
   "dependencies": {
     "@antv/infographic": "^0.2.20",
+    "@json-render/core": "^0.21.0",
+    "@json-render/react": "^0.21.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
