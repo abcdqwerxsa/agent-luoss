@@ -712,6 +712,9 @@ input[type="file"]::file-selector-button {
 .expert-cats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .cat-chip { cursor: pointer; }
 table tr.off td { opacity: 0.5; }
+.infographic-block { padding: 8px; overflow-x: auto; margin: 8px 0; }
+.infographic-block svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.infographic-fallback { white-space: pre-wrap; font-size: 12px; opacity: 0.8; }
 .expert-plaza { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
 .expert-big { display: flex; flex-direction: column; gap: 10px; padding: 20px; }
 .eb-head { display: flex; gap: 12px; align-items: center; }

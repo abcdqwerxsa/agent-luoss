@@ -26,6 +26,7 @@ const CATALOG = {
     { id: "theme-factory", dir: "theme-factory" },
     { id: "algorithmic-art", dir: "algorithmic-art" },
     { id: "internal-comms", dir: "internal-comms" },
+    { id: "infographic-storyteller", dir: "infographic-storyteller" }, // first-party, Apache-2.0
   ],
   mcps: [
     { id: "official-git", name: "Git", transport: "stdio", command: "mcp-server-git", args: [] },
@@ -55,6 +56,9 @@ const CATALOG = {
     { id: "kb-team-memory", name: "知识记忆·团队大脑",
       description: "跨会话团队共享知识图谱 + 结构化逐步推理（MCP 来源 modelcontextprotocol/servers MIT/Apache-2.0；记忆全员共享）",
       skill_ids: [], mcp_ids: ["official-memory", "official-sequential-thinking"] },
+    { id: "data-viz", name: "数据分析·信息图工坊",
+      description: "把数据与结构化信息直接渲染成聊天内信息图（AntV Infographic DSL→SVG；平台内置渲染）",
+      skill_ids: ["infographic-storyteller"], mcp_ids: [] },
   ],
 };
 
