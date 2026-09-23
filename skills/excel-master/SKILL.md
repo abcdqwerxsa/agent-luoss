@@ -24,8 +24,62 @@ metadata:
 [4] python3 tools/excel_build.py --spec <spec.json> --out <out.xlsx>  → 生成数据 + 公式
 [5] python3 tools/excel_chart.py --xlsx <out.xlsx> --spec <charts.json>  → 加图表
 [6] python3 tools/excel_summary.py <out.xlsx>  → 抽取数字辅助结论
-[7] read 重读 xlsx → 自检公式、图表、单元格值;不合预期则回到 [3] 调整
-[8] 输出 chat 总结(2-3 条关键趋势)
+[7] python3 tools/excel_audit.py <out.xlsx> --candidate-only  → 审计公式覆盖
+    if verdict=NEEDS_REVIEW:
+      读 violations → 自己裁决哪些是漏写公式 / 哪些是故意静态
+      用 openpyxl 重写被标记的 cell 为公式
+      重跑 audit 一次(只允许一次重写,不递归)
+    if verdict=PASS:
+      继续 [8]
+[8] 输出 chat 总结(2-3 条关键趋势) + 列出"故意静态"的 cell(让用户能审计)
+```
+
+## 数据血缘与公式优先(必读)
+
+**核心原则**:**能写公式的 cell 必须写公式,绝不写静态值**。理由:
+- **可审计**:鼠标点 cell 看公式栏,知道数字怎么算出来的
+- **可重算**:原始 CSV 改了,聚合层数字自动更新,不用重新跑
+- **可追溯**:看公式引用能直接追到源数据 sheet
+
+### 3 层数据架构(必用)
+
+xlsx 必须分 3 层,缺一不可:
+
+| 层 | 作用 | sheet 命名规范 | 内容 |
+|---|---|---|---|
+| **Layer 1 原始数据** | 不动的源数据 | `01_原始数据` / `raw` / `源数据` | CSV 直接粘入,**全静态值**,无公式 |
+| **Layer 2 转换层** | 清洗 / 过滤 / 关联 | `02_清洗` / `数据清洗` / `transform` | **公式引用 Layer 1**,如 `=IF(L1!退货, 0, L1!销售额)` |
+| **Layer 3 展示层** | 聚合 / 排序 / 图表 | `03_大盘业绩` / `汇总` / `报表` | **公式引用 Layer 1 或 2**,如 `=SUMIFS(L1!销售额, L1!年份, 2025)` |
+
+### audit 工作机制(`tools/excel_audit.py`)
+
+LLM 写完 xlsx **必须**调 audit 一次:
+
+```bash
+python3 tools/excel_audit.py <out.xlsx> --candidate-only --json
+```
+
+- **code 部分**:扫 xlsx,按启发式标记"应该是公式的候选 cell"——sheet 名含 `汇总/大盘/计算/聚合/报表` 且公式占比 < 30%,或单 cell 数字 > 100 且周围无公式邻居
+- **LLM 部分**:拿 candidate 清单,**自己裁决**:
+  - 该 cell 是漏写公式 → 重写为正确公式
+  - 该 cell 是故意静态(年份/标签/输入参数)→ 保留,在 chat 里告诉用户
+
+**重写规则**(写死):
+- 最多重写 1 次(不递归)
+- 重写后 audit 还有违规 → **不再重试**,直接告诉用户"这 N 个 cell 是故意静态,理由是 X / Y / Z"
+
+### ❌ 反面例子
+
+```python
+# ❌ 错:用 pandas 算完直接写数字
+df = pd.read_csv('sales.csv')
+total = df['sales'].sum()
+ws['B5'] = total  # 16700.0 — 静态值,后续改 CSV 不会跟着变
+ws['B6'] = total / df['sales'].sum()  # 1.0 — 静态值
+
+# ✅ 对:写公式
+ws['B5'] = '=SUM(原始数据!D:D)'
+ws['B6'] = '=B5/SUM(原始数据!D:D)'
 ```
 
 ## 工具脚本约定
@@ -38,6 +92,7 @@ metadata:
 | `excel_build.py` | `--spec <json> --out <xlsx>` | xlsx 文件 | 写数据 + 公式 + 样式 |
 | `excel_chart.py` | `--xlsx <f> --spec <json>` | 改写 xlsx | 加图表(柱/折线/面积/双轴) |
 | `excel_summary.py` | `<xlsx>` | JSON 到 stdout | 提取数字供总结 |
+| `excel_audit.py` | `<xlsx> [--candidate-only --json]` | 文本/JSON 到 stdout | 审计公式覆盖,标"应是公式但写死"的 cell |
 
 ## 公式规范
 
