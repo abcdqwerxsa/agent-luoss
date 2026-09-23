@@ -30,6 +30,7 @@ const CATALOG = {
     { id: "infographic-storyteller", dir: "infographic-storyteller" }, // first-party, Apache-2.0
     { id: "generative-ui-builder", dir: "generative-ui-builder" }, // first-party, Apache-2.0
     { id: "excel-master", dir: "../../skills/excel-master", base: "builtin" }, // repo built-in (feat/excel PR)
+    { id: "office-master", dir: "../../skills/office-master", base: "builtin" }, // repo built-in (OfficeCLI, Apache-2.0)
   ],
   mcps: [
     { id: "official-git", name: "Git", transport: "stdio", command: "mcp-server-git", args: [] },
@@ -68,6 +69,9 @@ const CATALOG = {
     { id: "excel-master", name: "办公协作·Excel 专家",
       description: "Excel 解析/生成/修改/图表：openpyxl+pandas 脚本链，支持跨境电商等模板场景",
       skill_ids: ["excel-master"], mcp_ids: [] },
+    { id: "office-master", name: "办公协作·Office 大师",
+      description: "Word/Excel/PPT 读写编辑一体化（OfficeCLI 单二进制，Apache-2.0）：报告/演示/表格/批量修改，自带渲染预览",
+      skill_ids: ["office-master"], mcp_ids: [] },
   ],
 };
 
