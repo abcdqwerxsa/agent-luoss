@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"agentluoss/internal/db"
 	"agentluoss/internal/grpcx"
@@ -52,6 +53,9 @@ func main() {
 	)
 	srv := task.NewServer(pool, rdb, envOr("WORKSPACES_DIR", "/data/workspaces"), reporter, quota, caps, router)
 	router.Warmup()
+	if mins, err := strconv.Atoi(envOr("TURN_TIMEOUT_MIN", "30")); err == nil && mins > 0 {
+		srv.StartWatchdog(time.Duration(mins) * time.Minute)
+	}
 	log.Fatal(grpcx.Serve(mustAtoi(envOr("PORT", "9092")), srv.Register))
 }
 

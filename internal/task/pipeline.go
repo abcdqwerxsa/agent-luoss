@@ -46,6 +46,8 @@ func (p *Pipeline) Ingest(ctx context.Context, ev *taskpb.AgentEvent) (*taskpb.A
 		Values: map[string]any{"data": string(b)},
 	})
 	pipe.Expire(ctx, "stream:task:"+ev.TaskId, eventTTL)
+	// last-activity marker consumed by the turn watchdog
+	pipe.Set(ctx, "task:lastev:"+ev.TaskId, nowMs(), eventTTL)
 	if _, err := pipe.Exec(ctx); err != nil {
 		return nil, err
 	}

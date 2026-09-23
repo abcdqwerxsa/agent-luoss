@@ -181,6 +181,33 @@ func (s *Store) SetTitleIfEmpty(ctx context.Context, id, title string) error {
 	return err
 }
 
+// runningRef is a minimal row used by the turn watchdog.
+type runningRef struct {
+	ID        string
+	RuntimeID string
+	UpdatedAt int64
+}
+
+// ListRunning returns tasks in status running (small set; no extra index needed).
+func (s *Store) ListRunning(ctx context.Context) ([]*runningRef, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id, runtime_id, (extract(epoch from updated_at)*1000)::bigint
+		FROM task.tasks WHERE status = 'running'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*runningRef
+	for rows.Next() {
+		var r runningRef
+		if err := rows.Scan(&r.ID, &r.RuntimeID, &r.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, &r)
+	}
+	return out, rows.Err()
+}
+
 func itoa(n int) string {
 	if n < 10 {
 		return string(rune('0' + n))
