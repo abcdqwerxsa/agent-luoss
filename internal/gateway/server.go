@@ -147,6 +147,10 @@ func (a *App) build() *gin.Engine {
 		a.registerExpertAdminRoutes(admin)
 		a.registerExpertUserRoutes(authed)
 	}
+	if a.kb != nil {
+		a.registerKbAdminRoutes(admin)
+		a.registerKbUserRoutes(authed)
+	}
 
 	r.GET("/healthz", func(c *gin.Context) { c.String(200, "ok") })
 
