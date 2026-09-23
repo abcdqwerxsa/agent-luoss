@@ -9,6 +9,7 @@ x-go-env: &goenv
   REDIS_ADDR: redis:6379
   JWT_SECRET: ${JWT_SECRET:-dev-secret}
   KEY_MASTER: ${KEY_MASTER:-dev-master}
+  METRICS_ADDR: ":9100"
 
 services:
   postgres:

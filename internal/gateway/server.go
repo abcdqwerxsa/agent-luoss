@@ -12,6 +12,7 @@ import (
 
 	"agentluoss/internal/auditx"
 	"agentluoss/internal/jwtx"
+	"agentluoss/internal/metricsx"
 	artifactpb "agentluoss/proto/gen/artifact"
 	modelmgtpb "agentluoss/proto/gen/modelmgt"
 	usagepb "agentluoss/proto/gen/usage"
@@ -94,7 +95,7 @@ func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr, ca
 	return a
 }
 
-func (a *App) Handler() http.Handler { return a.router }
+func (a *App) Handler() http.Handler { return metricsx.HTTPMiddleware(a.router) }
 
 func (a *App) build() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)

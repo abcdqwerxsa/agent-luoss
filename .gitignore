@@ -24,3 +24,6 @@ __pycache__/
 # agent-runtime
 services/agent-runtime/dist/
 web/dist/
+
+# TS build info
+*.tsbuildinfo
