@@ -14,7 +14,7 @@ x-go-env: &goenv
 services:
   postgres:
     restart: unless-stopped
-    image: postgres:17-alpine
+    image: ${REG:-docker.m.daocloud.io}/library/postgres:17-alpine
     environment:
       POSTGRES_USER: agent
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentdev}
@@ -30,7 +30,7 @@ services:
 
   redis:
     restart: unless-stopped
-    image: redis:7-alpine
+    image: ${REG:-docker.m.daocloud.io}/library/redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redisdata:/data
