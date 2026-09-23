@@ -9,18 +9,18 @@ COPY web/ ./
 RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && npm run build
 
 FROM docker.m.daocloud.io/library/golang:1.27-bookworm AS gobuild
-ENV GOPROXY=https://goproxy.cn,direct
 WORKDIR /src
+# Vendored deps: build fully offline (this deploy box has flaky outbound TLS).
 COPY go.mod go.sum ./
-RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && go mod download
+COPY vendor/ ./vendor/
 COPY . .
-RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && CGO_ENABLED=0 go build -o /out/iam ./cmd/iam \
-    && CGO_ENABLED=0 go build -o /out/task ./cmd/task \
-    && CGO_ENABLED=0 go build -o /out/artifact ./cmd/artifact \
-    && CGO_ENABLED=0 go build -o /out/modelmgt ./cmd/modelmgt \
-    && CGO_ENABLED=0 go build -o /out/usage ./cmd/usage \
-    && CGO_ENABLED=0 go build -o /out/caps ./cmd/caps \
-    && CGO_ENABLED=0 go build -o /out/gateway ./cmd/gateway
+RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && CGO_ENABLED=0 go build -mod=vendor -o /out/iam ./cmd/iam \
+    && CGO_ENABLED=0 go build -mod=vendor -o /out/task ./cmd/task \
+    && CGO_ENABLED=0 go build -mod=vendor -o /out/artifact ./cmd/artifact \
+    && CGO_ENABLED=0 go build -mod=vendor -o /out/modelmgt ./cmd/modelmgt \
+    && CGO_ENABLED=0 go build -mod=vendor -o /out/usage ./cmd/usage \
+    && CGO_ENABLED=0 go build -mod=vendor -o /out/caps ./cmd/caps \
+    && CGO_ENABLED=0 go build -mod=vendor -o /out/gateway ./cmd/gateway
 
 FROM docker.m.daocloud.io/library/debian:bookworm-slim
 RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
