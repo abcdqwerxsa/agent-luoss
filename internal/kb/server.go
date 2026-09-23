@@ -63,6 +63,13 @@ func newID(prefix string) string {
 	return prefix + hex.EncodeToString(b)
 }
 
+// svcCtx is the identity for kb→caps service-to-service calls. The docker
+// network is trusted; auth is enforced at the gateway edge. caps admin RPCs
+// require an admin role in metadata.
+func svcCtx(ctx context.Context) context.Context {
+	return metadata.AppendToOutgoingContext(ctx, "x-user-id", "kb-service", "x-user-role", "admin")
+}
+
 // ---- lifecycle ----
 
 func validScope(t string) bool { return t == "all" || t == "department" || t == "role" }
@@ -85,7 +92,7 @@ func (s *Server) CreateKb(ctx context.Context, req *kbpb.CreateKbRequest) (*kbpb
 	}
 	// per-KB caps MCP entry: visibility = caps scope governance, zero new code
 	if s.caps != nil {
-		if _, err := s.caps.UpsertMcpServer(ctx, &capspb.UpsertMcpServerRequest{
+		if _, err := s.caps.UpsertMcpServer(svcCtx(ctx), &capspb.UpsertMcpServerRequest{
 			Server: &capspb.McpServerDef{
 				Id: "kb-" + k.ID, Name: "知识库:" + name, Transport: "http",
 				Url: s.advertised + "/mcp/" + k.ID, Enabled: true,
@@ -105,7 +112,7 @@ func (s *Server) DeleteKb(ctx context.Context, req *kbpb.DeleteKbRequest) (*kbpb
 		return nil, errCode(err)
 	}
 	if s.caps != nil {
-		if _, err := s.caps.DeleteMcpServer(ctx, &capspb.DeleteMcpServerRequest{Id: "kb-" + req.GetId()}); err != nil {
+		if _, err := s.caps.DeleteMcpServer(svcCtx(ctx), &capspb.DeleteMcpServerRequest{Id: "kb-" + req.GetId()}); err != nil {
 			log.Printf("kb: caps deregistration for %s failed: %v", req.GetId(), err)
 		}
 	}
