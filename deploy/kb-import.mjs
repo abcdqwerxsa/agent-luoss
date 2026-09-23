@@ -34,7 +34,7 @@ async function worker() {
     const f = queue.shift();
     const content = await readFile(f);
     const fd = new FormData();
-    fd.append("file", new File([content], f.split("/").pop()));
+    fd.append("file", new Blob([content]), f.split("/").pop());
     const res = await fetch(`${BASE}/api/v1/admin/kb/${KB_ID}/docs`, { method: "POST", headers: H, body: fd });
     if (!res.ok) {
       failed++;

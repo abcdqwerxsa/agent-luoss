@@ -18,7 +18,7 @@ ok("create kb", cr.status === 200 && kb?.id?.startsWith("kb_"));
 // 2. upload a markdown doc
 const md = `# 员工手册\n\n## 报销流程\n\n员工出差后需要在7个工作日内提交报销申请，单张发票金额超过5000元需要部门总监审批。\n\n## 会议室预约\n\n会议室通过OA系统预约。`;
 const fd = new FormData();
-fd.append("file", new File([md], "handbook.md", { type: "text/markdown" }));
+fd.append("file", new Blob([md], { type: "text/markdown" }), "handbook.md");
 const up = await fetch(`${BASE}/api/v1/admin/kb/${kb.id}/docs`, { method: "POST", headers: H, body: fd });
 const { doc } = await up.json();
 ok("upload doc", up.status === 200 && doc?.id?.startsWith("doc_"));
