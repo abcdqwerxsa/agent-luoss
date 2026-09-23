@@ -770,3 +770,30 @@ table tr.off td { opacity: 0.5; }
 .chat-empty b { color: var(--text-2); font-size: 15px; }
 .chat-empty .icon { color: var(--accent); }
 .chat-empty span { font-size: 13px; }
+
+/* number inputs: hide native spinners — .num-input provides themed steppers */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+.num-input {
+  display: inline-flex; align-items: stretch;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-ctrl); overflow: hidden; vertical-align: middle;
+}
+.num-input:focus-within { border-color: var(--border-strong); }
+.num-input input {
+  flex: 1; min-width: 0; border: none; background: transparent;
+  padding: 4px 8px; font-family: var(--font-mono); font-size: 12px;
+}
+.num-input .steps {
+  display: flex; flex-direction: column;
+  border-left: 1px solid var(--border); background: var(--surface-2);
+}
+.num-input .steps button {
+  flex: 1; padding: 0 5px; border: none; border-radius: 0;
+  background: transparent; color: var(--text-3);
+  display: flex; align-items: center; justify-content: center;
+}
+.num-input .steps button + button { border-top: 1px solid var(--border); }
+.num-input .steps button:hover { color: var(--text); background: var(--surface-3); }

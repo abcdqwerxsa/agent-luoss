@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { api, auth, User, Scope, McpServerInfo, SkillInfo } from "../lib/api";
 import { Select } from "../lib/select";
 import { Icon } from "../lib/icons";
+import { NumInput } from "../lib/NumInput";
 
 type Tab = "users" | "departments" | "models" | "mcp" | "skills" | "experts" | "usage" | "audit";
 
@@ -183,26 +184,24 @@ function ModelsTab() {
 
   const addModel = (model_id: string) => {
     if (!sel || !model_id) return;
-    api.admin.putModel({ provider_id: sel, model_id, display_name: "", context_window: 128000, enabled: true })
+    api.admin.putModel({ provider_id: sel, model_id, display_name: mForm.display_name, context_window: mForm.context_window, input_cost: mForm.input_cost, output_cost: mForm.output_cost, enabled: true })
       .then(() => { setMsg(`已添加 ${model_id}`); setMForm({ model_id: "", display_name: "", context_window: 128000, input_cost: 0, output_cost: 0 }); refresh(); })
       .catch((e) => setMsg(e.message));
   };
 
-  const toggle = (m: any) => {
+  // putModel upsert: patch on top of the row's current values.
+  const editModel = (m: any, patch: Record<string, any> = {}) => {
     api.admin.putModel({
-      provider_id: m.provider_id, model_id: m.model_id, display_name: m.display_name,
-      context_window: m.context_window, input_cost: m.input_cost, output_cost: m.output_cost,
-      reasoning: !!m.reasoning, enabled: !m.enabled, tier: m.tier || "",
+      provider_id: m.provider_id, model_id: m.model_id, display_name: m.display_name || "",
+      context_window: +m.context_window || 0, input_cost: +m.input_cost || 0, output_cost: +m.output_cost || 0,
+      reasoning: !!m.reasoning, enabled: !!m.enabled, tier: m.tier || "",
+      ...patch,
     }).then(refresh).catch((e) => setMsg(e.message));
   };
 
-  const setTier = (m: any, tier: string) => {
-    api.admin.putModel({
-      provider_id: m.provider_id, model_id: m.model_id, display_name: m.display_name,
-      context_window: m.context_window, input_cost: m.input_cost, output_cost: m.output_cost,
-      reasoning: !!m.reasoning, enabled: !!m.enabled, tier,
-    }).then(refresh).catch((e) => setMsg(e.message));
-  };
+  const toggle = (m: any) => editModel(m, { enabled: !m.enabled });
+
+  const setTier = (m: any, tier: string) => editModel(m, { tier });
 
   const del = (m: any) => {
     confirm(`删除模型 ${m.provider_id}/${m.model_id}？`) &&
@@ -321,7 +320,10 @@ function ModelsTab() {
                   <td className="mono">{m.model_id}</td>
                   <td>{m.display_name || <span className="hint">—</span>}</td>
                   <td>{m.context_window ? (+m.context_window / 1000).toFixed(0) + "k" : "—"}</td>
-                  <td className="mono small">{!+ (m.input_cost || 0) && !+ (m.output_cost || 0) ? <span className="badge failed">未定价</span> : `${(+m.input_cost || 0)} / ${(+m.output_cost || 0)}`}</td>
+                  <td className="mono small">
+                    <NumInput width={76} step={0.1} min={0} title="输入价格 $/1M tokens" value={+m.input_cost || 0} onCommit={(v) => editModel(m, { input_cost: v })} />
+                    <NumInput width={76} step={0.1} min={0} title="输出价格 $/1M tokens" value={+m.output_cost || 0} onCommit={(v) => editModel(m, { output_cost: v })} />
+                  </td>
                   <td>
                     <Select
                       className="tier-select"
@@ -354,9 +356,9 @@ function ModelsTab() {
           <div className="inline-form" style={{ marginTop: 10 }}>
             <input placeholder="手动添加 model id" value={mForm.model_id} onChange={(e) => setMForm({ ...mForm, model_id: e.target.value })} />
             <input placeholder="显示名（可空）" value={mForm.display_name} onChange={(e) => setMForm({ ...mForm, display_name: e.target.value })} />
-            <input type="number" placeholder="context" value={mForm.context_window} onChange={(e) => setMForm({ ...mForm, context_window: +e.target.value })} style={{ maxWidth: 110 }} />
-            <input type="number" placeholder="$in/1M" value={mForm.input_cost} onChange={(e) => setMForm({ ...mForm, input_cost: +e.target.value })} style={{ maxWidth: 90 }} />
-            <input type="number" placeholder="$out/1M" value={mForm.output_cost} onChange={(e) => setMForm({ ...mForm, output_cost: +e.target.value })} style={{ maxWidth: 90 }} />
+            <NumInput width={100} step={32000} min={1000} title="上下文窗口" value={mForm.context_window} onCommit={(v) => setMForm({ ...mForm, context_window: v })} />
+            <NumInput width={82} step={0.1} min={0} title="输入价格 $/1M tokens" value={mForm.input_cost} onCommit={(v) => setMForm({ ...mForm, input_cost: v })} />
+            <NumInput width={82} step={0.1} min={0} title="输出价格 $/1M tokens" value={mForm.output_cost} onCommit={(v) => setMForm({ ...mForm, output_cost: v })} />
             <button className="btn primary" disabled={!mForm.model_id} onClick={() => addModel(mForm.model_id)}><Icon name="plus" size={13} />添加</button>
           </div>
         </div>
