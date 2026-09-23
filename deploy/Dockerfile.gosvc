@@ -20,7 +20,8 @@ RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && CGO
     && CGO_ENABLED=0 go build -mod=vendor -o /out/modelmgt ./cmd/modelmgt \
     && CGO_ENABLED=0 go build -mod=vendor -o /out/usage ./cmd/usage \
     && CGO_ENABLED=0 go build -mod=vendor -o /out/caps ./cmd/caps \
-    && CGO_ENABLED=0 go build -mod=vendor -o /out/gateway ./cmd/gateway
+    && CGO_ENABLED=0 go build -mod=vendor -o /out/gateway ./cmd/gateway \
+    && CGO_ENABLED=0 go build -mod=vendor -o /out/kb ./cmd/kb
 
 FROM docker.m.daocloud.io/library/debian:bookworm-slim
 RUN unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY no_proxy NO_PROXY && apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
