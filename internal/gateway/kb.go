@@ -2,7 +2,6 @@
 package gateway
 
 import (
-	"encoding/json"
 	"io"
 	"strconv"
 
@@ -27,25 +26,6 @@ func docJSON(d *kbpb.DocInfo) gin.H {
 		"title": d.GetTitle(), "size": d.GetSize(), "uploader": d.GetUploader(),
 		"status": d.GetStatus(), "error": d.GetError(), "updated_at": d.GetUpdatedAt(),
 	}
-}
-
-func scopeFromReq(c *gin.Context) *kbpb.Scope {
-	st, sv := c.PostForm("scope_type"), c.PostForm("scope_value")
-	if st == "" {
-		if v := c.PostForm("scope"); v != "" { // JSON form {"type":..,"value":..}
-			var h struct {
-				Type  string `json:"type"`
-				Value string `json:"value"`
-			}
-			if json.Unmarshal([]byte(v), &h) == nil {
-				st, sv = h.Type, h.Value
-			}
-		}
-	}
-	if st == "" {
-		st = "all"
-	}
-	return &kbpb.Scope{Type: st, Value: sv}
 }
 
 func (a *App) registerKbAdminRoutes(admin *gin.RouterGroup) {
@@ -112,12 +92,23 @@ func (a *App) listMyKbs(c *gin.Context) {
 }
 
 func (a *App) createKb(c *gin.Context) {
-	name := c.PostForm("name")
+	name := c.Query("name")
+	if name == "" {
+		name = c.PostForm("name")
+	}
 	if name == "" {
 		c.JSON(400, gin.H{"error": "name required"})
 		return
 	}
-	r, err := a.kb.CreateKb(outCtx(c), &kbpb.CreateKbRequest{Name: name, Scope: scopeFromReq(c)})
+	scope := &kbpb.Scope{Type: "all"}
+	if st := c.Query("scope_type"); st != "" {
+		scope.Type = st
+		scope.Value = c.Query("scope_value")
+	} else if st := c.PostForm("scope_type"); st != "" {
+		scope.Type = st
+		scope.Value = c.PostForm("scope_value")
+	}
+	r, err := a.kb.CreateKb(outCtx(c), &kbpb.CreateKbRequest{Name: name, Scope: scope})
 	if err != nil {
 		grpcStatus(c, err)
 		return

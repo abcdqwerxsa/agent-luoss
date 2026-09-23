@@ -11,7 +11,6 @@ import (
 	"agentluoss/internal/db"
 	"agentluoss/internal/grpcx"
 	"agentluoss/internal/kb"
-	"agentluoss/internal/metricsx"
 
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
@@ -50,7 +49,7 @@ func main() {
 	// MCP http server (per-KB tool endpoints) on its own port
 	mux := http.NewServeMux()
 	mux.Handle("/mcp/", srv.MCPHandler())
-	metricsx.StartFromEnv()
+	// metricsx is started by grpcx.Serve (METRICS_ADDR); no double bind here
 	httpPort := envOr("KB_HTTP_PORT", "9098")
 	go func() {
 		log.Printf("kb mcp listening on :%s", httpPort)
