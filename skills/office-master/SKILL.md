@@ -46,7 +46,7 @@ officecli add deck.pptx / --type slide
 officecli add deck.pptx '/slide[1]' --type textbox --prop text="季度回顾" --prop x=1cm --prop y=1cm --prop fontSize=36pt --prop bold=true
 officecli add deck.pptx '/slide[1]' --type textbox --prop text="营收 +18%" --prop x=1cm --prop y=6cm
 officecli save deck.pptx
-officecli view deck.pptx screenshot -o deck.png    # look before delivering
+officecli view deck.pptx html -o deck.html        # render check (no browser needed)
 ```
 
 Batch (preferred for >3 operations — single transaction, rolls back on error):
@@ -59,12 +59,17 @@ officecli batch deck.pptx --commands '[
 
 ## Rules
 
+- **Rendering in this environment**: no headless browser is installed, so
+  `view screenshot` will fail — use `view <file> html` instead (standalone
+  HTML with inlined assets; deliver it as an attachment if useful) and verify
+  structure via `get`/`query`. Do NOT retry screenshot; do not try to install
+  a browser.
 - Create first: `officecli create <file>` for a new document; idempotent rerun
   pattern is `close → rm → create → batch`.
 - Resident mode keeps the file in memory: before any NON-officecli program
   reads it, `officecli save <file>` first (own get/view always see edits).
-- When visual quality matters, close the loop: `view screenshot` → inspect →
-  fix. Never deliver a deck unseen.
+- When visual quality matters, inspect the `view html` output's structure and
+  deliver both the office file and the HTML preview.
 - Numbers-heavy Excel computation may still use python; structure and edits go
   through officecli.
 - Do not invent types/props: `officecli help <format> <element>` first.
