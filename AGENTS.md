@@ -6,10 +6,13 @@
 ## 架构速览
 
 ```
-web(React) → gateway(:8080, REST+SSE) ─gRPC→ iam/task/artifact/modelmgt/caps/usage
+web(React) → gateway(:8080, REST+SSE) ─gRPC→ iam/task/artifact/modelmgt/caps/usage/kb
 task(:9092) ─gRPC→ agent-runtime×N(Node, pi SDK, 会话池+空闲驱逐+文件恢复)
 modelmgt → 渲染 /data/config/models.json（pi 格式，API Key AES-GCM 加密存 PG）
 caps(:9096) → MCP 服务器/技能库 CRUD + 按部门/角色分配；技能文件在 /data/skills/<id>
+kb(:9097 gRPC + :9098 MCP http) → 部门知识库（Agentic RAG）；每库=caps 一条 MCP 记录（/mcp/<kbId>），
+  异步入库（md/txt/csv 内置解析，其余 MinerU /file_parse）→ markdown 感知分块 → trigram+Go 重排；
+  工具：search / read_doc；检索循环由 agent 驱动；评测 deploy/kb-eval.mjs；批量导入 deploy/kb-import.mjs
 ```
 
 - 事件流：runtime `PushEvents` → task（Redis Stream 序号 + fan-out）→ gateway SSE（Last-Event-ID 回放）

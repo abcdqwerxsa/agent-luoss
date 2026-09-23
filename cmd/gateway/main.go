@@ -27,7 +27,8 @@ func main() {
 		envOr("ARTIFACT_ADDR", "127.0.0.1:9093"),
 		envOr("MODELMGT_ADDR", "127.0.0.1:9094"),
 		envOr("USAGE_ADDR", "127.0.0.1:9095"),
-		envOr("CAPS_ADDR", "127.0.0.1:9096"))
+		envOr("CAPS_ADDR", "127.0.0.1:9096"),
+		envOr("KB_ADDR", "127.0.0.1:9097"))
 	metricsx.StartFromEnv()
 	srv := &http.Server{Addr: ":" + port, Handler: app.Handler()}
 

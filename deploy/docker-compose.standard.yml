@@ -172,6 +172,32 @@ services:
       - skills:/data/skills
       - agent2:/data/agent
 
+  kb:
+    restart: unless-stopped
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["kb"]
+    environment:
+      <<: *goenv
+      PORT: "9097"
+      KB_HTTP_PORT: "9098"
+      KB_ADVERTISED_URL: http://kb:9098
+      IAM_ADDR: iam:9091
+      CAPS_ADDR: caps:9096
+      MINERU_URL: ${MINERU_URL:-http://mineru:8000}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [backend]
+
+  mineru:
+    # opt-in: docker compose --profile mineru up -d
+    profiles: [mineru]
+    restart: unless-stopped
+    build: { context: .., dockerfile: deploy/Dockerfile.mineru }
+    environment:
+      <<: *goenv
+    networks: [backend]
+
   gateway:
     restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
@@ -185,6 +211,7 @@ services:
       MODELMGT_ADDR: modelmgt:9094
       USAGE_ADDR: usage:9095
       CAPS_ADDR: caps:9096
+      KB_ADDR: kb:9097
       WEB_DIR: /app/web
     ports:
       - "${GATEWAY_PORT:-18090}:8080"

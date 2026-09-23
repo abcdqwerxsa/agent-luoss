@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { api, auth, User, Scope, McpServerInfo, SkillInfo } from "../lib/api";
+import { api, auth, User, Scope, McpServerInfo, SkillInfo, KbInfo, KbDoc } from "../lib/api";
 import { Select } from "../lib/select";
 import { Icon } from "../lib/icons";
 import { NumInput } from "../lib/NumInput";
 
-type Tab = "users" | "departments" | "models" | "mcp" | "skills" | "experts" | "usage" | "audit";
+type Tab = "users" | "departments" | "models" | "mcp" | "skills" | "experts" | "kb" | "usage" | "audit";
 
 export function Admin() {
   const [tab, setTab] = useState<Tab>("users");
@@ -17,9 +17,9 @@ export function Admin() {
         </div>
       </div>
       <div className="tabs">
-        {(["users", "departments", "models", "mcp", "skills", "experts", "usage", "audit"] as Tab[]).map((t) => (
+        {(["users", "departments", "models", "mcp", "skills", "experts", "kb", "usage", "audit"] as Tab[]).map((t) => (
           <button key={t} className={`tab ${tab === t ? "sel" : ""}`} onClick={() => setTab(t)}>
-            {{ users: "用户", departments: "部门", models: "模型", mcp: "MCP", skills: "Skills", experts: "专家", usage: "用量", audit: "审计" }[t]}
+            {{ users: "用户", departments: "部门", models: "模型", mcp: "MCP", skills: "Skills", experts: "专家", kb: "知识库", usage: "用量", audit: "审计" }[t]}
           </button>
         ))}
       </div>
@@ -29,6 +29,7 @@ export function Admin() {
       {tab === "mcp" && <McpTab />}
       {tab === "skills" && <SkillsTab />}
       {tab === "experts" && <ExpertsTab />}
+      {tab === "kb" && <KnowledgeTab />}
       {tab === "usage" && <UsageTab />}
       {tab === "audit" && <AuditTab />}
     </div>
@@ -363,6 +364,123 @@ function ModelsTab() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function KnowledgeTab() {
+  const [kbs, setKbs] = useState<KbInfo[]>([]);
+  const [docs, setDocs] = useState<Record<string, KbDoc[]>>({});
+  const [open, setOpen] = useState("");
+  const [msg, setMsg] = useState("");
+  const [depts, setDepts] = useState<{ id: string; name: string }[]>([]);
+  const [form, setForm] = useState({ name: "", scope_type: "all", scope_value: "" });
+  const refresh = () => {
+    api.admin.kb().then((r) => setKbs(r.kbs || [])).catch((e) => setMsg(e.message));
+    api.admin.departments().then((r) => setDepts(r.departments || [])).catch(() => {});
+  };
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 10000); // parsing -> ready 状态自动刷新
+    return () => clearInterval(t);
+  }, []);
+  const loadDocs = (id: string) => {
+    api.admin.kbDocs(id).then((r) => setDocs((d) => ({ ...d, [id]: r.docs || [] }))).catch((e) => setMsg(e.message));
+  };
+  const toggle = (id: string) => {
+    if (open === id) { setOpen(""); return; }
+    setOpen(id);
+    if (!docs[id]) loadDocs(id);
+  };
+  const upload = async (kbId: string, files: FileList | null) => {
+    if (!files?.length) return;
+    setMsg("");
+    let ok = 0;
+    for (const f of Array.from(files)) {
+      try { await api.admin.uploadKbDoc(kbId, f); ok++; } catch (e: any) { setMsg(`${f.name}: ${e.message}`); }
+    }
+    if (ok) setMsg(`已上传 ${ok} 个文档，解析进行中`);
+    loadDocs(kbId);
+    refresh();
+  };
+  const create = () => {
+    if (!form.name) return;
+    api.admin.createKb(form.name, { type: form.scope_type, value: form.scope_value })
+      .then(() => { setMsg(`已创建 ${form.name}`); setForm({ name: "", scope_type: "all", scope_value: "" }); refresh(); })
+      .catch((e) => setMsg(e.message));
+  };
+  const scopeLabel = (k: KbInfo) =>
+    k.scope.type === "all" ? "全员" : k.scope.type === "department" ? `部门：${depts.find((d) => d.id === k.scope.value)?.name || k.scope.value}` : `角色：${k.scope.value}`;
+  return (
+    <div>
+      <div className="panel-card">
+        <h4><Icon name="book" size={14} />新建知识库</h4>
+        <div className="inline-form">
+          <input placeholder="库名（如 财务部知识库）" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Select value={form.scope_type} onChange={(v) => setForm({ ...form, scope_type: v, scope_value: "" })} options={[
+            { value: "all", label: "全员可见" },
+            { value: "department", label: "指定部门" },
+            { value: "role", label: "指定角色" },
+          ]} />
+          {form.scope_type === "department" && (
+            <Select value={form.scope_value} onChange={(v) => setForm({ ...form, scope_value: v })} options={[{ value: "", label: "选择部门…" }, ...depts.map((d) => ({ value: d.id, label: d.name }))]} />
+          )}
+          {form.scope_type === "role" && (
+            <input placeholder="角色名（admin/member…）" value={form.scope_value} onChange={(e) => setForm({ ...form, scope_value: e.target.value })} />
+          )}
+          <button className="btn primary" disabled={!form.name || (form.scope_type !== "all" && !form.scope_value)} onClick={create}><Icon name="plus" size={13} />创建</button>
+        </div>
+        <div className="hint" style={{ marginTop: 6 }}>每个库是一个独立的 MCP 工具（search / read_doc），按作用域自动注入会话</div>
+        {msg && <div className="msg">{msg}</div>}
+      </div>
+      <div className="panel-card">
+        <table>
+          <thead><tr><th>库名</th><th>可见范围</th><th>文档数</th><th>MCP 入口</th><th>操作</th></tr></thead>
+          <tbody>
+            {kbs.map((k) => (
+              <React.Fragment key={k.id}>
+                <tr className="row-click" onClick={() => toggle(k.id)}>
+                  <td><b>{k.name}</b></td>
+                  <td>{scopeLabel(k)}</td>
+                  <td>{k.doc_count}</td>
+                  <td className="mono small">{k.mcp_entry_id}</td>
+                  <td>
+                    <button className="btn small" onClick={(e) => { e.stopPropagation(); (document.getElementById(`kbfile-${k.id}`) as HTMLInputElement)?.click(); }}><Icon name="upload" size={12} />上传文档</button>{" "}
+                    <button className="btn danger small" onClick={(e) => { e.stopPropagation(); confirm(`删除知识库 ${k.name} 及全部文档？`) && api.admin.deleteKb(k.id).then(refresh).catch((er) => setMsg(er.message)); }}>删除</button>
+                    <input id={`kbfile-${k.id}`} type="file" multiple hidden onChange={(e) => { upload(k.id, e.target.files); e.target.value = ""; }} />
+                  </td>
+                </tr>
+                {open === k.id && (
+                  <tr>
+                    <td colSpan={5}>
+                      <table>
+                        <thead><tr><th>文档</th><th>大小</th><th>上传人</th><th>状态</th><th>操作</th></tr></thead>
+                        <tbody>
+                          {(docs[k.id] || []).map((d) => (
+                            <tr key={d.id}>
+                              <td>{d.title || d.filename}</td>
+                              <td className="mono small">{(d.size / 1024).toFixed(0)}k</td>
+                              <td className="mono small">{d.uploader ? d.uploader.slice(0, 10) : "admin"}</td>
+                              <td>
+                                {d.status === "ready" ? <span className="badge idle">就绪</span>
+                                  : d.status === "parsing" ? <span className="badge testing">解析中…</span>
+                                  : <span className="badge failed" data-tip={d.error}>失败</span>}
+                              </td>
+                              <td><button className="btn danger small" onClick={() => api.admin.deleteKbDoc(d.id).then(() => loadDocs(k.id)).then(refresh).catch((er) => setMsg(er.message))}>删除</button></td>
+                            </tr>
+                          ))}
+                          {!(docs[k.id] || []).length && <tr><td colSpan={5} className="hint">暂无文档，点「上传文档」添加</td></tr>}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))}
+            {!kbs.length && <tr><td colSpan={5} className="hint">暂无知识库</td></tr>}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

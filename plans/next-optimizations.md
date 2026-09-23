@@ -82,8 +82,8 @@ push/PR 到 main 触发，两个 job：
 - [x] A2：grpcx 停机截止；gateway http.Server 停机
 - [x] A3：pipeline lastev → store ListRunning → watchdog → task main 接线
 - [x] `go build ./... && go test ./...` 全绿；`go vet ./...`
-- [ ] web/runtime tsc 本地跑一遍确认 CI 命令可用
-- [ ] 提交（分 4 个 commit：ci / shutdown / watchdog / metrics，或按用户习惯一次）
+- [x] web/runtime tsc 本地跑一遍确认 CI 命令可用
+- [x] 提交（分 4 个 commit：ci / shutdown / watchdog / metrics，或按用户习惯一次）
 
 ## Verification
 

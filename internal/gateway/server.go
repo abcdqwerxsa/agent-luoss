@@ -18,6 +18,7 @@ import (
 	usagepb "agentluoss/proto/gen/usage"
 	capspb "agentluoss/proto/gen/caps"
 	iampb "agentluoss/proto/gen/iam"
+	kbpb "agentluoss/proto/gen/kb"
 	taskpb "agentluoss/proto/gen/task"
 	runtimpb "agentluoss/proto/gen/runtime"
 
@@ -37,11 +38,12 @@ type App struct {
 	modelmgt  modelmgtpb.ModelMgtClient
 	usage     usagepb.UsageClient
 	caps      capspb.CapsClient
+	kb        kbpb.KbClient
 	audit     *auditx.Event
 	router    *gin.Engine
 }
 
-func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr, capsAddr string) *App {
+func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr, capsAddr, kbAddr string) *App {
 	iamConn, err := grpc.NewClient(iamAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("dial iam: %v", err)
@@ -81,6 +83,13 @@ func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr, ca
 			log.Fatalf("dial task: %v", err)
 		}
 	}
+	var kbConn *grpc.ClientConn
+	if kbAddr != "" {
+		kbConn, err = grpc.NewClient(kbAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("dial kb: %v", err)
+		}
+	}
 	a := &App{
 		jwtSecret: jwtSecret,
 		iam:       iampb.NewIAMClient(iamConn),
@@ -89,6 +98,7 @@ func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr, ca
 		modelmgt:  modelmgtpb.NewModelMgtClient(modelmgtConn),
 		usage:     usagepb.NewUsageClient(usageConn),
 		caps:      capspb.NewCapsClient(capsConn),
+		kb:        kbpb.NewKbClient(kbConn),
 		router:    nil,
 	}
 	a.router = a.build()

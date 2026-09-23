@@ -7,6 +7,7 @@ import React, { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { GenerativeUIBlock } from "./genui";
+import { Icon } from "./icons";
 
 export function Markdown({ text }: { text: string }) {
   return (
@@ -14,9 +15,16 @@ export function Markdown({ text }: { text: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noreferrer noopener">{children}</a>
-          ),
+          a: ({ href, children }) => {
+            // knowledge base source citations: [doc:xxx] preprocessed to #kb-doc-xxx
+            if (href?.startsWith("#kb-doc-")) {
+              const id = href.slice("#kb-doc-".length);
+              return <span className="src-chip" title={`知识库文档 ${id}`}><Icon name="book" size={11} />{children}</span>;
+            }
+            return (
+              <a href={href} target="_blank" rel="noreferrer noopener">{children}</a>
+            );
+          },
           pre: ({ children }) => {
             const child = React.Children.toArray(children)[0];
             if (React.isValidElement(child)) {
@@ -39,10 +47,16 @@ export function Markdown({ text }: { text: string }) {
           },
         }}
       >
-        {text}
+        {citeDocs(text)}
       </ReactMarkdown>
     </div>
   );
+}
+
+// citeDocs turns [doc:xxx] citation markers into markdown links rendered as
+// source chips by the <a> override above.
+function citeDocs(text: string): string {
+  return text.replace(/\[doc:([A-Za-z0-9_]+)\]/g, (_m, id: string) => `[📄 ${id.slice(-8)}](#kb-doc-${id})`);
 }
 
 function InfographicBlock({ dsl }: { dsl: string }) {

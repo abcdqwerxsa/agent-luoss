@@ -12,6 +12,7 @@ const PATHS: Record<string, React.ReactNode> = {
   search: <><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></>,
   "chevron-down": <path d="m6 9 6 6 6-6" />,
   "chevron-up": <path d="m18 15-6-6-6 6" />,
+  book: <><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" /></>,
   "chevron-right": <path d="m9 18 6-6-6-6" />,
   "refresh-cw": <><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" /><path d="M21 3v5h-5" /></>,
   x: <><path d="M18 6 6 18" /><path d="m6 6 12 12" /></>,

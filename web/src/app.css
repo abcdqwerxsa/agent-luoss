@@ -797,3 +797,14 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 }
 .num-input .steps button + button { border-top: 1px solid var(--border); }
 .num-input .steps button:hover { color: var(--text); background: var(--surface-3); }
+
+/* knowledge base source citation chip */
+.src-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--font-mono); font-size: 11px;
+  padding: 1px 7px; border-radius: 10px; cursor: default;
+  background: var(--accent-tint); color: var(--accent);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  vertical-align: 1px;
+}
+.src-chip .icon { color: var(--accent); }

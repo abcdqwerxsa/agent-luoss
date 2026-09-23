@@ -4,6 +4,8 @@ export interface Scope { type: string; value: string }
 export interface McpServerInfo { id: string; name: string; transport: string; command: string; args: string[]; url: string; enabled: boolean; scopes: Scope[] }
 export interface SkillInfo { id: string; name: string; description: string; enabled: boolean; scopes: Scope[] }
 export interface ModelOpt { provider_id: string; model_id: string; display_name: string; context_window?: number; reasoning?: boolean; input_cost?: number; output_cost?: number; enabled?: boolean; tier?: string }
+export interface KbInfo { id: string; name: string; scope: Scope; doc_count: number; mcp_entry_id: string; updated_at: number }
+export interface KbDoc { id: string; kb_id: string; filename: string; title: string; size: number; uploader: string; status: string; error: string; updated_at: number }
 export interface TaskInfo {
   id: string; user_id: string; title: string; mode: string; expert_id?: string;
   provider: string; model_id: string; status: string;
@@ -160,5 +162,42 @@ export const api = {
     experts: () => req<{ experts: any[] }>("GET", "/api/v1/admin/experts"),
     putExpert: (e: { id: string; name: string; description: string; enabled: boolean; skill_ids: string[]; mcp_ids: string[]; scopes: Scope[] }) => req("PUT", "/api/v1/admin/experts", e),
     deleteExpert: (id: string) => req("DELETE", `/api/v1/admin/experts/${id}`),
+    kb: () => req<{ kbs: KbInfo[] }>("GET", "/api/v1/admin/kb"),
+    createKb: (name: string, scope: Scope) => req<{ kb: KbInfo }>("POST", `/api/v1/admin/kb?name=${encodeURIComponent(name)}&scope_type=${scope.type}&scope_value=${encodeURIComponent(scope.value)}`),
+    deleteKb: (id: string) => req("DELETE", `/api/v1/admin/kb/${id}`),
+    kbDocs: (id: string) => req<{ docs: KbDoc[] }>("GET", `/api/v1/admin/kb/${id}/docs`),
+    deleteKbDoc: (id: string) => req("DELETE", `/api/v1/admin/kb/docs/${id}`),
+    async uploadKbDoc(kbId: string, file: File) {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/v1/admin/kb/${kbId}/docs`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${auth.token}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        let msg = "upload failed";
+        try { msg = (await res.json()).error || msg; } catch { /* keep */ }
+        throw new ApiError(res.status, msg);
+      }
+      return res.json();
+    },
+  },
+
+  myKbs: () => req<{ kbs: KbInfo[] }>("GET", "/api/v1/kb"),
+  async uploadMyKbDoc(kbId: string, file: File) {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(`/api/v1/kb/${kbId}/docs`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${auth.token}` },
+      body: fd,
+    });
+    if (!res.ok) {
+      let msg = "upload failed";
+      try { msg = (await res.json()).error || msg; } catch { /* keep */ }
+      throw new ApiError(res.status, msg);
+    }
+    return res.json();
   },
 };

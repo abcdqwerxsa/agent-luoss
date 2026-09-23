@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package agentluoss.v1.kb;
+
+option go_package = "agentluoss/proto/gen/kb;kbpb";
+
+// Knowledge base service: department-scoped KBs exposed to agents as
+// per-KB MCP servers (registered in caps). Retrieval-quality lives in the
+// agent loop: kb provides a solid single-shot search + source reading.
+service Kb {
+  // ---- admin ----
+  rpc CreateKb(CreateKbRequest) returns (CreateKbResponse);
+  rpc DeleteKb(DeleteKbRequest) returns (DeleteKbResponse);
+  rpc ListKbs(ListKbsRequest) returns (ListKbsResponse);
+
+  // UploadDoc stores the raw file and queues async parsing (status field).
+  // Re-upload always creates a new doc row; delete the old one to replace.
+  rpc UploadDoc(UploadDocRequest) returns (UploadDocResponse);
+  rpc DeleteDoc(DeleteDocRequest) returns (DeleteDocResponse);
+  rpc ListDocs(ListDocsRequest) returns (ListDocsResponse);
+
+  // ---- retrieval (MCP tools + admin debug) ----
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc ReadDoc(ReadDocRequest) returns (ReadDocResponse);
+
+  // ---- user-facing ----
+  // KBs the user may see/upload into (department or role match, or all).
+  rpc ListKbsForUser(ListKbsForUserRequest) returns (ListKbsForUserResponse);
+}
+
+message Scope {
+  string type = 1;  // "all" | "department" | "role"
+  string value = 2;
+}
+
+message KbInfo {
+  string id = 1;
+  string name = 2;
+  Scope scope = 3;
+  int32 doc_count = 4;
+  string mcp_entry_id = 5; // caps McpServerDef id ("kb-<id>")
+  int64 updated_at = 6;
+}
+
+message DocInfo {
+  string id = 1;
+  string kb_id = 2;
+  string filename = 3;
+  string title = 4;
+  int64 size = 5;
+  string uploader = 6;   // user id ("" = admin/system)
+  string status = 7;     // parsing | ready | failed
+  string error = 8;
+  int64 updated_at = 9;
+}
+
+message SearchHit {
+  string doc_id = 1;
+  string title = 2;
+  string section = 3; // heading trail, e.g. "手册 > 报销流程"
+  double score = 4;
+  string snippet = 5;
+}
+
+message CreateKbRequest {
+  string name = 1;
+  Scope scope = 2;
+}
+
+message CreateKbResponse {
+  KbInfo kb = 1;
+}
+
+message DeleteKbRequest {
+  string id = 1;
+}
+
+message DeleteKbResponse {}
+
+message ListKbsRequest {}
+
+message ListKbsResponse {
+  repeated KbInfo kbs = 1;
+}
+
+message UploadDocRequest {
+  string kb_id = 1;
+  string filename = 2;
+  bytes content = 3;
+  string uploader = 4;
+  string uploader_role = 5; // admins bypass scope checks
+}
+
+message UploadDocResponse {
+  DocInfo doc = 1;
+}
+
+message DeleteDocRequest {
+  string id = 1;
+}
+
+message DeleteDocResponse {}
+
+message ListDocsRequest {
+  string kb_id = 1;
+}
+
+message ListDocsResponse {
+  repeated DocInfo docs = 1;
+}
+
+message SearchRequest {
+  string kb_id = 1;
+  string query = 2;
+  int32 top_k = 3; // default 8
+}
+
+message SearchResponse {
+  repeated SearchHit hits = 1;
+}
+
+message ReadDocRequest {
+  string doc_id = 1;
+  string section = 2; // optional: return only this section's chunks
+}
+
+message ReadDocResponse {
+  string doc_id = 1;
+  string title = 2;
+  string markdown = 3;
+}
+
+message ListKbsForUserRequest {
+  string user_id = 1;
+}
+
+message ListKbsForUserResponse {
+  repeated KbInfo kbs = 1;
+}
