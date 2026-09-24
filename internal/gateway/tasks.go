@@ -260,14 +260,23 @@ func (a *App) taskHistory(c *gin.Context) {
 			})
 		}
 	}
-	c.JSON(200, gin.H{"messages": out})
+	c.JSON(200, gin.H{"messages": out, "last_seq": resp.GetLastSeq()})
 }
 
 // taskEvents proxies the gRPC event stream as SSE with Last-Event-ID replay.
+// A `since` query param takes precedence over the header — lets a freshly
+// loaded page anchor its stream to the history it already rendered (reattach
+// to an in-flight turn after re-entry).
 func (a *App) taskEvents(c *gin.Context) {
 	since := int64(0)
-	if id := c.GetHeader("Last-Event-ID"); id != "" {
-		if n, err := strconv.ParseInt(id, 10, 64); err == nil {
+	if v := c.Query("since"); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			since = n
+		}
+	} else if id := c.GetHeader("Last-Event-ID"); id != "" {
+		if n, err := strconv.ParseInt(id, 10, 64); err != nil {
+			since = 0
+		} else {
 			since = n
 		}
 	}

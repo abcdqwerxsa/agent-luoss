@@ -5,7 +5,6 @@ import { Markdown } from "../lib/md";
 import { Select } from "../lib/select";
 import Loader from "../components/Loader";
 import ThinkingTrace from "../components/ThinkingTrace";
-import StreamText from "../components/StreamText";
 import DiffView from "../components/DiffView";
 import PlanApproval from "../components/PlanApproval";
 
@@ -50,71 +49,90 @@ export function TaskDetail({ taskId }: { taskId: string }) {
   const [flashN, setFlashN] = useState(0);
   const [curN, setCurN] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const esRef = useRef<EventSource | null>(null);
 
   const loadUsage = () => api.taskUsage(taskId).then(setUsage).catch(() => {});
+  const histSeqRef = useRef(0); // last rendered history seq — SSE reattach anchor
 
   useEffect(() => {
+    let cancelled = false;
     api.tasks.get(taskId).then((r) => {
       setTask(r.task);
       const cw = r.context_window || 0; if (cw) setCtxUse({ tokens: r.context_tokens || 0, window: cw });
     }).catch(() => {});
-    // first_message race: the user message event can land after the initial
-    // history fetch; retry once if the thread is still blank and idle
-    setTimeout(() => {
-      setBubbles((prev) => {
-        if (prev.length === 0) { loadHistory(); }
-        return prev;
-      });
-    }, 3000);
     loadUsage();
     api.experts().then((r) => setExperts(r.experts || [])).catch(() => {});
-    loadHistory();
     loadFiles("");
-    const es = new EventSource(`/api/v1/tasks/${taskId}/events?access_token=${encodeURIComponent(api.tokenSafe())}`);
+
     let cur: Bubble | null = null;
-    let lastSeq = 0; // replay dedup: SSE reconnects re-deliver events after Last-Event-ID
+    let lastSeq = 0; // replay dedup: reconnects re-deliver events after Last-Event-ID
     const tools = new Map<string, ToolCard>();
 
     const append = (b: Bubble) => setBubbles((prev) => [...prev, b]);
     const update = (fn: (b: Bubble) => Bubble) => setBubbles((prev) => prev.map((x, i) => (i === prev.length - 1 ? fn(x) : x)));
+    const ensureStreamingBubble = () => {
+      cur = { role: "assistant", text: "", tools: [], streaming: true };
+      setBubbles((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && last.role === "assistant" && last.streaming) {
+          return prev;
+        }
+        return [...prev, cur!];
+      });
+    };
 
-    es.onmessage = (ev) => {
-      let data: any;
-      try { data = JSON.parse(ev.data); } catch { return; }
-      const seq = +data.seq || 0;
-      if (seq && seq <= lastSeq) return; // duplicate from replay
-      if (seq) lastSeq = seq;
-      const t = data.type;
-      const p = data.payload ?? {};
-      if (t === "agent_start") {
-        setRunning(true); setNotice("");
-        // idempotent: auto-retry re-emits agent_start MID-TURN — the trailing
-        // streaming bubble may already hold tool cards/text; reuse it instead
-        // of stacking a fresh empty one (stacked pills never cleared)
-        cur = { role: "assistant", text: "", tools: [], streaming: true };
-        setBubbles((prev) => {
-          const last = prev[prev.length - 1];
-          if (last && last.role === "assistant" && last.streaming) {
-            return prev;
+    const startStream = () => {
+      if (cancelled) return;
+      const es = new EventSource(`/api/v1/tasks/${taskId}/events?access_token=${encodeURIComponent(api.tokenSafe())}&since=${histSeqRef.current}`);
+      es.onmessage = (ev) => {
+        let data: any;
+        try { data = JSON.parse(ev.data); } catch { return; }
+        const seq = +data.seq || 0;
+        if (seq && seq <= lastSeq) return; // duplicate from replay
+        if (seq) lastSeq = seq;
+        const t = data.type;
+        const p = data.payload ?? {};
+        if (t === "agent_start") {
+          setRunning(true); setNotice("");
+          // idempotent: auto-retry re-emits agent_start MID-TURN — the trailing
+          // streaming bubble may already hold tool cards/text; reuse it instead
+          // of stacking a fresh empty one (stacked pills never cleared)
+          ensureStreamingBubble();
+        } else if (t === "agent_settled") {
+          loadUsage();
+          setRunning(false);
+          cur = null;
+          // close EVERY streaming bubble — retries/reconnects may have left
+          // stacked ones; only the last would otherwise clear its spinner
+          setBubbles((prev) => prev.map((b) => (b.streaming ? { ...b, streaming: false } : b)));
+          refreshTask(); loadFiles("");
+        } else if (t === "context_usage") {
+          setCtxUse({ tokens: +p.tokens || 0, window: +p.contextWindow || 0 });
+        } else if (t === "message_start") {
+          // late join / replay may deliver message_start without agent_start
+          if (p.message?.role === "assistant" && !cur) ensureStreamingBubble();
+        } else if (t === "message_update") {
+          const d = p.assistantMessageEvent;
+          if (!d || !cur) return;
+          if (d.type === "text_delta") update((b) => ({ ...b, text: b.text + d.delta }));
+          else if (d.type === "thinking_delta") update((b) => ({ ...b, thinking: (b.thinking || "") + d.delta }));
+        } else if (t === "message_end") {
+          const msg = p.message ?? {};
+          if (msg.role === "assistant" && Array.isArray(msg.content)) {
+            // canonical snapshot heals missed deltas (reattach, retry gaps)
+            let text = "", think = "", hasTools = false;
+            for (const e of msg.content) {
+              if (e.type === "text" && e.text) text += (text ? "\n" : "") + e.text;
+              else if (e.type === "thinking") think += (think ? "\n" : "") + (e.thinking || "");
+              else if (e.type === "toolCall") hasTools = true;
+            }
+            cur = null;
+            setBubbles((prev) => prev.map((x, i) =>
+              i === prev.length - 1 && x.role === "assistant"
+                ? { ...x, text: text || x.text, thinking: think || x.thinking, streaming: hasTools ? x.streaming : false }
+                : x));
           }
-          return [...prev, cur!];
-        });
-      } else if (t === "agent_settled") {
-        loadUsage();
-        setRunning(false);
-        cur = null;
-        // close EVERY streaming bubble — retries/reconnects may have left
-        // stacked ones; only the last would otherwise clear its spinner
-        setBubbles((prev) => prev.map((b) => (b.streaming ? { ...b, streaming: false } : b)));
-        refreshTask(); loadFiles("");
-      } else if (t === "context_usage") {
-        setCtxUse({ tokens: +p.tokens || 0, window: +p.contextWindow || 0 });
-      } else if (t === "message_update") {
-        const d = p.assistantMessageEvent;
-        if (!d || !cur) return;
-        if (d.type === "text_delta") update((b) => ({ ...b, text: b.text + d.delta }));
-        else if (d.type === "thinking_delta") update((b) => ({ ...b, thinking: (b.thinking || "") + d.delta }));
-      } else if (t === "tool_execution_start") {
+        } else if (t === "tool_execution_start") {
         const card: ToolCard = { id: p.toolCallId, tool: p.toolName, args: JSON.stringify(p.args ?? {}), output: "", done: false };
         tools.set(p.toolCallId, card);
         setBubbles((prev) => {
@@ -139,9 +157,15 @@ export function TaskDetail({ taskId }: { taskId: string }) {
       } else if (t === "auto_retry_start") {
         setNotice(`模型暂时不可用，自动重试 (${p.attempt}/${p.maxAttempts})…`);
       }
+      };
+      es.onerror = () => { /* EventSource auto-reconnects with Last-Event-ID */ };
+      esRef.current = es;
     };
-    es.onerror = () => { /* EventSource auto-reconnects with Last-Event-ID */ };
-    return () => es.close();
+
+    // history first (it sets the since anchor), then attach the live tail —
+    // re-entry mid-run replays exactly the in-flight turn
+    loadHistory().finally(() => startStream());
+    return () => { cancelled = true; esRef.current?.close(); };
   }, [taskId]);
 
   useEffect(() => { api.models().then((r) => setModels(r.models)).catch(() => {}); }, []);
@@ -207,6 +231,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
       for (const b of bs) for (const t of b.tools) t.done = true;
       setBubbles(bs);
       setCurN(n);
+      histSeqRef.current = r.last_seq || 0;
     } catch { /* ignore */ }
   };
 
@@ -457,7 +482,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                   {b.thinking && <div className="trace-thinking">{b.thinking}</div>}
                 </ThinkingTrace>
               )}
-              {b.text ? (b.streaming ? <StreamText text={b.text} /> : <Markdown text={b.text} />) : b.streaming ? <Loader label="生成中" /> : null}
+              {b.text ? <Markdown text={b.text} /> : b.streaming ? <Loader label="生成中" /> : null}
             </div>
           ))}
           {bubbles.length === 0 && <div className="empty">发送第一条消息开始任务</div>}

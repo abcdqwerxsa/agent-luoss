@@ -73,7 +73,7 @@ export const api = {
       req("POST", `/api/v1/tasks/${id}/messages`, { message, streaming_behavior, images, provider: model?.provider, model_id: model?.model_id, mode }),
     steer: (id: string, message: string) => req("POST", `/api/v1/tasks/${id}/steer`, { message }),
     abort: (id: string) => req("POST", `/api/v1/tasks/${id}/abort`),
-    history: (id: string) => req<{ messages: { role: string; content: unknown; model?: string; toolCallId?: string; toolName?: string; isError?: boolean }[] }>("GET", `/api/v1/tasks/${id}/messages`),
+    history: (id: string) => req<{ messages: { role: string; content: unknown; model?: string; toolCallId?: string; toolName?: string; isError?: boolean }[]; last_seq?: number }>("GET", `/api/v1/tasks/${id}/messages`),
   },
 
   files: {

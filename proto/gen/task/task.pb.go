@@ -1508,7 +1508,11 @@ func (x *GetMessagesRequest) GetUserId() string {
 type GetMessagesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// JSON array of AgentMessage (pi format: user/assistant/toolResult roles).
-	MessagesJson  string `protobuf:"bytes,1,opt,name=messages_json,json=messagesJson,proto3" json:"messages_json,omitempty"`
+	MessagesJson string `protobuf:"bytes,1,opt,name=messages_json,json=messagesJson,proto3" json:"messages_json,omitempty"`
+	// max seq across ALL scanned events — SSE reattach anchor: a client that
+	// opens the event stream with since=last_seq receives exactly the tail it
+	// missed (e.g. the in-flight turn after a page re-entry).
+	LastSeq       int64 `protobuf:"varint,2,opt,name=last_seq,json=lastSeq,proto3" json:"last_seq,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1548,6 +1552,13 @@ func (x *GetMessagesResponse) GetMessagesJson() string {
 		return x.MessagesJson
 	}
 	return ""
+}
+
+func (x *GetMessagesResponse) GetLastSeq() int64 {
+	if x != nil {
+		return x.LastSeq
+	}
+	return 0
 }
 
 var File_task_proto protoreflect.FileDescriptor
@@ -1653,9 +1664,10 @@ const file_task_proto_rawDesc = "" +
 	"\baccepted\x18\x01 \x01(\x05R\baccepted\"F\n" +
 	"\x12GetMessagesRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\":\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"U\n" +
 	"\x13GetMessagesResponse\x12#\n" +
-	"\rmessages_json\x18\x01 \x01(\tR\fmessagesJson*\xa3\x01\n" +
+	"\rmessages_json\x18\x01 \x01(\tR\fmessagesJson\x12\x19\n" +
+	"\blast_seq\x18\x02 \x01(\x03R\alastSeq*\xa3\x01\n" +
 	"\n" +
 	"TaskStatus\x12\x1b\n" +
 	"\x17TASK_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +

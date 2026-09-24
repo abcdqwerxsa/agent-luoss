@@ -653,7 +653,11 @@ func (s *Server) GetMessages(ctx context.Context, req *taskpb.GetMessagesRequest
 		return nil, errCode(err)
 	}
 	msgs := make([]json.RawMessage, 0, len(hist))
+	var lastSeq int64
 	for _, ev := range hist {
+		if ev.GetSeq() > lastSeq {
+			lastSeq = ev.GetSeq() // max across ALL events — reattach anchor
+		}
 		if ev.GetType() != "message_end" {
 			continue
 		}
@@ -663,7 +667,7 @@ func (s *Server) GetMessages(ctx context.Context, req *taskpb.GetMessagesRequest
 		}
 	}
 	b, _ := json.Marshal(msgs)
-	return &taskpb.GetMessagesResponse{MessagesJson: string(b)}, nil
+	return &taskpb.GetMessagesResponse{MessagesJson: string(b), LastSeq: lastSeq}, nil
 }
 
 // ---- helpers ----
