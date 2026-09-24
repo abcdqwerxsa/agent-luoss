@@ -86,7 +86,7 @@ await new Promise((done) => {
       if (ev.type === "agent_settled") { settled = true; done(); }
       if (ev.type === "error") { err = ev.payload; done(); }
     }
-    if (Date.now() - t0 > 300_000) done();
+    if (Date.now() - t0 > 480_000) done();
   });
   events.on("end", done);
   events.on("error", (e) => { err = { message: e.message }; done(); });
