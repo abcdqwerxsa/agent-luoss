@@ -72,6 +72,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     loadFiles("");
     const es = new EventSource(`/api/v1/tasks/${taskId}/events?access_token=${encodeURIComponent(api.tokenSafe())}`);
     let cur: Bubble | null = null;
+    let lastSeq = 0; // replay dedup: SSE reconnects re-deliver events after Last-Event-ID
     const tools = new Map<string, ToolCard>();
 
     const append = (b: Bubble) => setBubbles((prev) => [...prev, b]);
@@ -80,17 +81,30 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     es.onmessage = (ev) => {
       let data: any;
       try { data = JSON.parse(ev.data); } catch { return; }
+      const seq = +data.seq || 0;
+      if (seq && seq <= lastSeq) return; // duplicate from replay
+      if (seq) lastSeq = seq;
       const t = data.type;
       const p = data.payload ?? {};
       if (t === "agent_start") {
         setRunning(true); setNotice("");
+        // idempotent: auto-retry re-emits agent_start; reuse a leftover
+        // empty streaming bubble instead of stacking stuck spinners
         cur = { role: "assistant", text: "", tools: [], streaming: true };
-        append(cur);
+        setBubbles((prev) => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === "assistant" && last.streaming && !last.text && !last.tools.length) {
+            return prev;
+          }
+          return [...prev, cur!];
+        });
       } else if (t === "agent_settled") {
         loadUsage();
         setRunning(false);
         cur = null;
-        update((b) => ({ ...b, streaming: false }));
+        // close EVERY streaming bubble — retries/reconnects may have left
+        // stacked ones; only the last would otherwise clear its spinner
+        setBubbles((prev) => prev.map((b) => (b.streaming ? { ...b, streaming: false } : b)));
         refreshTask(); loadFiles("");
       } else if (t === "context_usage") {
         setCtxUse({ tokens: +p.tokens || 0, window: +p.contextWindow || 0 });
@@ -130,6 +144,14 @@ export function TaskDetail({ taskId }: { taskId: string }) {
   }, [taskId]);
 
   useEffect(() => { api.models().then((r) => setModels(r.models)).catch(() => {}); }, []);
+
+  // server-truth reconciliation: any frontend stuck state (missed settled,
+  // replay weirdness) corrects itself when the tab regains focus
+  useEffect(() => {
+    const onFocus = () => refreshTask();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [taskId]);
 
   useEffect(() => {
     if (auto) scrollRef.current?.scrollTo({ top: scrollRef.current?.scrollHeight });
