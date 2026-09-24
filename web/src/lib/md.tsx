@@ -1,8 +1,3 @@
-// Markdown renderer for assistant messages.
-// react-markdown renders to React elements only (no innerHTML) — XSS-safe;
-// remark-gfm adds tables, strikethrough, task lists, autolinks.
-// ```infographic fenced blocks are rendered inline as SVG via @antv/infographic
-// (declarative DSL, no JS execution; lazy-loaded to keep the main bundle lean).
 import React, { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -16,7 +11,6 @@ export function Markdown({ text }: { text: string }) {
         remarkPlugins={[remarkGfm]}
         components={{
           a: ({ href, children }) => {
-            // knowledge base source citations: [doc:xxx] preprocessed to #kb-doc-xxx
             if (href?.startsWith("#kb-doc-")) {
               const id = href.slice("#kb-doc-".length);
               return <span className="src-chip" title={`知识库文档 ${id}`}><Icon name="book" size={11} />{children}</span>;
@@ -29,18 +23,22 @@ export function Markdown({ text }: { text: string }) {
             const child = React.Children.toArray(children)[0];
             if (React.isValidElement(child)) {
               const cls = String((child.props as any)?.className || "");
-              if (cls.includes("language-infographic") || cls.includes("language-jsonui") || cls.includes("language-json-ui")) return <>{children}</>;
+              const childContent = String((child.props as any)?.children || "");
+              const isGenUi = cls.includes("language-jsonui") || cls.includes("language-json-ui") ||
+                (cls.includes("language-json") && (/^\s*\{\s*"op"\s*:/.test(childContent) || (childContent.includes('"root"') && childContent.includes('"elements"'))));
+              if (cls.includes("language-infographic") || isGenUi) return <>{children}</>;
             }
             return <pre>{children}</pre>;
           },
           code: ({ className, children }) => {
             const m = /language-([\w-]+)/.exec(className || "");
             const lang = m?.[1];
-            if (lang === "infographic") return <InfographicBlock dsl={String(children)} />;
-            if (lang === "jsonui" || lang === "json-ui") {
-              // react-markdown splits hyphenated info strings into lang+meta and
-              // prepends the meta ("ui\n") to the code content — strip it.
-              const body = lang === "json-ui" ? String(children).replace(/^ui\r?\n/, "") : String(children);
+            const codeStr = String(children);
+            if (lang === "infographic") return <InfographicBlock dsl={codeStr} />;
+            const isGenUi = lang === "jsonui" || lang === "json-ui" ||
+              (lang === "json" && (/^\s*\{\s*"op"\s*:/.test(codeStr) || (codeStr.includes('"root"') && codeStr.includes('"elements"'))));
+            if (isGenUi) {
+              const body = codeStr.replace(/^(?:ui|json-?ui)\r?\n/, "");
               return <GenerativeUIBlock code={body} />;
             }
             return <code className={className}>{children}</code>;
@@ -53,8 +51,6 @@ export function Markdown({ text }: { text: string }) {
   );
 }
 
-// citeDocs turns [doc:xxx] citation markers into markdown links rendered as
-// source chips by the <a> override above.
 function citeDocs(text: string): string {
   return text.replace(/\[doc:([A-Za-z0-9_]+)\]/g, (_m, id: string) => `[📄 ${id.slice(-8)}](#kb-doc-${id})`);
 }
@@ -66,10 +62,8 @@ function InfographicBlock({ dsl }: { dsl: string }) {
   useEffect(() => {
     if (!dsl.trim()) return;
     let disposed = false;
-    // Reuse the instance across streaming deltas: official incremental mode
-    // is render(buffer) repeatedly on the same instance.
     if (instRef.current) {
-      try { instRef.current.render(dsl); } catch { setFailed(true); }
+      try { instRef.current.render(dsl); setFailed(false); } catch { /* 容错 */ }
       return;
     }
     import("@antv/infographic").then(({ Infographic }) => {
@@ -77,8 +71,9 @@ function InfographicBlock({ dsl }: { dsl: string }) {
       try {
         instRef.current = new Infographic({ container: ref.current, width: "100%", padding: 16 });
         instRef.current.render(dsl);
+        setFailed(false);
       } catch {
-        setFailed(true);
+        /* 流式中暂不设失败 */
       }
     }).catch(() => setFailed(true));
     return () => { disposed = true; };

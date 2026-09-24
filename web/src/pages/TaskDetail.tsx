@@ -482,10 +482,13 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                   {b.thinking && <div className="trace-thinking">{b.thinking}</div>}
                 </ThinkingTrace>
               )}
-              {b.text ? <Markdown text={b.text} /> : b.streaming ? <Loader label="生成中" /> : null}
+              {b.text ? (
+                <Markdown text={b.text} />
+              ) : b.streaming && !b.thinking && b.tools.length === 0 ? (
+                <Loader label="生成中" />
+              ) : null}
             </div>
           ))}
-          {bubbles.length === 0 && <div className="empty">发送第一条消息开始任务</div>}
         </div>
 
         {task?.mode === "plan" && !running && bubbles.length > 0 && bubbles.at(-1)?.role === "assistant" && planPromptAt !== bubbles.length && (

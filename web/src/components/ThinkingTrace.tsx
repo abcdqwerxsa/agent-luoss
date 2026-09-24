@@ -1,10 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
-/* Ported from Beautiful UI "Thinking" + "Tool Chips" (MIT License,
- * © 2026 Shane Levine, https://www.beautifului.dev/) — expandable agent
- * trace with timeline rows; rows carrying `detail` are clickable and expand
- * inline (the Tool Chips row-expand pattern). Controlled `working` prop
- * drives the shimmer header; rows and details come from real task events. */
 export interface TraceRow {
   primary: string;
   secondary?: string;
@@ -30,13 +25,20 @@ export default function ThinkingTrace({
   const expanded = manualExpanded ?? working;
   const traceRef = useRef<HTMLDivElement>(null);
   const [lineHeight, setLineHeight] = useState(0);
+
   useLayoutEffect(() => {
-    if (traceRef.current) setLineHeight(traceRef.current.offsetHeight);
-  }, [expanded, rows.length]);
+    if (!traceRef.current) return;
+    const updateHeight = () => {
+      if (traceRef.current) setLineHeight(traceRef.current.offsetHeight);
+    };
+    updateHeight();
+    const ro = new ResizeObserver(updateHeight);
+    ro.observe(traceRef.current);
+    return () => ro.disconnect();
+  }, [expanded]);
 
   return (
     <div className="bui flex w-full flex-col">
-      {/* header */}
       <button
         type="button"
         aria-expanded={expanded}
@@ -73,7 +75,6 @@ export default function ThinkingTrace({
         </svg>
       </button>
 
-      {/* expandable trace */}
       <div
         className="grid transition-[grid-template-rows,opacity] duration-400"
         style={{ gridTemplateRows: expanded ? "1fr" : "0fr", opacity: expanded ? 1 : 0, transitionTimingFunction: "cubic-bezier(0.23, 1, 0.32, 1)" }}
@@ -89,9 +90,16 @@ export default function ThinkingTrace({
               {rows.map((row, i) => {
                 const hasDetail = row.detail !== undefined;
                 const rowOpen = openRows.has(i);
+                const isDone = row.secondary === "完成";
+                const isErr = row.secondary === "失败";
                 const inner = (
                   <>
-                    {i < rows.length - 1 || !working ? (
+                    {isErr ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-red, #f87171)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" />
+                      </svg>
+                    ) : isDone || !working ? (
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                         <path d="M20 6L9 17l-5-5" />
                       </svg>
@@ -100,7 +108,7 @@ export default function ThinkingTrace({
                     )}
                     <span className="min-w-0 truncate text-[12.5px] font-medium text-ink">{row.primary}</span>
                     {row.secondary && (
-                      <span className={`shrink-0 text-[11.5px] text-ink-3 ${row.mono ? "font-mono" : ""}`}>{row.secondary}</span>
+                      <span className={`shrink-0 text-[11.5px] ${isErr ? "text-red-400" : "text-ink-3"} ${row.mono ? "font-mono" : ""}`}>{row.secondary}</span>
                     )}
                     {hasDetail && (
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="ml-auto shrink-0 transition-transform duration-200" style={{ transform: rowOpen ? "rotate(0deg)" : "rotate(-90deg)" }}>
