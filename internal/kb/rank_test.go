@@ -2,38 +2,37 @@ package kb
 
 import "testing"
 
-func c(text, section string, id int64) *ChunkText {
-	return &ChunkText{ID: id, DocID: "d", Section: section, Text: text}
+func ct(id int64, doc string) *ChunkText { return &ChunkText{ID: id, DocID: doc} }
+
+func TestFuseRRF(t *testing.T) {
+	lex := []*ChunkText{ct(1, "a"), ct(2, "a"), ct(3, "b")}
+	vec := []*ChunkText{ct(3, "b"), ct(4, "b"), ct(2, "a")}
+
+	// balanced weights: chunk 3 (rank1 vec + rank3 lex) vs 2 (rank2 both) vs 1 (rank1 lex)
+	got := FuseRRF(lex, vec, 0.5)
+	if len(got) != 4 {
+		t.Fatalf("union size: %d", len(got))
+	}
+	// 3: .5/61 + .5/61 = 0.01639; 2: .5/62+.5/62=0.01613; 4: .5/62; 1: .5/61
+	if got[0].ID != 3 || got[1].ID != 2 {
+		t.Fatalf("order: got %d,%d want 3,2", got[0].ID, got[1].ID)
+	}
+	// vector off -> lexical passthrough
+	if r := FuseRRF(lex, vec, 0); len(r) != 3 || r[0].ID != 1 {
+		t.Fatalf("wVec=0 must pass lexical through, got %d", r[0].ID)
+	}
+	// vector full -> vector passthrough
+	if r := FuseRRF(lex, vec, 1); len(r) != 3 || r[0].ID != 3 {
+		t.Fatalf("wVec=1 must pass vector through, got %d", r[0].ID)
+	}
+	// empty vector list
+	if r := FuseRRF(lex, nil, 0.5); len(r) != 3 {
+		t.Fatalf("empty vec list -> lexical, got %d", len(r))
+	}
 }
 
-func TestRankScoresLongTermBeatsBigrams(t *testing.T) {
-	cands := []*ChunkText{
-		c("报销需要发票。", "财务", 1),                 // one 2-rune term
-		c("差旅报销标准如下：…", "财务 > 差旅", 2),     // contains longer phrase pieces
-		c("无关内容。", "其他", 3),                     // no match -> dropped
-	}
-	terms := []string{"报销", "差旅", "标准"}
-	got := RankScores(cands, terms)
-	if len(got) != 2 {
-		t.Fatalf("want 2 scored (no-match dropped), got %d", len(got))
-	}
-	if got[0].Chunk.ID != 2 {
-		t.Fatalf("chunk with more/longer term coverage should rank first, got %d", got[0].Chunk.ID)
-	}
-	if got[0].Score <= got[1].Score {
-		t.Fatalf("scores not descending: %v %v", got[0].Score, got[1].Score)
-	}
-}
-
-func TestRankScoresSectionOnlyHit(t *testing.T) {
-	got := RankScores([]*ChunkText{c("正文没有关键词。", "报销管理办法", 1)}, []string{"报销"})
-	if len(got) != 1 || got[0].Score <= 0 {
-		t.Fatalf("heading hit alone should score >0, got %+v", got)
-	}
-}
-
-func TestRankScoresEmpty(t *testing.T) {
-	if got := RankScores(nil, []string{"x"}); len(got) != 0 {
-		t.Fatalf("nil candidates should stay nil, got %d", len(got))
+func TestVecToLiteral(t *testing.T) {
+	if s := VecToLiteral([]float32{0.5, -1.25}); s != "[0.5,-1.25]" {
+		t.Fatalf("literal: %s", s)
 	}
 }

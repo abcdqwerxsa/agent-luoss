@@ -61,10 +61,10 @@ agent 循环: search → (不够) read_doc 深读 → 引用 [doc:xx]
 - [x] 评测基座 v1：`deploy/kb-eval.mjs` golden set（每库 ≥20 真实问题+期望 doc）→ recall@5 / MRR；先量 lexical 基线
 
 ### Phase 2 — 语义层（嵌入端点就绪后，~2 天）
-- [ ] PG 镜像换 `pgvector/pgvector:pg17`（同大版本，pgdata 兼容；`CREATE EXTENSION vector`）+ chunks 加 embedding 列（NULL 允许）
-- [ ] `KB_EMBED_BASE_URL/MODEL/KEY/DIMS` env + 入库批量嵌入 + 查询侧嵌入
-- [ ] hybrid 排序（vector + trigram，RRF 融合，权重 env 可调）；eval 对比 lexical vs hybrid，数据说话
-- [ ] 重索引命令（换嵌入模型时全量回填）
+- [x] PG 镜像换 `pgvector/pgvector:pg17`（同大版本，pgdata 兼容；`CREATE EXTENSION vector`）+ chunks 加 embedding 列（NULL 允许）
+- [x] `KB_EMBED_BASE_URL/MODEL/KEY/DIMS` env + 入库批量嵌入 + 查询侧嵌入
+- [x] hybrid 排序（vector + trigram，RRF 融合，权重 env 可调）；eval 对比 lexical vs hybrid，数据说话
+- [x] 重索引命令（换嵌入模型时全量回填）
 
 ### Phase 3 — 复杂场景强化（评测驱动，逐项独立）
 - 蒸馏层：入库时弱模型（Jev 弱档）生成摘要/FAQ 页入索引（LLM-wiki 定位）

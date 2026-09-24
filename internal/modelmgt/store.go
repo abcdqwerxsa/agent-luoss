@@ -34,6 +34,7 @@ type Model struct {
 	Reasoning     bool
 	Enabled       bool
 	Tier          string // "" | "strong" | "weak"
+	Kind          string // "chat" (default) | "embedding"
 }
 
 type Store struct{ db *pgxpool.Pool }
@@ -63,6 +64,20 @@ func (s *Store) DeleteProvider(ctx context.Context, id string) error {
 	return nil
 }
 
+func (s *Store) GetProvider(ctx context.Context, id string) (*Provider, error) {
+	var p Provider
+	err := s.db.QueryRow(ctx, `
+		SELECT id, name, base_url, api_type, api_key, enabled FROM modelmgt.providers WHERE id = $1`, id,
+	).Scan(&p.ID, &p.Name, &p.BaseURL, &p.APIType, &p.APIKey, &p.Enabled)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p, nil
+}
+
 func (s *Store) ListProviders(ctx context.Context) ([]*Provider, error) {
 	rows, err := s.db.Query(ctx, `SELECT id, name, base_url, api_type, api_key_enc, enabled FROM modelmgt.providers ORDER BY id`)
 	if err != nil {
@@ -82,13 +97,13 @@ func (s *Store) ListProviders(ctx context.Context) ([]*Provider, error) {
 
 func (s *Store) UpsertModel(ctx context.Context, m *Model) error {
 	_, err := s.db.Exec(ctx, `
-		INSERT INTO modelmgt.models (provider_id, model_id, display_name, context_window, max_tokens, input_cost, output_cost, reasoning, enabled, tier)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		INSERT INTO modelmgt.models (provider_id, model_id, display_name, context_window, max_tokens, input_cost, output_cost, reasoning, enabled, tier, kind)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,COALESCE(NULLIF($11,''),'chat'))
 		ON CONFLICT (provider_id, model_id) DO UPDATE SET
 			display_name = EXCLUDED.display_name, context_window = EXCLUDED.context_window,
 			max_tokens = EXCLUDED.max_tokens, input_cost = EXCLUDED.input_cost, output_cost = EXCLUDED.output_cost,
-			reasoning = EXCLUDED.reasoning, enabled = EXCLUDED.enabled, tier = EXCLUDED.tier`,
-		m.ProviderID, m.ModelID, m.DisplayName, m.ContextWindow, m.MaxTokens, m.InputCost, m.OutputCost, m.Reasoning, m.Enabled, m.Tier)
+			reasoning = EXCLUDED.reasoning, enabled = EXCLUDED.enabled, tier = EXCLUDED.tier, kind = EXCLUDED.kind`,
+		m.ProviderID, m.ModelID, m.DisplayName, m.ContextWindow, m.MaxTokens, m.InputCost, m.OutputCost, m.Reasoning, m.Enabled, m.Tier, m.Kind)
 	return err
 }
 
@@ -104,7 +119,7 @@ func (s *Store) DeleteModel(ctx context.Context, providerID, modelID string) err
 }
 
 func (s *Store) ListModels(ctx context.Context, enabledOnly bool) ([]*Model, error) {
-	q := `SELECT provider_id, model_id, display_name, context_window, max_tokens, input_cost, output_cost, reasoning, enabled, tier
+	q := `SELECT provider_id, model_id, display_name, context_window, max_tokens, input_cost, output_cost, reasoning, enabled, tier, coalesce(kind,'chat')
 	      FROM modelmgt.models`
 	if enabledOnly {
 		q += ` WHERE enabled AND provider_id IN (SELECT id FROM modelmgt.providers WHERE enabled)`
@@ -117,7 +132,7 @@ func (s *Store) ListModels(ctx context.Context, enabledOnly bool) ([]*Model, err
 	var out []*Model
 	for rows.Next() {
 		var m Model
-		if err := rows.Scan(&m.ProviderID, &m.ModelID, &m.DisplayName, &m.ContextWindow, &m.MaxTokens, &m.InputCost, &m.OutputCost, &m.Reasoning, &m.Enabled, &m.Tier); err != nil {
+		if err := rows.Scan(&m.ProviderID, &m.ModelID, &m.DisplayName, &m.ContextWindow, &m.MaxTokens, &m.InputCost, &m.OutputCost, &m.Reasoning, &m.Enabled, &m.Tier, &m.Kind); err != nil {
 			return nil, err
 		}
 		out = append(out, &m)

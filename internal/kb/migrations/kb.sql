@@ -36,8 +36,24 @@ CREATE TABLE IF NOT EXISTS kb.chunks (
   seq      INT NOT NULL,
   section  TEXT NOT NULL DEFAULT '',
   text     TEXT NOT NULL,
-  tokens   INT NOT NULL DEFAULT 0,
-  embedding BYTEA  -- ponytail: reserved; becomes vector when pgvector lands
+  tokens   INT NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_chunks_doc ON kb.chunks(doc_id, seq);
 CREATE INDEX IF NOT EXISTS idx_chunks_trgm ON kb.chunks USING gin (text gin_trgm_ops);
+
+-- Semantic layer: pgvector columns, installed only when the extension is
+-- available (pgvector image). On vanilla postgres these no-op and kb stays
+-- lexical-only — graceful degradation.
+DO $$
+BEGIN
+	CREATE EXTENSION IF NOT EXISTS vector;
+EXCEPTION WHEN OTHERS THEN
+	RAISE NOTICE 'pgvector unavailable: semantic search disabled';
+END $$;
+DO $$
+BEGIN
+	ALTER TABLE kb.chunks ADD COLUMN IF NOT EXISTS embedding vector;
+	ALTER TABLE kb.chunks ADD COLUMN IF NOT EXISTS embed_model TEXT NOT NULL DEFAULT '';
+EXCEPTION WHEN OTHERS THEN
+	RAISE NOTICE 'vector columns skipped (no pgvector)';
+END $$;

@@ -125,6 +125,7 @@ type Model struct {
 	Reasoning     bool                   `protobuf:"varint,8,opt,name=reasoning,proto3" json:"reasoning,omitempty"`
 	Enabled       bool                   `protobuf:"varint,9,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	Tier          string                 `protobuf:"bytes,10,opt,name=tier,proto3" json:"tier,omitempty"` // "" (auto: derive from reasoning) | "strong" | "weak"
+	Kind          string                 `protobuf:"bytes,11,opt,name=kind,proto3" json:"kind,omitempty"` // "chat" (default) | "embedding" (kb semantic search)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -225,6 +226,13 @@ func (x *Model) GetEnabled() bool {
 func (x *Model) GetTier() string {
 	if x != nil {
 		return x.Tier
+	}
+	return ""
+}
+
+func (x *Model) GetKind() string {
+	if x != nil {
+		return x.Kind
 	}
 	return ""
 }
@@ -925,6 +933,110 @@ func (x *TestModelResponse) GetLatencyMs() int64 {
 	return 0
 }
 
+type GetEmbeddingConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEmbeddingConfigRequest) Reset() {
+	*x = GetEmbeddingConfigRequest{}
+	mi := &file_modelmgt_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEmbeddingConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEmbeddingConfigRequest) ProtoMessage() {}
+
+func (x *GetEmbeddingConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_modelmgt_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEmbeddingConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetEmbeddingConfigRequest) Descriptor() ([]byte, []int) {
+	return file_modelmgt_proto_rawDescGZIP(), []int{18}
+}
+
+type GetEmbeddingConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	BaseUrl       string                 `protobuf:"bytes,2,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	ApiKey        string                 `protobuf:"bytes,3,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"` // decrypted, internal only
+	ModelId       string                 `protobuf:"bytes,4,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEmbeddingConfigResponse) Reset() {
+	*x = GetEmbeddingConfigResponse{}
+	mi := &file_modelmgt_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEmbeddingConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEmbeddingConfigResponse) ProtoMessage() {}
+
+func (x *GetEmbeddingConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_modelmgt_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEmbeddingConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetEmbeddingConfigResponse) Descriptor() ([]byte, []int) {
+	return file_modelmgt_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *GetEmbeddingConfigResponse) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *GetEmbeddingConfigResponse) GetBaseUrl() string {
+	if x != nil {
+		return x.BaseUrl
+	}
+	return ""
+}
+
+func (x *GetEmbeddingConfigResponse) GetApiKey() string {
+	if x != nil {
+		return x.ApiKey
+	}
+	return ""
+}
+
+func (x *GetEmbeddingConfigResponse) GetModelId() string {
+	if x != nil {
+		return x.ModelId
+	}
+	return ""
+}
+
 var File_modelmgt_proto protoreflect.FileDescriptor
 
 const file_modelmgt_proto_rawDesc = "" +
@@ -938,7 +1050,7 @@ const file_modelmgt_proto_rawDesc = "" +
 	"\aapi_key\x18\x05 \x01(\tR\x06apiKey\x12\x18\n" +
 	"\aenabled\x18\x06 \x01(\bR\aenabled\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\x03R\tupdatedAt\"\xad\x02\n" +
+	"updated_at\x18\a \x01(\x03R\tupdatedAt\"\xc1\x02\n" +
 	"\x05Model\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
@@ -954,7 +1066,8 @@ const file_modelmgt_proto_rawDesc = "" +
 	"\treasoning\x18\b \x01(\bR\treasoning\x12\x18\n" +
 	"\aenabled\x18\t \x01(\bR\aenabled\x12\x12\n" +
 	"\x04tier\x18\n" +
-	" \x01(\tR\x04tier\"U\n" +
+	" \x01(\tR\x04tier\x12\x12\n" +
+	"\x04kind\x18\v \x01(\tR\x04kind\"U\n" +
 	"\x15UpsertProviderRequest\x12<\n" +
 	"\bprovider\x18\x01 \x01(\v2 .agentluoss.v1.modelmgt.ProviderR\bprovider\"\x18\n" +
 	"\x16UpsertProviderResponse\"8\n" +
@@ -990,7 +1103,14 @@ const file_modelmgt_proto_rawDesc = "" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\x12\x1d\n" +
 	"\n" +
-	"latency_ms\x18\x03 \x01(\x03R\tlatencyMs2\xf1\x06\n" +
+	"latency_ms\x18\x03 \x01(\x03R\tlatencyMs\"\x1b\n" +
+	"\x19GetEmbeddingConfigRequest\"\x8c\x01\n" +
+	"\x1aGetEmbeddingConfigResponse\x12\x1f\n" +
+	"\vprovider_id\x18\x01 \x01(\tR\n" +
+	"providerId\x12\x19\n" +
+	"\bbase_url\x18\x02 \x01(\tR\abaseUrl\x12\x17\n" +
+	"\aapi_key\x18\x03 \x01(\tR\x06apiKey\x12\x19\n" +
+	"\bmodel_id\x18\x04 \x01(\tR\amodelId2\xee\a\n" +
 	"\bModelMgt\x12o\n" +
 	"\x0eUpsertProvider\x12-.agentluoss.v1.modelmgt.UpsertProviderRequest\x1a..agentluoss.v1.modelmgt.UpsertProviderResponse\x12o\n" +
 	"\x0eDeleteProvider\x12-.agentluoss.v1.modelmgt.DeleteProviderRequest\x1a..agentluoss.v1.modelmgt.DeleteProviderResponse\x12f\n" +
@@ -1000,7 +1120,8 @@ const file_modelmgt_proto_rawDesc = "" +
 	"\x13FetchProviderModels\x122.agentluoss.v1.modelmgt.FetchProviderModelsRequest\x1a3.agentluoss.v1.modelmgt.FetchProviderModelsResponse\x12`\n" +
 	"\tTestModel\x12(.agentluoss.v1.modelmgt.TestModelRequest\x1a).agentluoss.v1.modelmgt.TestModelResponse\x12c\n" +
 	"\n" +
-	"ListModels\x12).agentluoss.v1.modelmgt.ListModelsRequest\x1a*.agentluoss.v1.modelmgt.ListModelsResponseB*Z(agentluoss/proto/gen/modelmgt;modelmgtpbb\x06proto3"
+	"ListModels\x12).agentluoss.v1.modelmgt.ListModelsRequest\x1a*.agentluoss.v1.modelmgt.ListModelsResponse\x12{\n" +
+	"\x12GetEmbeddingConfig\x121.agentluoss.v1.modelmgt.GetEmbeddingConfigRequest\x1a2.agentluoss.v1.modelmgt.GetEmbeddingConfigResponseB*Z(agentluoss/proto/gen/modelmgt;modelmgtpbb\x06proto3"
 
 var (
 	file_modelmgt_proto_rawDescOnce sync.Once
@@ -1014,7 +1135,7 @@ func file_modelmgt_proto_rawDescGZIP() []byte {
 	return file_modelmgt_proto_rawDescData
 }
 
-var file_modelmgt_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_modelmgt_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_modelmgt_proto_goTypes = []any{
 	(*Provider)(nil),                    // 0: agentluoss.v1.modelmgt.Provider
 	(*Model)(nil),                       // 1: agentluoss.v1.modelmgt.Model
@@ -1034,6 +1155,8 @@ var file_modelmgt_proto_goTypes = []any{
 	(*FetchProviderModelsResponse)(nil), // 15: agentluoss.v1.modelmgt.FetchProviderModelsResponse
 	(*TestModelRequest)(nil),            // 16: agentluoss.v1.modelmgt.TestModelRequest
 	(*TestModelResponse)(nil),           // 17: agentluoss.v1.modelmgt.TestModelResponse
+	(*GetEmbeddingConfigRequest)(nil),   // 18: agentluoss.v1.modelmgt.GetEmbeddingConfigRequest
+	(*GetEmbeddingConfigResponse)(nil),  // 19: agentluoss.v1.modelmgt.GetEmbeddingConfigResponse
 }
 var file_modelmgt_proto_depIdxs = []int32{
 	0,  // 0: agentluoss.v1.modelmgt.UpsertProviderRequest.provider:type_name -> agentluoss.v1.modelmgt.Provider
@@ -1048,16 +1171,18 @@ var file_modelmgt_proto_depIdxs = []int32{
 	14, // 9: agentluoss.v1.modelmgt.ModelMgt.FetchProviderModels:input_type -> agentluoss.v1.modelmgt.FetchProviderModelsRequest
 	16, // 10: agentluoss.v1.modelmgt.ModelMgt.TestModel:input_type -> agentluoss.v1.modelmgt.TestModelRequest
 	12, // 11: agentluoss.v1.modelmgt.ModelMgt.ListModels:input_type -> agentluoss.v1.modelmgt.ListModelsRequest
-	3,  // 12: agentluoss.v1.modelmgt.ModelMgt.UpsertProvider:output_type -> agentluoss.v1.modelmgt.UpsertProviderResponse
-	5,  // 13: agentluoss.v1.modelmgt.ModelMgt.DeleteProvider:output_type -> agentluoss.v1.modelmgt.DeleteProviderResponse
-	7,  // 14: agentluoss.v1.modelmgt.ModelMgt.UpsertModel:output_type -> agentluoss.v1.modelmgt.UpsertModelResponse
-	9,  // 15: agentluoss.v1.modelmgt.ModelMgt.DeleteModel:output_type -> agentluoss.v1.modelmgt.DeleteModelResponse
-	11, // 16: agentluoss.v1.modelmgt.ModelMgt.ListProviders:output_type -> agentluoss.v1.modelmgt.ListProvidersResponse
-	15, // 17: agentluoss.v1.modelmgt.ModelMgt.FetchProviderModels:output_type -> agentluoss.v1.modelmgt.FetchProviderModelsResponse
-	17, // 18: agentluoss.v1.modelmgt.ModelMgt.TestModel:output_type -> agentluoss.v1.modelmgt.TestModelResponse
-	13, // 19: agentluoss.v1.modelmgt.ModelMgt.ListModels:output_type -> agentluoss.v1.modelmgt.ListModelsResponse
-	12, // [12:20] is the sub-list for method output_type
-	4,  // [4:12] is the sub-list for method input_type
+	18, // 12: agentluoss.v1.modelmgt.ModelMgt.GetEmbeddingConfig:input_type -> agentluoss.v1.modelmgt.GetEmbeddingConfigRequest
+	3,  // 13: agentluoss.v1.modelmgt.ModelMgt.UpsertProvider:output_type -> agentluoss.v1.modelmgt.UpsertProviderResponse
+	5,  // 14: agentluoss.v1.modelmgt.ModelMgt.DeleteProvider:output_type -> agentluoss.v1.modelmgt.DeleteProviderResponse
+	7,  // 15: agentluoss.v1.modelmgt.ModelMgt.UpsertModel:output_type -> agentluoss.v1.modelmgt.UpsertModelResponse
+	9,  // 16: agentluoss.v1.modelmgt.ModelMgt.DeleteModel:output_type -> agentluoss.v1.modelmgt.DeleteModelResponse
+	11, // 17: agentluoss.v1.modelmgt.ModelMgt.ListProviders:output_type -> agentluoss.v1.modelmgt.ListProvidersResponse
+	15, // 18: agentluoss.v1.modelmgt.ModelMgt.FetchProviderModels:output_type -> agentluoss.v1.modelmgt.FetchProviderModelsResponse
+	17, // 19: agentluoss.v1.modelmgt.ModelMgt.TestModel:output_type -> agentluoss.v1.modelmgt.TestModelResponse
+	13, // 20: agentluoss.v1.modelmgt.ModelMgt.ListModels:output_type -> agentluoss.v1.modelmgt.ListModelsResponse
+	19, // 21: agentluoss.v1.modelmgt.ModelMgt.GetEmbeddingConfig:output_type -> agentluoss.v1.modelmgt.GetEmbeddingConfigResponse
+	13, // [13:22] is the sub-list for method output_type
+	4,  // [4:13] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name
@@ -1074,7 +1199,7 @@ func file_modelmgt_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_modelmgt_proto_rawDesc), len(file_modelmgt_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

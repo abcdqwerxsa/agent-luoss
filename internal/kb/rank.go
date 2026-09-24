@@ -55,3 +55,50 @@ type Scored struct {
 	Chunk *ChunkText
 	Score float64
 }
+
+// FuseRRV merges lexical and vector candidate lists with weighted
+// reciprocal-rank fusion: score(chunk) = Σ w/(k+rank) over the lists it
+// appears in. k=60 (standard). Pure function (testable).
+func FuseRRF(lex, vec []*ChunkText, wVec float64) []*ChunkText {
+	if wVec <= 0 || len(vec) == 0 {
+		return chunkPtrs(lex)
+	}
+	if wVec >= 1 || len(lex) == 0 {
+		return chunkPtrs(vec)
+	}
+	const k = 60.0
+	wLex := 1 - wVec
+	type pair struct {
+		c *ChunkText
+		s float64
+	}
+	m := map[int64]*pair{}
+	add := func(list []*ChunkText, w float64) {
+		for i, c := range list {
+			e, ok := m[c.ID]
+			if !ok {
+				e = &pair{c: c}
+				m[c.ID] = e
+			}
+			e.s += w / (k + float64(i+1))
+		}
+	}
+	add(lex, wLex)
+	add(vec, wVec)
+	ps := make([]pair, 0, len(m))
+	for _, e := range m {
+		ps = append(ps, *e)
+	}
+	for i := 1; i < len(ps); i++ {
+		for j := i; j > 0 && ps[j].s > ps[j-1].s; j-- {
+			ps[j], ps[j-1] = ps[j-1], ps[j]
+		}
+	}
+	res := make([]*ChunkText, len(ps))
+	for i, p := range ps {
+		res[i] = p.c
+	}
+	return res
+}
+
+func chunkPtrs(cs []*ChunkText) []*ChunkText { return cs }

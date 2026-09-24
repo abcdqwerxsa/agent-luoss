@@ -18,6 +18,7 @@ import (
 
 	capspb "agentluoss/proto/gen/caps"
 	iampb "agentluoss/proto/gen/iam"
+	modelmgtpb "agentluoss/proto/gen/modelmgt"
 )
 
 func main() {
@@ -41,8 +42,16 @@ func main() {
 	if addr := envOr("IAM_ADDR", ""); addr != "" {
 		iam = dialIam(addr)
 	}
+	var mm modelmgtpb.ModelMgtClient
+	if addr := envOr("MODELMGT_ADDR", ""); addr != "" {
+		conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("dial modelmgt: %v", err)
+		}
+		mm = modelmgtpb.NewModelMgtClient(conn)
+	}
 
-	srv := kb.NewServer(kb.NewStore(pool), rdb, caps, iam,
+	srv := kb.NewServer(kb.NewStore(pool), rdb, caps, iam, mm,
 		envOr("MINERU_URL", ""), envOr("KB_ADVERTISED_URL", "http://127.0.0.1:9098"))
 	srv.StartIngest()
 

@@ -28,6 +28,7 @@ const (
 	Kb_Search_FullMethodName         = "/agentluoss.v1.kb.Kb/Search"
 	Kb_ReadDoc_FullMethodName        = "/agentluoss.v1.kb.Kb/ReadDoc"
 	Kb_ListKbsForUser_FullMethodName = "/agentluoss.v1.kb.Kb/ListKbsForUser"
+	Kb_Reindex_FullMethodName        = "/agentluoss.v1.kb.Kb/Reindex"
 )
 
 // KbClient is the client API for Kb service.
@@ -53,6 +54,11 @@ type KbClient interface {
 	// ---- user-facing ----
 	// KBs the user may see/upload into (department or role match, or all).
 	ListKbsForUser(ctx context.Context, in *ListKbsForUserRequest, opts ...grpc.CallOption) (*ListKbsForUserResponse, error)
+	// ---- admin ----
+	// Reindex drops stored embeddings; the ingest worker re-embeds every
+	// ready chunk with the currently configured embedding model (backfills
+	// after a model switch too). kb_id empty = all KBs.
+	Reindex(ctx context.Context, in *ReindexRequest, opts ...grpc.CallOption) (*ReindexResponse, error)
 }
 
 type kbClient struct {
@@ -153,6 +159,16 @@ func (c *kbClient) ListKbsForUser(ctx context.Context, in *ListKbsForUserRequest
 	return out, nil
 }
 
+func (c *kbClient) Reindex(ctx context.Context, in *ReindexRequest, opts ...grpc.CallOption) (*ReindexResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ReindexResponse)
+	err := c.cc.Invoke(ctx, Kb_Reindex_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // KbServer is the server API for Kb service.
 // All implementations must embed UnimplementedKbServer
 // for forward compatibility.
@@ -176,6 +192,11 @@ type KbServer interface {
 	// ---- user-facing ----
 	// KBs the user may see/upload into (department or role match, or all).
 	ListKbsForUser(context.Context, *ListKbsForUserRequest) (*ListKbsForUserResponse, error)
+	// ---- admin ----
+	// Reindex drops stored embeddings; the ingest worker re-embeds every
+	// ready chunk with the currently configured embedding model (backfills
+	// after a model switch too). kb_id empty = all KBs.
+	Reindex(context.Context, *ReindexRequest) (*ReindexResponse, error)
 	mustEmbedUnimplementedKbServer()
 }
 
@@ -212,6 +233,9 @@ func (UnimplementedKbServer) ReadDoc(context.Context, *ReadDocRequest) (*ReadDoc
 }
 func (UnimplementedKbServer) ListKbsForUser(context.Context, *ListKbsForUserRequest) (*ListKbsForUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListKbsForUser not implemented")
+}
+func (UnimplementedKbServer) Reindex(context.Context, *ReindexRequest) (*ReindexResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Reindex not implemented")
 }
 func (UnimplementedKbServer) mustEmbedUnimplementedKbServer() {}
 func (UnimplementedKbServer) testEmbeddedByValue()            {}
@@ -396,6 +420,24 @@ func _Kb_ListKbsForUser_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Kb_Reindex_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ReindexRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KbServer).Reindex(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Kb_Reindex_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KbServer).Reindex(ctx, req.(*ReindexRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Kb_ServiceDesc is the grpc.ServiceDesc for Kb service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -438,6 +480,10 @@ var Kb_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListKbsForUser",
 			Handler:    _Kb_ListKbsForUser_Handler,
+		},
+		{
+			MethodName: "Reindex",
+			Handler:    _Kb_Reindex_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

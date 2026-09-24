@@ -28,6 +28,9 @@ func (a *App) listModels(c *gin.Context) {
 	}
 	models := make([]gin.H, 0, len(resp.Models))
 	for _, m := range resp.Models {
+		if m.GetKind() == "embedding" {
+			continue // chat picker only; embedding models are kb-internal
+		}
 		models = append(models, gin.H{
 			"provider_id": m.GetProviderId(), "model_id": m.GetId(),
 			"display_name": m.GetDisplayName(), "context_window": m.GetContextWindow(),
@@ -102,6 +105,7 @@ func (a *App) upsertModel(c *gin.Context) {
 		Reasoning     bool    `json:"reasoning"`
 		Enabled       bool    `json:"enabled"`
 		Tier          string  `json:"tier"` // "" | "strong" | "weak"
+		Kind          string  `json:"kind"` // "chat" | "embedding"
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": "provider_id and model_id required"})
@@ -112,7 +116,7 @@ func (a *App) upsertModel(c *gin.Context) {
 			ProviderId: req.ProviderID, Id: req.ModelID, DisplayName: req.DisplayName,
 			ContextWindow: req.ContextWindow, MaxTokens: req.MaxTokens,
 			InputCost: req.InputCost, OutputCost: req.OutputCost,
-			Reasoning: req.Reasoning, Enabled: req.Enabled, Tier: req.Tier,
+			Reasoning: req.Reasoning, Enabled: req.Enabled, Tier: req.Tier, Kind: req.Kind,
 		},
 	}); err != nil {
 		grpcStatus(c, err)
@@ -144,7 +148,7 @@ func (a *App) listAllModels(c *gin.Context) {
 			"provider_id": m.GetProviderId(), "model_id": m.GetId(),
 			"display_name": m.GetDisplayName(), "context_window": m.GetContextWindow(),
 			"input_cost": m.GetInputCost(), "output_cost": m.GetOutputCost(),
-			"reasoning": m.GetReasoning(), "enabled": m.GetEnabled(), "tier": m.GetTier(),
+			"reasoning": m.GetReasoning(), "enabled": m.GetEnabled(), "tier": m.GetTier(), "kind": m.GetKind(),
 		})
 	}
 	c.JSON(200, gin.H{"models": models})

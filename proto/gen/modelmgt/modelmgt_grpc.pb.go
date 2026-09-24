@@ -27,6 +27,7 @@ const (
 	ModelMgt_FetchProviderModels_FullMethodName = "/agentluoss.v1.modelmgt.ModelMgt/FetchProviderModels"
 	ModelMgt_TestModel_FullMethodName           = "/agentluoss.v1.modelmgt.ModelMgt/TestModel"
 	ModelMgt_ListModels_FullMethodName          = "/agentluoss.v1.modelmgt.ModelMgt/ListModels"
+	ModelMgt_GetEmbeddingConfig_FullMethodName  = "/agentluoss.v1.modelmgt.ModelMgt/GetEmbeddingConfig"
 )
 
 // ModelMgtClient is the client API for ModelMgt service.
@@ -46,6 +47,10 @@ type ModelMgtClient interface {
 	TestModel(ctx context.Context, in *TestModelRequest, opts ...grpc.CallOption) (*TestModelResponse, error)
 	// ---- user-facing (via gateway) ----
 	ListModels(ctx context.Context, in *ListModelsRequest, opts ...grpc.CallOption) (*ListModelsResponse, error)
+	// ---- internal (kb-svc) ----
+	// Returns the active embedding model with provider credentials decrypted.
+	// Trusted-service RPC: never exposed via gateway routes.
+	GetEmbeddingConfig(ctx context.Context, in *GetEmbeddingConfigRequest, opts ...grpc.CallOption) (*GetEmbeddingConfigResponse, error)
 }
 
 type modelMgtClient struct {
@@ -136,6 +141,16 @@ func (c *modelMgtClient) ListModels(ctx context.Context, in *ListModelsRequest, 
 	return out, nil
 }
 
+func (c *modelMgtClient) GetEmbeddingConfig(ctx context.Context, in *GetEmbeddingConfigRequest, opts ...grpc.CallOption) (*GetEmbeddingConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetEmbeddingConfigResponse)
+	err := c.cc.Invoke(ctx, ModelMgt_GetEmbeddingConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ModelMgtServer is the server API for ModelMgt service.
 // All implementations must embed UnimplementedModelMgtServer
 // for forward compatibility.
@@ -153,6 +168,10 @@ type ModelMgtServer interface {
 	TestModel(context.Context, *TestModelRequest) (*TestModelResponse, error)
 	// ---- user-facing (via gateway) ----
 	ListModels(context.Context, *ListModelsRequest) (*ListModelsResponse, error)
+	// ---- internal (kb-svc) ----
+	// Returns the active embedding model with provider credentials decrypted.
+	// Trusted-service RPC: never exposed via gateway routes.
+	GetEmbeddingConfig(context.Context, *GetEmbeddingConfigRequest) (*GetEmbeddingConfigResponse, error)
 	mustEmbedUnimplementedModelMgtServer()
 }
 
@@ -186,6 +205,9 @@ func (UnimplementedModelMgtServer) TestModel(context.Context, *TestModelRequest)
 }
 func (UnimplementedModelMgtServer) ListModels(context.Context, *ListModelsRequest) (*ListModelsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListModels not implemented")
+}
+func (UnimplementedModelMgtServer) GetEmbeddingConfig(context.Context, *GetEmbeddingConfigRequest) (*GetEmbeddingConfigResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetEmbeddingConfig not implemented")
 }
 func (UnimplementedModelMgtServer) mustEmbedUnimplementedModelMgtServer() {}
 func (UnimplementedModelMgtServer) testEmbeddedByValue()                  {}
@@ -352,6 +374,24 @@ func _ModelMgt_ListModels_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ModelMgt_GetEmbeddingConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEmbeddingConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ModelMgtServer).GetEmbeddingConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ModelMgt_GetEmbeddingConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ModelMgtServer).GetEmbeddingConfig(ctx, req.(*GetEmbeddingConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ModelMgt_ServiceDesc is the grpc.ServiceDesc for ModelMgt service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -390,6 +430,10 @@ var ModelMgt_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListModels",
 			Handler:    _ModelMgt_ListModels_Handler,
+		},
+		{
+			MethodName: "GetEmbeddingConfig",
+			Handler:    _ModelMgt_GetEmbeddingConfig_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

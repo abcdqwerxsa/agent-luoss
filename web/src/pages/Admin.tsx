@@ -195,7 +195,7 @@ function ModelsTab() {
     api.admin.putModel({
       provider_id: m.provider_id, model_id: m.model_id, display_name: m.display_name || "",
       context_window: +m.context_window || 0, input_cost: +m.input_cost || 0, output_cost: +m.output_cost || 0,
-      reasoning: !!m.reasoning, enabled: !!m.enabled, tier: m.tier || "",
+      reasoning: !!m.reasoning, enabled: !!m.enabled, tier: m.tier || "", kind: m.kind || "chat",
       ...patch,
     }).then(refresh).catch((e) => setMsg(e.message));
   };
@@ -203,6 +203,8 @@ function ModelsTab() {
   const toggle = (m: any) => editModel(m, { enabled: !m.enabled });
 
   const setTier = (m: any, tier: string) => editModel(m, { tier });
+
+  const setKind = (m: any, kind: string) => editModel(m, { kind });
 
   const del = (m: any) => {
     confirm(`删除模型 ${m.provider_id}/${m.model_id}？`) &&
@@ -314,7 +316,7 @@ function ModelsTab() {
           )}
 
           <table>
-            <thead><tr><th>模型 ID</th><th>显示名</th><th>上下文</th><th>价格 in/out</th><th data-tip="Auto 路由分层：强=复杂任务，弱=简单任务，空=按推理标志自动归类">分层</th><th>测试</th><th>状态</th><th>操作</th></tr></thead>
+            <thead><tr><th>模型 ID</th><th>显示名</th><th>上下文</th><th>价格 in/out</th><th>类型</th><th data-tip="Auto 路由分层：强=复杂任务，弱=简单任务，空=按推理标志自动归类">分层</th><th>测试</th><th>状态</th><th>操作</th></tr></thead>
             <tbody>
               {mine.map((m) => (
                 <tr key={m.model_id} className={!m.enabled ? "row-off" : ""}>
@@ -324,6 +326,18 @@ function ModelsTab() {
                   <td className="mono small">
                     <NumInput width={76} step={0.1} min={0} title="输入价格 $/1M tokens" value={+m.input_cost || 0} onCommit={(v) => editModel(m, { input_cost: v })} />
                     <NumInput width={76} step={0.1} min={0} title="输出价格 $/1M tokens" value={+m.output_cost || 0} onCommit={(v) => editModel(m, { output_cost: v })} />
+                  </td>
+                  <td>
+                    <Select
+                      className="tier-select"
+                      value={m.kind || "chat"}
+                      onChange={(v) => setKind(m, v)}
+                      title="对话=聊天模型；嵌入=知识库语义检索用（不进入会话）"
+                      options={[
+                        { value: "chat", label: "对话" },
+                        { value: "embedding", label: "嵌入" },
+                      ]}
+                    />
                   </td>
                   <td>
                     <Select
@@ -434,6 +448,11 @@ function KnowledgeTab() {
         {msg && <div className="msg">{msg}</div>}
       </div>
       <div className="panel-card">
+        <div className="model-head">
+          <h4><Icon name="book" size={14} />知识库列表</h4>
+          <span className="spacer" />
+          <button className="btn" title="清空全部向量并用当前嵌入模型重建（换嵌入模型后用）" onClick={() => confirm("清空全部嵌入向量并按当前嵌入模型重建？") && api.admin.reindexKb("").then((r) => setMsg(`已清空 ${r.cleared} 条向量，后台重建中`)).catch((e) => setMsg(e.message))}><Icon name="refresh-cw" size={13} />重建索引</button>
+        </div>
         <table>
           <thead><tr><th>库名</th><th>可见范围</th><th>文档数</th><th>MCP 入口</th><th>操作</th></tr></thead>
           <tbody>

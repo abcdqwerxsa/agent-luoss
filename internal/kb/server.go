@@ -13,6 +13,8 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -26,6 +28,7 @@ import (
 	capspb "agentluoss/proto/gen/caps"
 	iampb "agentluoss/proto/gen/iam"
 	kbpb "agentluoss/proto/gen/kb"
+	modelmgtpb "agentluoss/proto/gen/modelmgt"
 )
 
 type Server struct {
@@ -38,14 +41,25 @@ type Server struct {
 	mineruBackend string
 	advertised string           // MCP URL base, e.g. http://kb:9098
 	httpClient *http.Client
+	embed      *embedClient     // optional: semantic layer
+	hasVector  bool
+	vecWeight  float64          // RRF weight of vector list (0 = lexical only)
 }
 
-func NewServer(store *Store, rdb *redis.Client, caps capspb.CapsClient, iam iampb.IAMClient, mineruURL, advertised string) *Server {
-	return &Server{
+func NewServer(store *Store, rdb *redis.Client, caps capspb.CapsClient, iam iampb.IAMClient, mm modelmgtpb.ModelMgtClient, mineruURL, advertised string) *Server {
+	s := &Server{
 		store: store, rdb: rdb, caps: caps, iam: iam,
 		mineruURL: mineruURL, mineruBackend: "pipeline", advertised: strings.TrimSuffix(advertised, "/"),
 		httpClient: &http.Client{Timeout: 5 * time.Minute},
+		vecWeight: 0.5,
 	}
+	if v := os.Getenv("KB_VECTOR_WEIGHT"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil && f >= 0 && f <= 1 {
+			s.vecWeight = f
+		}
+	}
+	s.embed = newEmbedClient(mm, s.httpClient)
+	return s
 }
 
 func (s *Server) Register(g *grpc.Server) { kbpb.RegisterKbServer(g, s) }
@@ -254,20 +268,56 @@ func (s *Server) Search(ctx context.Context, req *kbpb.SearchRequest) (*kbpb.Sea
 	if err != nil {
 		return nil, errCode(err)
 	}
-	scored := RankScores(cands, terms)
-	if len(scored) > topK {
-		scored = scored[:topK]
+	// semantic recall (when configured) fused by weighted RRF
+	var fused []*ChunkText
+	if s.hasVector && s.embed != nil && s.vecWeight > 0 {
+		if vecs, model, verr := s.embed.EmbedTexts(ctx, []string{q}); verr == nil {
+			vcands, verr2 := s.store.RecallVectors(ctx, req.GetKbId(), model, vecs[0], recallLimit)
+			if verr2 == nil {
+				fused = FuseRRF(chunkPtrs(scoredChunks(cands, terms)), vcands, s.vecWeight)
+		}
+		} else if !errors.Is(verr, errNoEmbed) {
+			log.Printf("kb: query embed failed (lexical only): %v", verr)
+		}
 	}
-	titles, _ := s.store.DocTitles(ctx, docIDs(scored))
+	if fused == nil {
+		fused = scoredChunks(cands, terms)
+	}
+	if len(fused) > topK {
+		fused = fused[:topK]
+	}
+	titles, _ := s.store.DocTitles(ctx, docIDs2(fused))
 	out := &kbpb.SearchResponse{}
-	for _, h := range scored {
+	for _, c := range fused {
 		out.Hits = append(out.Hits, &kbpb.SearchHit{
-			DocId: h.Chunk.DocID, Title: titles[h.Chunk.DocID],
-			Section: h.Chunk.Section, Score: h.Score,
-			Snippet: Snippet(h.Chunk.Text, terms),
+			DocId: c.DocID, Title: titles[c.DocID],
+			Section: c.Section,
+			Snippet: Snippet(c.Text, terms),
 		})
 	}
 	return out, nil
+}
+
+// scoredChunks: rank lexical candidates, return ordered chunk pointers.
+func scoredChunks(cands []*ChunkText, terms []string) []*ChunkText {
+	out := RankScores(cands, terms)
+	cs := make([]*ChunkText, len(out))
+	for i, h := range out {
+		cs[i] = h.Chunk
+	}
+	return cs
+}
+
+func docIDs2(cs []*ChunkText) []string {
+	ids := make([]string, 0, len(cs))
+	seen := map[string]bool{}
+	for _, c := range cs {
+		if !seen[c.DocID] {
+			seen[c.DocID] = true
+			ids = append(ids, c.DocID)
+		}
+	}
+	return ids
 }
 
 func (s *Server) ReadDoc(ctx context.Context, req *kbpb.ReadDocRequest) (*kbpb.ReadDocResponse, error) {
@@ -346,19 +396,60 @@ func Snippet(text string, terms []string) string {
 
 // ---- ingest worker ----
 
-// StartIngest launches the async parse loop (ticker + upload kick).
+// StartIngest launches the async parse loop (ticker + upload kick). The
+// same loop backfills chunk embeddings (ingest, reindex, model switch).
 func (s *Server) StartIngest() {
+	s.hasVector = s.store.HasVector(context.Background())
+	if !s.hasVector {
+		log.Printf("kb: pgvector absent — semantic search disabled (lexical only)")
+	}
 	go func() {
 		t := time.NewTicker(15 * time.Second)
 		defer t.Stop()
 		for range t.C {
 			s.ingestOnce(context.Background())
+			s.embedOnce(context.Background())
 		}
 	}()
 }
 
 // IngestNow kicks a non-blocking scan (called after upload).
 func (s *Server) IngestNow() { go s.ingestOnce(context.Background()) }
+
+func (s *Server) embedKick() { go s.embedOnce(context.Background()) }
+
+// embedOnce: embed ready chunks lacking the current model's vector, in
+// batches of 32. Stops on first failure (retried next tick).
+func (s *Server) embedOnce(ctx context.Context) {
+	if !s.hasVector {
+		return
+	}
+	probe, model, err := s.embed.EmbedTexts(ctx, []string{"probe"})
+	_ = probe
+	if err != nil {
+		return // not configured (or endpoint down) — lexical only
+	}
+	chunks, err := s.store.ChunksToEmbed(ctx, model, 32)
+	if err != nil || len(chunks) == 0 {
+		return
+	}
+	texts := make([]string, len(chunks))
+	ids := make([]int64, len(chunks))
+	for i, c := range chunks {
+		texts[i] = c.Text
+		ids[i] = c.ID
+	}
+	vecs, _, err := s.embed.EmbedTexts(ctx, texts)
+	if err != nil {
+		log.Printf("kb: batch embed failed: %v", err)
+		return
+	}
+	if err := s.store.SetChunkEmbeddings(ctx, ids, vecs, model); err != nil {
+		log.Printf("kb: store embeddings failed: %v", err)
+		return
+	}
+	log.Printf("kb: embedded %d chunks (%s)", len(ids), model)
+}
 
 func (s *Server) ingestOnce(ctx context.Context) {
 	docs, err := s.store.ListParsing(ctx)
@@ -401,6 +492,16 @@ func (s *Server) ingestDoc(ctx context.Context, d *Doc) {
 		return
 	}
 	log.Printf("kb: ingested %s (%s) -> %d chunks", d.ID, d.Filename, len(cs))
+}
+
+// Reindex drops stored embeddings; the worker re-embeds with the current model.
+func (s *Server) Reindex(ctx context.Context, req *kbpb.ReindexRequest) (*kbpb.ReindexResponse, error) {
+	n, err := s.store.ClearEmbeddings(ctx, req.GetKbId())
+	if err != nil {
+		return nil, errCode(err)
+	}
+	s.embedKick()
+	return &kbpb.ReindexResponse{Cleared: int32(n)}, nil
 }
 
 // mineruParse sends the raw file to the MinerU FastAPI service

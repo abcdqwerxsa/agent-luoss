@@ -26,6 +26,12 @@ service Kb {
   // ---- user-facing ----
   // KBs the user may see/upload into (department or role match, or all).
   rpc ListKbsForUser(ListKbsForUserRequest) returns (ListKbsForUserResponse);
+
+  // ---- admin ----
+  // Reindex drops stored embeddings; the ingest worker re-embeds every
+  // ready chunk with the currently configured embedding model (backfills
+  // after a model switch too). kb_id empty = all KBs.
+  rpc Reindex(ReindexRequest) returns (ReindexResponse);
 }
 
 message Scope {
@@ -136,4 +142,12 @@ message ListKbsForUserRequest {
 
 message ListKbsForUserResponse {
   repeated KbInfo kbs = 1;
+}
+
+message ReindexRequest {
+  string kb_id = 1;
+}
+
+message ReindexResponse {
+  int32 cleared = 1;
 }

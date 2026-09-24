@@ -112,7 +112,7 @@ export const api = {
     deleteUser: (id: string) => req("DELETE", `/api/v1/users/${id}`),
     providers: () => req<{ providers: { id: string; name: string; base_url: string; api_type: string; has_key: boolean; enabled: boolean }[] }>("GET", "/api/v1/admin/providers"),
     putProvider: (p: { id: string; name: string; base_url: string; api_type: string; api_key?: string; enabled: boolean }) => req("PUT", "/api/v1/admin/providers", p),
-    putModel: (m: { provider_id: string; model_id: string; display_name: string; context_window?: number; input_cost?: number; output_cost?: number; reasoning?: boolean; enabled: boolean; tier?: string }) => req("PUT", "/api/v1/admin/models", m),
+    putModel: (m: { provider_id: string; model_id: string; display_name: string; context_window?: number; input_cost?: number; output_cost?: number; reasoning?: boolean; enabled: boolean; tier?: string; kind?: string }) => req("PUT", "/api/v1/admin/models", m),
     deleteModel: (provider_id: string, model_id: string) => req("DELETE", `/api/v1/admin/models?provider_id=${encodeURIComponent(provider_id)}&model_id=${encodeURIComponent(model_id)}`),
     allModels: () => req<{ models: ModelOpt[] }>("GET", "/api/v1/admin/models/all"),
     deleteProvider: (id: string) => req("DELETE", `/api/v1/admin/providers?id=${encodeURIComponent(id)}`),
@@ -167,6 +167,7 @@ export const api = {
     deleteKb: (id: string) => req("DELETE", `/api/v1/admin/kb/${id}`),
     kbDocs: (id: string) => req<{ docs: KbDoc[] }>("GET", `/api/v1/admin/kb/${id}/docs`),
     deleteKbDoc: (id: string) => req("DELETE", `/api/v1/admin/kb/docs/${id}`),
+    reindexKb: (kbId: string) => req<{ cleared: number }>("POST", "/api/v1/admin/kb/reindex", { kb_id: kbId }),
     async uploadKbDoc(kbId: string, file: File) {
       const fd = new FormData();
       fd.append("file", file);

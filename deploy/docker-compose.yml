@@ -19,7 +19,7 @@ x-go-env: &goenv
 services:
   postgres:
     restart: unless-stopped
-    image: ${REG:-docker.m.daocloud.io}/library/postgres:17-alpine
+    image: ${REG:-docker.m.daocloud.io}/pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: agent
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentdev}
@@ -216,6 +216,7 @@ services:
       KB_ADVERTISED_URL: http://172.28.0.13:9098
       IAM_ADDR: 172.28.0.4:9091
       CAPS_ADDR: 172.28.0.12:9096
+      MODELMGT_ADDR: 172.28.0.7:9094
       MINERU_URL: ${MINERU_URL:-http://172.28.0.14:8000}
     depends_on:
       - iam

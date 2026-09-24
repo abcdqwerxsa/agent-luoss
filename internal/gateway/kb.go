@@ -36,6 +36,20 @@ func (a *App) registerKbAdminRoutes(admin *gin.RouterGroup) {
 	admin.DELETE("/admin/kb/docs/:docId", a.deleteKbDoc)
 	admin.POST("/admin/kb/:id/docs", a.uploadKbDoc) // admin upload: no scope check
 	admin.GET("/admin/kb/:id/search", a.searchKb) // debug + eval harness
+	admin.POST("/admin/kb/reindex", a.reindexKb)  // body {kb_id?} empty = all
+}
+
+func (a *App) reindexKb(c *gin.Context) {
+	var req struct {
+		KbId string `json:"kb_id"`
+	}
+	_ = c.ShouldBindJSON(&req)
+	r, err := a.kb.Reindex(outCtx(c), &kbpb.ReindexRequest{KbId: req.KbId})
+	if err != nil {
+		grpcStatus(c, err)
+		return
+	}
+	c.JSON(200, gin.H{"cleared": r.GetCleared()})
 }
 
 func (a *App) searchKb(c *gin.Context) {

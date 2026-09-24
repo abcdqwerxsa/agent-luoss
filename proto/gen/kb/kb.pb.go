@@ -1189,6 +1189,94 @@ func (x *ListKbsForUserResponse) GetKbs() []*KbInfo {
 	return nil
 }
 
+type ReindexRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	KbId          string                 `protobuf:"bytes,1,opt,name=kb_id,json=kbId,proto3" json:"kb_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReindexRequest) Reset() {
+	*x = ReindexRequest{}
+	mi := &file_kb_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReindexRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReindexRequest) ProtoMessage() {}
+
+func (x *ReindexRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kb_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReindexRequest.ProtoReflect.Descriptor instead.
+func (*ReindexRequest) Descriptor() ([]byte, []int) {
+	return file_kb_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ReindexRequest) GetKbId() string {
+	if x != nil {
+		return x.KbId
+	}
+	return ""
+}
+
+type ReindexResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Cleared       int32                  `protobuf:"varint,1,opt,name=cleared,proto3" json:"cleared,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReindexResponse) Reset() {
+	*x = ReindexResponse{}
+	mi := &file_kb_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReindexResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReindexResponse) ProtoMessage() {}
+
+func (x *ReindexResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kb_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReindexResponse.ProtoReflect.Descriptor instead.
+func (*ReindexResponse) Descriptor() ([]byte, []int) {
+	return file_kb_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ReindexResponse) GetCleared() int32 {
+	if x != nil {
+		return x.Cleared
+	}
+	return 0
+}
+
 var File_kb_proto protoreflect.FileDescriptor
 
 const file_kb_proto_rawDesc = "" +
@@ -1265,7 +1353,11 @@ const file_kb_proto_rawDesc = "" +
 	"\x15ListKbsForUserRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\"D\n" +
 	"\x16ListKbsForUserResponse\x12*\n" +
-	"\x03kbs\x18\x01 \x03(\v2\x18.agentluoss.v1.kb.KbInfoR\x03kbs2\xfb\x05\n" +
+	"\x03kbs\x18\x01 \x03(\v2\x18.agentluoss.v1.kb.KbInfoR\x03kbs\"%\n" +
+	"\x0eReindexRequest\x12\x13\n" +
+	"\x05kb_id\x18\x01 \x01(\tR\x04kbId\"+\n" +
+	"\x0fReindexResponse\x12\x18\n" +
+	"\acleared\x18\x01 \x01(\x05R\acleared2\xcb\x06\n" +
 	"\x02Kb\x12Q\n" +
 	"\bCreateKb\x12!.agentluoss.v1.kb.CreateKbRequest\x1a\".agentluoss.v1.kb.CreateKbResponse\x12Q\n" +
 	"\bDeleteKb\x12!.agentluoss.v1.kb.DeleteKbRequest\x1a\".agentluoss.v1.kb.DeleteKbResponse\x12N\n" +
@@ -1275,7 +1367,8 @@ const file_kb_proto_rawDesc = "" +
 	"\bListDocs\x12!.agentluoss.v1.kb.ListDocsRequest\x1a\".agentluoss.v1.kb.ListDocsResponse\x12K\n" +
 	"\x06Search\x12\x1f.agentluoss.v1.kb.SearchRequest\x1a .agentluoss.v1.kb.SearchResponse\x12N\n" +
 	"\aReadDoc\x12 .agentluoss.v1.kb.ReadDocRequest\x1a!.agentluoss.v1.kb.ReadDocResponse\x12c\n" +
-	"\x0eListKbsForUser\x12'.agentluoss.v1.kb.ListKbsForUserRequest\x1a(.agentluoss.v1.kb.ListKbsForUserResponseB\x1eZ\x1cagentluoss/proto/gen/kb;kbpbb\x06proto3"
+	"\x0eListKbsForUser\x12'.agentluoss.v1.kb.ListKbsForUserRequest\x1a(.agentluoss.v1.kb.ListKbsForUserResponse\x12N\n" +
+	"\aReindex\x12 .agentluoss.v1.kb.ReindexRequest\x1a!.agentluoss.v1.kb.ReindexResponseB\x1eZ\x1cagentluoss/proto/gen/kb;kbpbb\x06proto3"
 
 var (
 	file_kb_proto_rawDescOnce sync.Once
@@ -1289,7 +1382,7 @@ func file_kb_proto_rawDescGZIP() []byte {
 	return file_kb_proto_rawDescData
 }
 
-var file_kb_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_kb_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_kb_proto_goTypes = []any{
 	(*Scope)(nil),                  // 0: agentluoss.v1.kb.Scope
 	(*KbInfo)(nil),                 // 1: agentluoss.v1.kb.KbInfo
@@ -1313,6 +1406,8 @@ var file_kb_proto_goTypes = []any{
 	(*ReadDocResponse)(nil),        // 19: agentluoss.v1.kb.ReadDocResponse
 	(*ListKbsForUserRequest)(nil),  // 20: agentluoss.v1.kb.ListKbsForUserRequest
 	(*ListKbsForUserResponse)(nil), // 21: agentluoss.v1.kb.ListKbsForUserResponse
+	(*ReindexRequest)(nil),         // 22: agentluoss.v1.kb.ReindexRequest
+	(*ReindexResponse)(nil),        // 23: agentluoss.v1.kb.ReindexResponse
 }
 var file_kb_proto_depIdxs = []int32{
 	0,  // 0: agentluoss.v1.kb.KbInfo.scope:type_name -> agentluoss.v1.kb.Scope
@@ -1332,17 +1427,19 @@ var file_kb_proto_depIdxs = []int32{
 	16, // 14: agentluoss.v1.kb.Kb.Search:input_type -> agentluoss.v1.kb.SearchRequest
 	18, // 15: agentluoss.v1.kb.Kb.ReadDoc:input_type -> agentluoss.v1.kb.ReadDocRequest
 	20, // 16: agentluoss.v1.kb.Kb.ListKbsForUser:input_type -> agentluoss.v1.kb.ListKbsForUserRequest
-	5,  // 17: agentluoss.v1.kb.Kb.CreateKb:output_type -> agentluoss.v1.kb.CreateKbResponse
-	7,  // 18: agentluoss.v1.kb.Kb.DeleteKb:output_type -> agentluoss.v1.kb.DeleteKbResponse
-	9,  // 19: agentluoss.v1.kb.Kb.ListKbs:output_type -> agentluoss.v1.kb.ListKbsResponse
-	11, // 20: agentluoss.v1.kb.Kb.UploadDoc:output_type -> agentluoss.v1.kb.UploadDocResponse
-	13, // 21: agentluoss.v1.kb.Kb.DeleteDoc:output_type -> agentluoss.v1.kb.DeleteDocResponse
-	15, // 22: agentluoss.v1.kb.Kb.ListDocs:output_type -> agentluoss.v1.kb.ListDocsResponse
-	17, // 23: agentluoss.v1.kb.Kb.Search:output_type -> agentluoss.v1.kb.SearchResponse
-	19, // 24: agentluoss.v1.kb.Kb.ReadDoc:output_type -> agentluoss.v1.kb.ReadDocResponse
-	21, // 25: agentluoss.v1.kb.Kb.ListKbsForUser:output_type -> agentluoss.v1.kb.ListKbsForUserResponse
-	17, // [17:26] is the sub-list for method output_type
-	8,  // [8:17] is the sub-list for method input_type
+	22, // 17: agentluoss.v1.kb.Kb.Reindex:input_type -> agentluoss.v1.kb.ReindexRequest
+	5,  // 18: agentluoss.v1.kb.Kb.CreateKb:output_type -> agentluoss.v1.kb.CreateKbResponse
+	7,  // 19: agentluoss.v1.kb.Kb.DeleteKb:output_type -> agentluoss.v1.kb.DeleteKbResponse
+	9,  // 20: agentluoss.v1.kb.Kb.ListKbs:output_type -> agentluoss.v1.kb.ListKbsResponse
+	11, // 21: agentluoss.v1.kb.Kb.UploadDoc:output_type -> agentluoss.v1.kb.UploadDocResponse
+	13, // 22: agentluoss.v1.kb.Kb.DeleteDoc:output_type -> agentluoss.v1.kb.DeleteDocResponse
+	15, // 23: agentluoss.v1.kb.Kb.ListDocs:output_type -> agentluoss.v1.kb.ListDocsResponse
+	17, // 24: agentluoss.v1.kb.Kb.Search:output_type -> agentluoss.v1.kb.SearchResponse
+	19, // 25: agentluoss.v1.kb.Kb.ReadDoc:output_type -> agentluoss.v1.kb.ReadDocResponse
+	21, // 26: agentluoss.v1.kb.Kb.ListKbsForUser:output_type -> agentluoss.v1.kb.ListKbsForUserResponse
+	23, // 27: agentluoss.v1.kb.Kb.Reindex:output_type -> agentluoss.v1.kb.ReindexResponse
+	18, // [18:28] is the sub-list for method output_type
+	8,  // [8:18] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -1359,7 +1456,7 @@ func file_kb_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kb_proto_rawDesc), len(file_kb_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

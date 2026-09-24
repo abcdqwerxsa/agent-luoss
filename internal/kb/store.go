@@ -36,6 +36,7 @@ type Doc struct {
 }
 
 type Chunk struct {
+	ID       int64
 	DocID   string
 	KBID    string
 	Seq     int
@@ -310,6 +311,121 @@ func (s *Store) DocTitles(ctx context.Context, ids []string) (map[string]string,
 		out[id] = title
 	}
 	return out, rows.Err()
+}
+
+// ---- semantic (pgvector) ----
+
+// HasVector reports whether the pgvector extension is installed.
+func (s *Store) HasVector(ctx context.Context) bool {
+	var n int
+	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM pg_extension WHERE extname='vector'`).Scan(&n); err != nil {
+		return false
+	}
+	return n > 0
+}
+
+// RecallVectors: cosine top-k over chunks embedded with the CURRENT model
+// (dim-consistent). ponytail: exact scan, no index — fine to ~100k chunks;
+// add HNSW (fixed dims) when latency demands.
+func (s *Store) RecallVectors(ctx context.Context, kbID, model string, q []float32, limit int) ([]*ChunkText, error) {
+	lit := VecToLiteral(q)
+	rows, err := s.db.Query(ctx, `
+		SELECT id, doc_id, section, text FROM kb.chunks
+		WHERE kb_id=$1 AND embed_model=$2 AND embedding IS NOT NULL
+		ORDER BY embedding <=> $3::vector LIMIT $4`, kbID, model, lit, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*ChunkText
+	for rows.Next() {
+		var c ChunkText
+		if err := rows.Scan(&c.ID, &c.DocID, &c.Section, &c.Text); err != nil {
+			return nil, err
+		}
+		out = append(out, &c)
+	}
+	return out, rows.Err()
+}
+
+// VectorScores returns cosine distances aligned with the given chunks.
+func (s *Store) VectorScores(ctx context.Context, model string, q []float32, ids []int64) (map[int64]float64, error) {
+	if len(ids) == 0 {
+		return map[int64]float64{}, nil
+	}
+	lit := VecToLiteral(q)
+	rows, err := s.db.Query(ctx, `
+		SELECT id, 1 - (embedding <=> $1::vector) FROM kb.chunks
+		WHERE embed_model=$2 AND id = ANY($3)`, lit, model, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]float64{}
+	for rows.Next() {
+		var id int64
+		var sim float64
+		if err := rows.Scan(&id, &sim); err != nil {
+			return nil, err
+		}
+		out[id] = sim
+	}
+	return out, rows.Err()
+}
+
+// ChunkToEmbed lists chunks of ready docs lacking a current-model embedding
+// (ingest backfill + reindex after model switch). Order: oldest docs first.
+func (s *Store) ChunksToEmbed(ctx context.Context, model string, limit int) ([]*Chunk, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT c.id, c.doc_id, c.kb_id, c.seq, c.section, c.text, c.tokens
+		FROM kb.chunks c JOIN kb.docs d ON d.id = c.doc_id
+		WHERE d.status='ready' AND (c.embed_model IS NULL OR c.embed_model='' OR c.embed_model <> $1)
+		ORDER BY d.updated_at ASC LIMIT $2`, model, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*Chunk
+	for rows.Next() {
+		var c Chunk
+		if err := rows.Scan(&c.ID, &c.DocID, &c.KBID, &c.Seq, &c.Section, &c.Text, &c.Tokens); err != nil {
+			return nil, err
+		}
+		out = append(out, &c)
+	}
+	return out, rows.Err()
+}
+
+// SetChunkEmbeddings writes vectors for chunk ids (same batch/model).
+func (s *Store) SetChunkEmbeddings(ctx context.Context, ids []int64, vecs [][]float32, model string) error {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	for i, id := range ids {
+		if _, err := tx.Exec(ctx, `
+			UPDATE kb.chunks SET embedding=$1::vector, embed_model=$2 WHERE id=$3`,
+			VecToLiteral(vecs[i]), model, id); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+// ClearEmbeddings drops stored vectors (reindex); kb_id empty = all.
+func (s *Store) ClearEmbeddings(ctx context.Context, kbID string) (int64, error) {
+	q := `UPDATE kb.chunks SET embedding=NULL, embed_model='' WHERE TRUE`
+	args := []any{}
+	if kbID != "" {
+		q = `UPDATE kb.chunks SET embedding=NULL, embed_model='' WHERE kb_id=$1`
+		args = append(args, kbID)
+	}
+	tag, err := s.db.Exec(ctx, q, args...)
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
 }
 
 func toPbKB(k *KB) *kbpb.KbInfo {
