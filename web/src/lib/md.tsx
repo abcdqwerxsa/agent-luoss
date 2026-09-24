@@ -5,6 +5,8 @@ import { GenerativeUIBlock } from "./genui";
 import { Icon } from "./icons";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 
+import { CodeBlock } from "../components/CodeBlock";
+
 export function Markdown({ text }: { text: string }) {
   return (
     <div className="md">
@@ -29,6 +31,9 @@ export function Markdown({ text }: { text: string }) {
               const isGenUi = cls.includes("language-jsonui") || cls.includes("language-json-ui") ||
                 (cls.includes("language-json") && (/^\s*\{\s*"op"\s*:/.test(childContent) || (childContent.includes('"root"') && childContent.includes('"elements"'))));
               if (cls.includes("language-infographic") || isGenUi) return <>{children}</>;
+              const m = /language-([\w-]+)/.exec(cls);
+              const lang = m?.[1];
+              return <CodeBlock code={childContent} language={lang} />;
             }
             return <pre>{children}</pre>;
           },

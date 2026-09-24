@@ -29,10 +29,31 @@ function toolIcon(name: string): string {
   return "sparkles";
 }
 
+function extractToolParam(tool: string, argsStr: string): string {
+  try {
+    const args = JSON.parse(argsStr);
+    if (!args || typeof args !== "object") return "";
+    if (args.path) return String(args.path).split("/").pop() || args.path;
+    if (args.TargetFile) return String(args.TargetFile).split("/").pop() || args.TargetFile;
+    if (args.filePath) return String(args.filePath).split("/").pop() || args.filePath;
+    if (args.filename) return String(args.filename).split("/").pop() || args.filename;
+    if (args.command) return String(args.command).slice(0, 32);
+    if (args.CommandLine) return String(args.CommandLine).slice(0, 32);
+    if (args.query) return String(args.query).slice(0, 24);
+    if (args.Query) return String(args.Query).slice(0, 24);
+    if (args.url) return String(args.url).slice(0, 24);
+    if (args.Url) return String(args.Url).slice(0, 24);
+    const firstVal = Object.values(args)[0];
+    if (typeof firstVal === "string") return firstVal.slice(0, 24);
+  } catch { /* ignore */ }
+  return "";
+}
+
 export function TaskDetail({ taskId }: { taskId: string }) {
   const [task, setTask] = useState<TaskInfo | null>(null);
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [input, setInput] = useState("");
+  const [queuedMessage, setQueuedMessage] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [notice, setNotice] = useState("");
   const [models, setModels] = useState<ModelOpt[]>([]);
@@ -386,11 +407,41 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     }
   };
 
-  const send = (behavior?: string) => {
+  // 任务结束后自动触发排队消息
+  useEffect(() => {
+    if (!running && queuedMessage) {
+      const q = queuedMessage;
+      setQueuedMessage(null);
+      void sendText(q);
+    }
+  }, [running, queuedMessage]);
+
+  const send = () => {
     if (!input.trim()) return;
-    const msg = input;
+    const msg = input.trim();
     setInput("");
-    void sendText(msg, behavior);
+    if (running) {
+      setQueuedMessage(msg);
+    } else {
+      void sendText(msg);
+    }
+  };
+
+  const steerQueued = async () => {
+    if (!queuedMessage) return;
+    const msg = queuedMessage;
+    setQueuedMessage(null);
+    try {
+      await api.tasks.steer(taskId, msg);
+    } catch (e: any) {
+      setNotice(`插话失败：${e.message}`);
+    }
+  };
+
+  const editQueued = () => {
+    if (!queuedMessage) return;
+    setInput(queuedMessage);
+    setQueuedMessage(null);
   };
 
   // generative-UI action loop: buttons inside rendered json-ui blocks send
@@ -399,10 +450,11 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     const onAction = (e: Event) => {
       const msg = (e as CustomEvent).detail?.message;
       if (typeof msg === "string" && msg.trim()) {
+        const text = msg.trim();
         if (running) {
-          void sendText(msg.trim(), "follow_up");
+          setQueuedMessage(text);
         } else {
-          void sendText(msg.trim());
+          void sendText(text);
         }
       }
     };
@@ -581,17 +633,27 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                           done={(b.tools && b.tools.length) ? `执行了 ${b.tools.length} 步` : "思考过程"}
                           rows={(b.tools || []).map((t) => ({
                             primary: t.tool,
+                            chip: extractToolParam(t.tool, t.args),
+                            tool: t.tool,
                             secondary: t.error ? "失败" : t.done ? "完成" : "…",
                             mono: true,
                             detail: (
-                              <div>
-                                <pre className="toolargs">{t.args}</pre>
+                              <div className="tool-detail-box">
+                                {t.args && <pre className="toolargs">{t.args}</pre>}
                                 {t.output && (t.output.match(/^[+-][^+-]/m) ? <DiffView diff={t.output} /> : <pre className="toolout">{t.output}</pre>)}
                               </div>
                             ),
                           }))}
                         >
-                          {b.thinking && <div className="trace-thinking">{b.thinking}</div>}
+                          {b.thinking && (
+                            <div className="trace-thinking-block">
+                              <div className="trace-thinking-head">
+                                <Icon name="sparkles" size={12} />
+                                <span>深度思考</span>
+                              </div>
+                              <div className="trace-thinking-body">{b.thinking}</div>
+                            </div>
+                          )}
                         </ThinkingTrace>
                       )}
                       {b.text ? (
@@ -624,14 +686,47 @@ export function TaskDetail({ taskId }: { taskId: string }) {
         )}
 
         <div className="composer">
+          {queuedMessage && (
+            <div className="queued-strip" style={{ animation: "pop-in 200ms cubic-bezier(0.23,1,0.32,1) both" }}>
+              <div className="queued-strip-left">
+                <span className="queued-badge">
+                  <Icon name="clock" size={12} />
+                  <span>已排队追问</span>
+                </span>
+                <span className="queued-text" title={queuedMessage}>
+                  {queuedMessage}
+                </span>
+              </div>
+              <div className="queued-strip-actions">
+                <button
+                  type="button"
+                  className="queued-btn edit"
+                  data-tip="返回修改"
+                  onClick={editQueued}
+                >
+                  <Icon name="edit" size={12} />
+                  <span>修改</span>
+                </button>
+                <button
+                  type="button"
+                  className="queued-btn steer"
+                  data-tip="立即插队执行"
+                  onClick={steerQueued}
+                >
+                  <Icon name="arrow-right" size={13} />
+                  <span>立即插队</span>
+                </button>
+              </div>
+            </div>
+          )}
           <div className="composer-box">
             <textarea
               rows={2}
-              placeholder={running ? "任务执行中… 可追问修正方向（回车发送，Shift+Enter 换行）" : "输入任务或问题…（回车发送，Shift+Enter 换行）"}
+              placeholder={running ? "任务执行中… 输入新需求回车默认排队（Shift+Enter 换行）" : "输入任务或问题…（回车发送，Shift+Enter 换行）"}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(running ? "follow_up" : undefined); }
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
               }}
             />
             <div className="composer-toolbar">
@@ -673,13 +768,12 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                   );
                 })()}
                 {running ? (
-                  <div className="ct-running-group">
+                  <div className="ct-actions">
                     <button className="ct-send stop" onClick={abort} data-tip="中止当前任务"><Icon name="square" size={12} /></button>
-                    <button className="btn ghost sm" onClick={() => send("follow_up")} disabled={!input.trim()} data-tip="等当前回答结束，自动开始下一轮对话">排队追问</button>
-                    <button className="btn ghost sm warn" onClick={() => send("steer")} disabled={!input.trim()} data-tip="立即打断当前输出，按新指令继续">打断插话</button>
+                    <button className="ct-send" onClick={send} disabled={!input.trim()} data-tip="排队追问 (Enter)"><Icon name="arrow-up" size={16} /></button>
                   </div>
                 ) : (
-                  <button className="ct-send" onClick={() => send()} disabled={!input.trim()} data-tip="发送"><Icon name="arrow-up" size={16} /></button>
+                  <button className="ct-send" onClick={send} disabled={!input.trim()} data-tip="发送 (Enter)"><Icon name="arrow-up" size={16} /></button>
                 )}
               </div>
             </div>

@@ -304,11 +304,14 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .bubble { max-width: min(85%, 860px); padding: 12px 16px; border-radius: 12px; word-break: break-word; overflow-wrap: break-word; box-sizing: border-box; }
 .bubble.user {
   align-self: flex-end;
-  background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.33);
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+  min-width: 48px;
 }
 .bubble-user-row { display: flex; align-items: flex-start; gap: 8px; }
-.bubble-user-row .msg-ord { flex-shrink: 0; font-size: 11px; opacity: 0.75; padding-top: 2px; }
-.bubble-user-text { white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
+.bubble-user-row .msg-ord { flex-shrink: 0; font-size: 11px; color: var(--info, #38bdf8); opacity: 0.9; padding-top: 2px; }
+.bubble-user-text { white-space: pre-wrap; word-break: break-word; line-height: 1.6; font-size: 13.5px; }
 .bubble-error {
   display: flex; align-items: center; gap: 8px;
   margin-top: 8px; padding: 8px 12px;
@@ -361,7 +364,7 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
   box-shadow: 0 -1px 0 var(--border);
 }
 .composer-box { background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 14px; }
-.composer-box:focus-within { border-color: var(--border-strong); box-shadow: 0 0 0 2.5px var(--accent-tint); }
+.composer-box:focus-within { border-color: rgba(148, 163, 184, 0.4); box-shadow: 0 0 0 2px rgba(148, 163, 184, 0.12); }
 
 /* Tooltips inside the sticky chat header open DOWNWARD: the chat column is a
    scroll container, so upward popovers clip at the scrollport edge. */
@@ -382,8 +385,6 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .row-del { opacity: 0; transition: opacity 0.12s; }
 .task-row:hover .row-del { opacity: 1; }
 .composer-box { transition: border-color 0.2s, box-shadow 0.2s; }
-.ct-send { border-radius: 999px; transition: background 0.15s, transform 0.15s; }
-.ct-send:hover { transform: translateY(-1px); }
 .trace-thinking { font-size: 12.5px; color: var(--text-2); line-height: 1.65; white-space: pre-wrap; padding: 2px 6px; }
 .composer-box textarea {
   display: block; width: 100%;
@@ -392,9 +393,6 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 }
 .composer-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 10px 10px; }
 .ct-left { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; }
-/* Themed tooltips: title attributes are rendered as data-tip so the dark
-   theme applies (native title popups ignore page CSS). */
-.trace-thinking { font-size: 12.5px; color: var(--text-2); line-height: 1.65; white-space: pre-wrap; padding: 2px 6px; }
 
 [data-tip] { position: relative; }
 [data-tip]:hover::after, [data-tip]:focus-visible::after {
@@ -431,18 +429,94 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 .ct-auto.on { color: var(--accent); }
 .ct-auto:hover { color: var(--text-2); }
 .ct-auto.on:hover { color: var(--accent); }
+.ct-actions { display: inline-flex; align-items: center; gap: 8px; }
 .ct-send {
   display: inline-flex; align-items: center; justify-content: center;
   width: 32px; height: 32px; padding: 0;
-  background: var(--accent); border: none; border-radius: 50%;
-  color: var(--on-accent);
+  background: var(--text); border: none; border-radius: 8px;
+  color: var(--bg); cursor: pointer;
+  transition: all 0.15s ease;
 }
-.ct-send:hover:not(:disabled) { background: var(--accent-hover); }
+.ct-send:hover:not(:disabled) { background: #ffffff; color: #0b1120; transform: translateY(-1px); }
+.ct-send:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
 .ct-send.stop { background: var(--danger-tint); border: 1px solid rgba(248, 113, 113, 0.4); color: var(--danger); }
-.ct-send.stop:hover { background: rgba(248, 113, 113, 0.2); }
-.ct-running-group { display: inline-flex; align-items: center; gap: 8px; }
-.btn.ghost.sm.warn { color: var(--warn, #eab308); border-color: rgba(234, 179, 8, 0.4); }
-.btn.ghost.sm.warn:hover:not(:disabled) { background: rgba(234, 179, 8, 0.12); }
+.ct-send.stop:hover { background: rgba(248, 113, 113, 0.25); color: #ff8585; }
+
+/* ── 排队追问小长条 (Queued Strip) ── */
+.queued-strip {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-bottom: 8px; padding: 7px 12px;
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+.queued-strip-left { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.queued-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 7px; background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.28); border-radius: 999px;
+  font-size: 11px; font-weight: 500; color: var(--info, #38bdf8); white-space: nowrap; flex-shrink: 0;
+}
+.queued-text { font-size: 12.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queued-strip-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.queued-btn {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px;
+  border-radius: 6px; font-size: 11.5px; cursor: pointer; transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+.queued-btn.edit { background: var(--surface-3); color: var(--text-2); border-color: var(--border); }
+.queued-btn.edit:hover { background: var(--surface); color: var(--text); }
+.queued-btn.steer {
+  background: rgba(56, 189, 248, 0.15); color: var(--info, #38bdf8);
+  border-color: rgba(56, 189, 248, 0.35); font-weight: 500;
+}
+.queued-btn.steer:hover { background: rgba(56, 189, 248, 0.28); color: #ffffff; }
+
+/* ── CodeBlock 现代化设计 ── */
+.code-block-card {
+  margin: 10px 0; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface-2); overflow: hidden; font-family: var(--font-mono);
+}
+.code-block-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 12px; background: var(--surface-3); border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.code-block-title { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); font-size: 11.5px; }
+.code-icon { color: var(--text-3); }
+.code-copy-btn {
+  display: inline-flex; align-items: center; gap: 4px; background: transparent;
+  border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px;
+  font-size: 11px; color: var(--text-3); cursor: pointer; transition: all 0.15s;
+}
+.code-copy-btn:hover { background: var(--surface); color: var(--text); }
+.code-copy-btn.copied { color: #4ade80; border-color: rgba(74, 222, 128, 0.3); }
+.code-block-body { padding: 8px 0; font-size: 12px; line-height: 1.65; overflow-x: auto; }
+.code-line { display: flex; align-items: flex-start; padding: 0 12px; min-height: 20px; }
+.code-line-num { width: 26px; flex-shrink: 0; text-align: right; padding-right: 12px; color: var(--text-3); font-size: 11px; user-select: none; }
+.code-line-content { flex: 1; white-space: pre-wrap; word-break: break-word; color: var(--text); }
+.code-line.line-add { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
+.code-line.line-del { background: rgba(248, 113, 113, 0.1); color: #f87171; }
+.code-line.line-hunk { background: rgba(56, 189, 248, 0.08); color: #38bdf8; }
+
+/* ── Tool Chips & Thinking Block ── */
+.thinking-trace-wrap { margin-bottom: 12px; }
+.trace-trigger { border: none; background: transparent; cursor: pointer; }
+.tool-chip-row { transition: background 0.12s; border-radius: 6px; }
+.tool-chip-param { border: 1px solid var(--border); }
+.tool-detail-box { margin-top: 4px; }
+.trace-thinking-block {
+  margin: 6px 0 10px 4px; padding: 10px 14px;
+  background: var(--surface-2); border-left: 3px solid var(--info, #38bdf8);
+  border-radius: 0 8px 8px 0;
+}
+.trace-thinking-head {
+  display: flex; align-items: center; gap: 6px; font-size: 11.5px;
+  font-weight: 600; color: var(--info, #38bdf8); margin-bottom: 6px;
+}
+.trace-thinking-body {
+  font-size: 12.5px; color: var(--text-2); line-height: 1.65;
+  white-space: pre-wrap; word-break: break-word; max-height: 300px; overflow-y: auto;
+}
 
 /* files panel: full-height right sidebar, flush edges */
 .files {
