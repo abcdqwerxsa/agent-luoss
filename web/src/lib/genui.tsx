@@ -3,6 +3,7 @@ import { createSpecStreamCompiler } from "@json-render/core";
 import { defineRegistry, Renderer, JSONUIProvider } from "@json-render/react";
 import { genuiCatalog } from "./genui-catalog";
 import Loader from "../components/Loader";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 const toneCls: Record<string, string> = {
   default: "", success: "ok", warning: "warn", danger: "err", info: "info",
@@ -225,7 +226,7 @@ export function GenerativeUIBlock({ code }: { code: string }) {
 
   return (
     <div className="gui-wrap card">
-      <GuiErrorBoundary fallback={<div className="gui-wrap card gui-muted">界面生成中…</div>}>
+      <ErrorBoundary fallback={<div className="gui-wrap card gui-muted">界面生成中…</div>}>
         <JSONUIProvider registry={registry}>
           <Renderer
             spec={spec}
@@ -233,7 +234,7 @@ export function GenerativeUIBlock({ code }: { code: string }) {
             fallback={() => <pre className="infographic-fallback">{code}</pre>}
           />
         </JSONUIProvider>
-      </GuiErrorBoundary>
+      </ErrorBoundary>
     </div>
   );
 }

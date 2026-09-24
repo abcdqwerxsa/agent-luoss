@@ -3,11 +3,13 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { GenerativeUIBlock } from "./genui";
 import { Icon } from "./icons";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 export function Markdown({ text }: { text: string }) {
   return (
     <div className="md">
-      <ReactMarkdown
+      <ErrorBoundary fallback={<pre className="toolout" style={{ whiteSpace: "pre-wrap" }}>{text}</pre>}>
+        <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           a: ({ href, children }) => {
@@ -47,6 +49,7 @@ export function Markdown({ text }: { text: string }) {
       >
         {citeDocs(text)}
       </ReactMarkdown>
+      </ErrorBoundary>
     </div>
   );
 }

@@ -7,9 +7,10 @@ import Loader from "../components/Loader";
 import ThinkingTrace from "../components/ThinkingTrace";
 import DiffView from "../components/DiffView";
 import PlanApproval from "../components/PlanApproval";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 interface ToolCard { id: string; tool: string; args: string; output: string; done: boolean; error?: boolean }
-interface Bubble { role: "user" | "assistant"; text: string; thinking?: string; tools: ToolCard[]; streaming?: boolean; n?: number }
+interface Bubble { role: "user" | "assistant"; text: string; thinking?: string; tools: ToolCard[]; streaming?: boolean; n?: number; error?: string }
 
 const MODE_NAME: Record<string, string> = { ask: "问一问", craft: "做一做", plan: "想一想" };
 const MODE_ICON: Record<string, string> = { ask: "eye", craft: "hammer", plan: "map" };
@@ -49,6 +50,8 @@ export function TaskDetail({ taskId }: { taskId: string }) {
   const [flashN, setFlashN] = useState(0);
   const [curN, setCurN] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const userScrollingRef = useRef(false);
+  const scrollTimerRef = useRef<any>(null);
   const esRef = useRef<EventSource | null>(null);
 
   const loadUsage = () => api.taskUsage(taskId).then(setUsage).catch(() => {});
@@ -152,8 +155,16 @@ export function TaskDetail({ taskId }: { taskId: string }) {
       } else if (t === "task_status") {
         setRunning(p.status === "running");
       } else if (t === "error") {
-        setNotice(p.message || "发生错误");
+        const errMsg = p.message || "发生错误";
+        setNotice(errMsg);
         setRunning(false);
+        setBubbles((prev) => {
+          const last = prev[prev.length - 1];
+          if (last && last.role === "assistant") {
+            return prev.map((b, i) => (i === prev.length - 1 ? { ...b, error: errMsg, streaming: false } : b));
+          }
+          return [...prev, { role: "assistant", text: "", tools: [], error: errMsg, streaming: false }];
+        });
       } else if (t === "auto_retry_start") {
         setNotice(`模型暂时不可用，自动重试 (${p.attempt}/${p.maxAttempts})…`);
       }
@@ -179,7 +190,9 @@ export function TaskDetail({ taskId }: { taskId: string }) {
   }, [taskId]);
 
   useEffect(() => {
-    if (auto) scrollRef.current?.scrollTo({ top: scrollRef.current?.scrollHeight });
+    if (auto && !userScrollingRef.current) {
+      scrollRef.current?.scrollTo({ top: scrollRef.current?.scrollHeight });
+    }
   }, [bubbles, notice, auto]);
 
   const refreshTask = () => api.tasks.get(taskId).then((r) => {
@@ -207,6 +220,10 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           if (!group) {
             group = { role: "assistant", text: "", thinking: "", tools: [] };
             bs.push(group);
+          }
+          const errCandidate = (m as any).errorMessage || (m.isError ? "模型调用异常" : "");
+          if (errCandidate) {
+            group.error = errCandidate;
           }
           const parts = Array.isArray(m.content) ? m.content : [];
           for (const e of parts) {
@@ -386,6 +403,11 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     <div className="detail">
       <div className={`chat ${showFiles ? "" : "wide"}`} ref={scrollRef} onScroll={(e) => {
         const el = e.currentTarget;
+        userScrollingRef.current = true;
+        if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
+        scrollTimerRef.current = setTimeout(() => {
+          userScrollingRef.current = false;
+        }, 300);
         const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
         if (atBottom !== auto) setAuto(atBottom);
       }}>
@@ -461,32 +483,52 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           )}
           {bubbles.map((b, i) => (
             <div key={i} id={b.n ? `um-${b.n}` : undefined} className={`bubble ${b.role} ${b.n && b.n === flashN ? "flash" : ""}`}>
-              {b.role === "user" && b.n && <span className="msg-ord mono">#{b.n}</span>}
-              {b.role === "assistant" && (b.thinking || b.tools.length > 0) && (
-                <ThinkingTrace
-                  working={!!b.streaming}
-                  active="执行中"
-                  done={b.tools.length ? `执行了 ${b.tools.length} 步` : "思考过程"}
-                  rows={b.tools.map((t) => ({
-                    primary: t.tool,
-                    secondary: t.error ? "失败" : t.done ? "完成" : "…",
-                    mono: true,
-                    detail: (
-                      <div>
-                        <pre className="toolargs">{t.args}</pre>
-                        {t.output && (t.output.match(/^[+-][^+-]/m) ? <DiffView diff={t.output} /> : <pre className="toolout">{t.output}</pre>)}
+              <ErrorBoundary title="气泡渲染异常" fallback={<div className="bubble-error"><Icon name="triangle-alert" size={14} /><span>气泡内容渲染失败</span></div>}>
+                {b.role === "user" && (
+                  <div className="bubble-user-row">
+                    {b.n && <span className="msg-ord mono">#{b.n}</span>}
+                    <div className="bubble-user-text">{b.text}</div>
+                  </div>
+                )}
+                {b.role === "assistant" && (
+                  <>
+                    {(b.thinking || b.tools.length > 0) && (
+                      <ThinkingTrace
+                        working={!!b.streaming}
+                        active="执行中"
+                        done={b.tools.length ? `执行了 ${b.tools.length} 步` : "思考过程"}
+                        rows={b.tools.map((t) => ({
+                          primary: t.tool,
+                          secondary: t.error ? "失败" : t.done ? "完成" : "…",
+                          mono: true,
+                          detail: (
+                            <div>
+                              <pre className="toolargs">{t.args}</pre>
+                              {t.output && (t.output.match(/^[+-][^+-]/m) ? <DiffView diff={t.output} /> : <pre className="toolout">{t.output}</pre>)}
+                            </div>
+                          ),
+                        }))}
+                      >
+                        {b.thinking && <div className="trace-thinking">{b.thinking}</div>}
+                      </ThinkingTrace>
+                    )}
+                    {b.text ? (
+                      <Markdown text={b.text} />
+                    ) : b.streaming && !b.thinking && b.tools.length === 0 ? (
+                      <Loader label="生成中" />
+                    ) : null}
+                    {b.error && (
+                      <div className="bubble-error">
+                        <Icon name="triangle-alert" size={14} />
+                        <span>{b.error.includes("429") ? `模型接口限流 (429)：${b.error}。请稍后重试或切换右下角模型。` : b.error}</span>
                       </div>
-                    ),
-                  }))}
-                >
-                  {b.thinking && <div className="trace-thinking">{b.thinking}</div>}
-                </ThinkingTrace>
-              )}
-              {b.text ? (
-                <Markdown text={b.text} />
-              ) : b.streaming && !b.thinking && b.tools.length === 0 ? (
-                <Loader label="生成中" />
-              ) : null}
+                    )}
+                    {!b.text && !b.streaming && !b.tools.length && !b.thinking && !b.error && (
+                      <div className="bubble-empty gui-muted">（未返回内容）</div>
+                    )}
+                  </>
+                )}
+              </ErrorBoundary>
             </div>
           ))}
         </div>
