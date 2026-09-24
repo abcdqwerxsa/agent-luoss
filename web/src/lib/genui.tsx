@@ -1,21 +1,74 @@
-// Generative UI: chat renders ```json-ui fenced blocks through json-render
-// (whitelisted catalog -> predictable spec -> our design-system components).
-// Buttons dispatch a "genui:action" DOM event; TaskDetail listens and sends
-// the message back into the conversation (interactive loop, no backend change).
 import React from "react";
 import { createSpecStreamCompiler } from "@json-render/core";
 import { defineRegistry, Renderer, JSONUIProvider } from "@json-render/react";
 import { genuiCatalog } from "./genui-catalog";
+import Loader from "../components/Loader";
 
 const toneCls: Record<string, string> = {
   default: "", success: "ok", warning: "warn", danger: "err", info: "info",
 };
 
+class GuiErrorBoundary extends React.Component<{ fallback: React.ReactNode; children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: any) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(err: any) { console.warn("[GenerativeUI] render error caught:", err); }
+  render() { return this.state.hasError ? this.props.fallback : this.props.children; }
+}
+
+function parseStreamingJson(raw: string): any {
+  let s = raw.trim().replace(/```.*$/, "").trim();
+  try {
+    const obj = JSON.parse(s);
+    if (obj && typeof obj === "object") return obj;
+  } catch {}
+  if (!s.startsWith("{")) return null;
+
+  let inString = false;
+  let escape = false;
+  const stack: string[] = [];
+
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\" && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (!inString) {
+      if (ch === "{") stack.push("}");
+      else if (ch === "[") stack.push("]");
+      else if (ch === "}" || ch === "]") {
+        if (stack.length && stack[stack.length - 1] === ch) stack.pop();
+      }
+    }
+  }
+
+  let candidate = s;
+  if (inString) {
+    if (escape) candidate = candidate.slice(0, -1);
+    candidate += '"';
+  }
+  candidate = candidate.replace(/,\s*$/, "");
+
+  const suffixes = [
+    stack.slice().reverse().join(""),
+    ": null" + stack.slice().reverse().join(""),
+    stack.slice(0, -1).reverse().join(""),
+  ];
+
+  for (const suf of suffixes) {
+    try {
+      const fixed = candidate + suf;
+      const res = JSON.parse(fixed);
+      if (res && typeof res === "object") return res;
+    } catch {}
+  }
+  return null;
+}
+
 type AnyProps = Record<string, any>;
 type Impl = React.ComponentType<{ props: AnyProps; children?: React.ReactNode }>;
 
 const impls: Record<string, Impl> = {
-  Card: ({ props, children }) => (
+  Card: ({ props = {}, children }) => (
     <div className="gui-card">
       {(props.title || props.subtitle) && (
         <div className="gui-card-head">
@@ -26,18 +79,18 @@ const impls: Record<string, Impl> = {
       {children}
     </div>
   ),
-  Stack: ({ props, children }) => (
+  Stack: ({ props = {}, children }) => (
     <div className={`gui-stack ${props.direction === "row" ? "row" : ""}`} style={props.gap ? { gap: props.gap } : undefined}>
       {children}
     </div>
   ),
-  Heading: ({ props }) => {
+  Heading: ({ props = {} }) => {
     const Tag = (props.level || "h2") as "h1" | "h2" | "h3";
-    return <Tag className={`gui-h ${Tag}`}>{props.text}</Tag>;
+    return <Tag className={`gui-h ${Tag}`}>{props.text || ""}</Tag>;
   },
-  Text: ({ props }) => <p className={props.muted ? "gui-muted" : "gui-text"}>{props.text}</p>,
-  Badge: ({ props }) => <span className={`gui-badge ${toneCls[props.tone || "default"]}`}>{props.text}</span>,
-  Metric: ({ props }) => (
+  Text: ({ props = {} }) => <p className={props.muted ? "gui-muted" : "gui-text"}>{props.text || ""}</p>,
+  Badge: ({ props = {} }) => <span className={`gui-badge ${toneCls[props.tone || "default"]}`}>{props.text || ""}</span>,
+  Metric: ({ props = {} }) => (
     <div className="gui-metric">
       <span className="gui-muted">{props.label}</span>
       <b className="gui-metric-val">{props.value}</b>
@@ -45,38 +98,57 @@ const impls: Record<string, Impl> = {
       {props.caption && <span className="gui-muted">{props.caption}</span>}
     </div>
   ),
-  Table: ({ props }) => (
-    <table className="gui-table">
-      {props.caption && <caption className="gui-muted">{props.caption}</caption>}
-      <thead><tr>{(props.columns || []).map((c: string, i: number) => <th key={i}>{c}</th>)}</tr></thead>
-      <tbody>
-        {(props.rows || []).map((r: any[], i: number) => (
-          <tr key={i}>{r.map((c, j) => <td key={j}>{String(c)}</td>)}</tr>
-        ))}
-      </tbody>
-    </table>
-  ),
-  Progress: ({ props }) => (
-    <div className="gui-progress">
-      <div className="gui-progress-head"><span>{props.label}</span><span className="mono">{props.value}%</span></div>
-      <div className="gui-bar"><div className="gui-bar-fill" style={{ width: `${Math.max(0, Math.min(100, props.value))}%` }} /></div>
-      {props.caption && <span className="gui-muted">{props.caption}</span>}
-    </div>
-  ),
-  Alert: ({ props }) => (
-    <div className={`gui-alert ${toneCls[props.tone || "info"]}`}>
-      {props.title && <b>{props.title}</b>}
-      <span>{props.text}</span>
-    </div>
-  ),
-  KeyValue: ({ props }) => (
+  Table: ({ props = {} }) => {
+    const cols = Array.isArray(props.columns) ? props.columns : [];
+    const rows = Array.isArray(props.rows) ? props.rows : [];
+    return (
+      <div className="gui-table-wrap">
+        <table className="gui-table">
+          {props.caption && <caption className="gui-muted">{props.caption}</caption>}
+          <thead><tr>{cols.map((c: string, i: number) => <th key={i}>{c}</th>)}</tr></thead>
+          <tbody>
+            {rows.map((r: any, i: number) => {
+              const cells = Array.isArray(r) ? r : typeof r === "object" && r !== null ? Object.values(r) : [r];
+              return (
+                <tr key={i}>
+                  {cells.map((c, j) => <td key={j}>{c != null ? String(c) : ""}</td>)}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  },
+  Progress: ({ props = {} }) => {
+    const num = typeof props.value === "number" ? props.value : parseFloat(String(props.value || 0)) || 0;
+    const clamped = Math.max(0, Math.min(100, num));
+    return (
+      <div className="gui-progress">
+        <div className="gui-progress-head"><span>{props.label}</span><span className="mono">{clamped}%</span></div>
+        <div className="gui-bar"><div className="gui-bar-fill" style={{ width: `${clamped}%` }} /></div>
+        {props.caption && <span className="gui-muted">{props.caption}</span>}
+      </div>
+    );
+  },
+  Alert: ({ props = {} }) => {
+    const tone = props.tone || "info";
+    const cls = toneCls[tone] || tone;
+    return (
+      <div className={`gui-alert ${cls}`}>
+        {props.title && <b>{props.title}</b>}
+        <span>{props.text}</span>
+      </div>
+    );
+  },
+  KeyValue: ({ props = {} }) => (
     <dl className="gui-kv">
       {(props.items || []).map((it: any, i: number) => (
-        <React.Fragment key={i}><dt>{it.key}</dt><dd>{it.value}</dd></React.Fragment>
+        <React.Fragment key={i}><dt>{it?.key ?? ""}</dt><dd>{it?.value != null ? String(it.value) : ""}</dd></React.Fragment>
       ))}
     </dl>
   ),
-  Button: ({ props }) => (
+  Button: ({ props = {} }) => (
     <button
       className="btn small gui-btn"
       onClick={() => window.dispatchEvent(new CustomEvent("genui:action", { detail: { message: props.message || props.label } }))}
@@ -84,12 +156,10 @@ const impls: Record<string, Impl> = {
       {props.label}
     </button>
   ),
-  // Local-interaction components: state lives in the impl (React useState),
-  // no LLM round-trip, no conversation message — in-place by design.
-  Tabs: ({ props, children }) => {
+  Tabs: ({ props = {}, children }) => {
     const [active, setActive] = React.useState(0);
     const kids = React.Children.toArray(children);
-    const labels: string[] = props.labels || [];
+    const labels: string[] = Array.isArray(props.labels) ? props.labels : [];
     const idx = Math.min(active, Math.max(0, kids.length - 1));
     return (
       <div className="gui-tabs">
@@ -102,7 +172,7 @@ const impls: Record<string, Impl> = {
       </div>
     );
   },
-  Accordion: ({ props, children }) => {
+  Accordion: ({ props = {}, children }) => {
     const [open, setOpen] = React.useState(!!props.defaultOpen);
     return (
       <div className="gui-acc">
@@ -120,39 +190,50 @@ const impls: Record<string, Impl> = {
 const { registry } = defineRegistry(genuiCatalog, { components: impls as any });
 
 export function GenerativeUIBlock({ code }: { code: string }) {
-  // Dual wire format inside the ```json-ui fence:
-  //  - one flat JSON object  -> rendered whole once complete (default, safest)
-  //  - one JSON-Patch per line -> SpecStream compiler renders progressively
-  // Both are recomputed idempotently from the full text on every render —
-  // streaming deltas just re-run this, no cross-render state to corrupt.
   const trimmed = code.trim();
   let spec: any = null;
-  const firstLine = trimmed.split("\n", 1)[0].trim();
-  if (firstLine.startsWith('{"op"')) {
+  const isPatchStream = /^\s*\{\s*"op"\s*:/.test(trimmed);
+
+  if (isPatchStream) {
     try {
-      const compiler = createSpecStreamCompiler();
-      const { result } = compiler.push(trimmed + "\n");
-      if (result && (result.root || result.elements)) spec = result;
-    } catch { /* malformed patch stream */ }
+      const compiler: any = createSpecStreamCompiler({ elements: {} });
+      const res: any = compiler.push(trimmed + "\n")?.result;
+      if (res) {
+        res.elements = res.elements || {};
+        if (res.root && res.elements[res.root]) {
+          spec = res;
+        }
+      }
+    } catch { /* 容错 */ }
   } else {
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (parsed && typeof parsed === "object" && parsed.elements) spec = parsed;
-    } catch { /* still streaming */ }
+    const parsed = parseStreamingJson(trimmed);
+    if (parsed && typeof parsed === "object") {
+      parsed.elements = parsed.elements || {};
+      if (parsed.root && parsed.elements[parsed.root]) {
+        spec = parsed;
+      }
+    }
   }
 
   if (!spec) {
-    return <div className="gui-wrap card gui-muted">界面生成中…</div>;
+    return (
+      <div className="gui-wrap card gui-muted">
+        <Loader label="界面生成中…" variant="Dots" />
+      </div>
+    );
   }
+
   return (
     <div className="gui-wrap card">
-      <JSONUIProvider registry={registry}>
-        <Renderer
-          spec={spec}
-          registry={registry}
-          fallback={() => <pre className="infographic-fallback">{code}</pre>}
-        />
-      </JSONUIProvider>
+      <GuiErrorBoundary fallback={<div className="gui-wrap card gui-muted">界面生成中…</div>}>
+        <JSONUIProvider registry={registry}>
+          <Renderer
+            spec={spec}
+            registry={registry}
+            fallback={() => <pre className="infographic-fallback">{code}</pre>}
+          />
+        </JSONUIProvider>
+      </GuiErrorBoundary>
     </div>
   );
 }
