@@ -6,6 +6,7 @@
 
 # Node
 node_modules/
+node_modules
 dist/
 
 # Python leftovers
@@ -24,3 +25,6 @@ __pycache__/
 # agent-runtime
 services/agent-runtime/dist/
 web/dist/
+
+# TS build info
+*.tsbuildinfo

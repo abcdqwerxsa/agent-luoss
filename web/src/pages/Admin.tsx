@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { api, User, Scope, McpServerInfo, SkillInfo } from "../lib/api";
+import { api, auth, User, Scope, McpServerInfo, SkillInfo, KbInfo, KbDoc } from "../lib/api";
 import { Select } from "../lib/select";
 import { Icon } from "../lib/icons";
+import { NumInput } from "../lib/NumInput";
 
-type Tab = "users" | "departments" | "models" | "mcp" | "skills" | "experts" | "usage" | "audit";
+type Tab = "users" | "departments" | "models" | "mcp" | "skills" | "experts" | "kb" | "usage" | "audit";
 
 export function Admin() {
   const [tab, setTab] = useState<Tab>("users");
@@ -16,9 +17,9 @@ export function Admin() {
         </div>
       </div>
       <div className="tabs">
-        {(["users", "departments", "models", "mcp", "skills", "experts", "usage", "audit"] as Tab[]).map((t) => (
+        {(["users", "departments", "models", "mcp", "skills", "experts", "kb", "usage", "audit"] as Tab[]).map((t) => (
           <button key={t} className={`tab ${tab === t ? "sel" : ""}`} onClick={() => setTab(t)}>
-            {{ users: "用户", departments: "部门", models: "模型", mcp: "MCP", skills: "Skills", experts: "专家", usage: "用量", audit: "审计" }[t]}
+            {{ users: "用户", departments: "部门", models: "模型", mcp: "MCP", skills: "Skills", experts: "专家", kb: "知识库", usage: "用量", audit: "审计" }[t]}
           </button>
         ))}
       </div>
@@ -28,6 +29,7 @@ export function Admin() {
       {tab === "mcp" && <McpTab />}
       {tab === "skills" && <SkillsTab />}
       {tab === "experts" && <ExpertsTab />}
+      {tab === "kb" && <KnowledgeTab />}
       {tab === "usage" && <UsageTab />}
       {tab === "audit" && <AuditTab />}
     </div>
@@ -59,6 +61,7 @@ function ScopeEditor({ depts, value, onChange }: { depts: { id: string; name: st
 function UsersTab() {
   const [users, setUsers] = useState<User[]>([]);
   const [depts, setDepts] = useState<{ id: string; name: string }[]>([]);
+  const [quotas, setQuotas] = useState<Record<string, { limit: number; used: number }>>({});
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [display, setDisplay] = useState("");
@@ -68,6 +71,11 @@ function UsersTab() {
   const refresh = () => {
     api.admin.users().then((r) => setUsers(r.users)).catch((e) => setMsg(e.message));
     api.admin.departments().then((r) => setDepts(r.departments)).catch(() => {});
+    api.admin.usage("?days=1").then((r) => {
+      const m: Record<string, { limit: number; used: number }> = {};
+      for (const q of r.quotas || []) m[q.user_id] = { limit: +q.monthly_limit_usd || 0, used: +q.month_used_usd || 0 };
+      setQuotas(m);
+    }).catch(() => {});
   };
   useEffect(() => { refresh(); }, []);
   const create = async () => {
@@ -85,19 +93,38 @@ function UsersTab() {
         <span className="msg">{msg}</span>
       </div>
       <table>
-        <thead><tr><th>用户名</th><th>显示名</th><th>角色</th><th>部门</th><th>状态</th><th>操作</th></tr></thead>
+        <thead><tr><th>用户名</th><th>显示名</th><th>角色</th><th>部门</th><th>月度配额（$/月，0=∞）</th><th>状态</th><th>操作</th></tr></thead>
         <tbody>
           {users.map((u) => (
             <tr key={u.id}>
               <td>{u.username}</td><td>{u.display_name}</td>
               <td><Select value={u.role} onChange={(v) => api.admin.updateUser(u.id, { role: v }).then(refresh).catch((er) => setMsg(er.message))} options={[{ value: "member", label: "member" }, { value: "admin", label: "admin" }]} /></td>
               <td><Select value={u.department_id || ""} onChange={(v) => api.admin.updateUser(u.id, { department_id: v || "-" }).then(refresh).catch((er) => setMsg(er.message))} options={[{ value: "", label: "无部门" }, ...depts.map((d) => ({ value: d.id, label: d.name }))]} /></td>
+              <td><QuotaCell id={u.id} q={quotas[u.id]} onSaved={refresh} /></td>
               <td><span className={`badge ${u.status === "active" ? "idle" : "failed"}`}>{u.status}</span></td>
               <td><button className="btn danger" onClick={() => confirm(`删除用户 ${u.username}？`) && api.admin.deleteUser(u.id).then(refresh).catch((er) => setMsg(er.message))}>删除</button></td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function QuotaCell({ id, q, onSaved }: { id: string; q?: { limit: number; used: number }; onSaved: () => void }) {
+  const [v, setV] = useState("");
+  const [saving, setSaving] = useState(false);
+  const cur = q ? String(q.limit) : "";
+  const shown = v === "" ? cur : v;
+  const save = async () => {
+    setSaving(true);
+    try { await api.admin.setQuota(id, +shown || 0); onSaved(); } catch { /* list shows stale on failure */ }
+    setSaving(false);
+  };
+  return (
+    <div className="inline-form" style={{ gap: 4 }} data-tip={q ? `本月已用 $${(q.used || 0).toFixed(4)}` : ""} data-tip-down>
+      <input type="number" placeholder="∞" value={shown} onChange={(e) => setV(e.target.value)} style={{ maxWidth: 84 }} />
+      <button className="btn small" disabled={saving || shown === cur} onClick={save}>存</button>
     </div>
   );
 }
@@ -139,6 +166,7 @@ function ModelsTab() {
   const [msg, setMsg] = useState("");
   const [sel, setSel] = useState(""); // selected provider id
   const [pForm, setPForm] = useState({ id: "", name: "", base_url: "", api_type: "openai-completions", api_key: "", enabled: true });
+  const [editingP, setEditingP] = useState(false); // provider 编辑模式：保存=更新，留空 key 不改密钥
   const [mForm, setMForm] = useState({ model_id: "", display_name: "", context_window: 128000, input_cost: 0, output_cost: 0 });
   const [fetched, setFetched] = useState<{ ids: string[]; pick: Record<string, boolean> } | null>(null);
   const [fetching, setFetching] = useState(false);
@@ -158,26 +186,26 @@ function ModelsTab() {
 
   const addModel = (model_id: string) => {
     if (!sel || !model_id) return;
-    api.admin.putModel({ provider_id: sel, model_id, display_name: "", context_window: 128000, enabled: true })
+    api.admin.putModel({ provider_id: sel, model_id, display_name: mForm.display_name, context_window: mForm.context_window, input_cost: mForm.input_cost, output_cost: mForm.output_cost, enabled: true })
       .then(() => { setMsg(`已添加 ${model_id}`); setMForm({ model_id: "", display_name: "", context_window: 128000, input_cost: 0, output_cost: 0 }); refresh(); })
       .catch((e) => setMsg(e.message));
   };
 
-  const toggle = (m: any) => {
+  // putModel upsert: patch on top of the row's current values.
+  const editModel = (m: any, patch: Record<string, any> = {}) => {
     api.admin.putModel({
-      provider_id: m.provider_id, model_id: m.model_id, display_name: m.display_name,
-      context_window: m.context_window, input_cost: m.input_cost, output_cost: m.output_cost,
-      reasoning: !!m.reasoning, enabled: !m.enabled, tier: m.tier || "",
+      provider_id: m.provider_id, model_id: m.model_id, display_name: m.display_name || "",
+      context_window: +m.context_window || 0, input_cost: +m.input_cost || 0, output_cost: +m.output_cost || 0,
+      reasoning: !!m.reasoning, enabled: !!m.enabled, tier: m.tier || "", kind: m.kind || "chat",
+      ...patch,
     }).then(refresh).catch((e) => setMsg(e.message));
   };
 
-  const setTier = (m: any, tier: string) => {
-    api.admin.putModel({
-      provider_id: m.provider_id, model_id: m.model_id, display_name: m.display_name,
-      context_window: m.context_window, input_cost: m.input_cost, output_cost: m.output_cost,
-      reasoning: !!m.reasoning, enabled: !!m.enabled, tier,
-    }).then(refresh).catch((e) => setMsg(e.message));
-  };
+  const toggle = (m: any) => editModel(m, { enabled: !m.enabled });
+
+  const setTier = (m: any, tier: string) => editModel(m, { tier });
+
+  const setKind = (m: any, kind: string) => editModel(m, { kind });
 
   const del = (m: any) => {
     confirm(`删除模型 ${m.provider_id}/${m.model_id}？`) &&
@@ -200,8 +228,8 @@ function ModelsTab() {
     if (t === "testing") return <span className="test-res testing">测试中…</span>;
     if (!t) return null;
     return t.ok
-      ? <span className="test-res ok" title={`${t.latency_ms}ms`}><Icon name="check" size={12} />{t.latency_ms}ms</span>
-      : <span className="test-res err" title={t.error}>失败</span>;
+      ? <span className="test-res ok" data-tip={`${t.latency_ms}ms`}><Icon name="check" size={12} />{t.latency_ms}ms</span>
+      : <span className="test-res err" data-tip={t.error}>失败</span>;
   };
 
   const fetchFromProvider = async () => {
@@ -229,20 +257,34 @@ function ModelsTab() {
     refresh();
   };
 
+  const editProvider = (p: any) => {
+    setPForm({ id: p.id, name: p.name || "", base_url: p.base_url || "", api_type: p.api_type || "openai-completions", api_key: "", enabled: p.enabled });
+    setEditingP(true);
+  };
+
+  const saveProvider = () => {
+    api.admin.putProvider(pForm).then(() => {
+      setMsg(editingP ? `已更新 ${pForm.id}` : "已保存");
+      setPForm({ id: "", name: "", base_url: "", api_type: "openai-completions", api_key: "", enabled: true });
+      setEditingP(false); refresh();
+    }).catch((e) => setMsg(e.message));
+  };
+
   const cur = providers.find((p) => p.id === sel);
 
   return (
     <div>
       <div className="panel-card">
-        <h4><Icon name="plug" size={14} />Provider</h4>
+        <h4><Icon name="plug" size={14} />{editingP ? `编辑 Provider：${pForm.id}` : "Provider"}</h4>
         <div className="grid-form">
-          <input placeholder="id (slug)" value={pForm.id} onChange={(e) => setPForm({ ...pForm, id: e.target.value })} />
+          <input placeholder="id (slug)" value={pForm.id} disabled={editingP} onChange={(e) => setPForm({ ...pForm, id: e.target.value })} />
           <input placeholder="显示名" value={pForm.name} onChange={(e) => setPForm({ ...pForm, name: e.target.value })} />
-          <input placeholder="base_url (如 https://gw.internal/v1)" value={pForm.base_url} onChange={(e) => setPForm({ ...pForm, base_url: e.target.value })} />
+          <input style={{ gridColumn: "span 2" }} title="base_url，如 https://gw.internal/v1" placeholder="base_url (如 https://gw.internal/v1)" value={pForm.base_url} onChange={(e) => setPForm({ ...pForm, base_url: e.target.value })} />
           <Select value={pForm.api_type} onChange={(v) => setPForm({ ...pForm, api_type: v })} options={[{ value: "openai-completions", label: "openai-completions" }, { value: "anthropic-messages", label: "anthropic-messages" }]} />
           <input placeholder="API Key（留空=不改）" type="password" value={pForm.api_key} onChange={(e) => setPForm({ ...pForm, api_key: e.target.value })} />
           <label className="check"><input type="checkbox" checked={pForm.enabled} onChange={(e) => setPForm({ ...pForm, enabled: e.target.checked })} />启用</label>
-          <button className="btn primary" disabled={!pForm.id || !pForm.base_url} onClick={() => api.admin.putProvider(pForm).then(() => { setMsg("已保存"); setPForm({ id: "", name: "", base_url: "", api_type: "openai-completions", api_key: "", enabled: true }); refresh(); }).catch((e) => setMsg(e.message))}>保存 Provider</button>
+          <button className="btn primary" disabled={!pForm.id || !pForm.base_url} onClick={saveProvider}>{editingP ? "更新 Provider" : "保存 Provider"}</button>
+          {editingP && <button className="btn" onClick={() => { setEditingP(false); setPForm({ id: "", name: "", base_url: "", api_type: "openai-completions", api_key: "", enabled: true }); }}>取消</button>}
         </div>
         <div className="provider-cards">
           {providers.map((p) => (
@@ -252,6 +294,7 @@ function ModelsTab() {
               <span className="pc-meta mono">{p.id} · {p.api_type}</span>
               <span className="pc-meta">{p.has_key ? "🔑 已配置密钥" : "⚠️ 无密钥"} · {models.filter((m) => m.provider_id === p.id).length} 模型</span>
               <span className={`badge ${p.enabled ? "idle" : "failed"}`}>{p.enabled ? "启用" : "停用"}</span>
+              <span className="pc-edit" onClick={(e) => { e.stopPropagation(); editProvider(p); }}>编辑</span>
               <span className="pc-del" onClick={(e) => { e.stopPropagation(); confirm(`删除 Provider ${p.id} 及其全部模型？`) && api.admin.deleteProvider(p.id).then(refresh).catch((er) => setMsg(er.message)); }}>删除</span>
             </button>
           ))}
@@ -289,27 +332,48 @@ function ModelsTab() {
           )}
 
           <table>
-            <thead><tr><th>模型 ID</th><th>显示名</th><th>上下文</th><th>价格 in/out</th><th title="Auto 路由分层：强=复杂任务，弱=简单任务，空=按推理标志自动归类">分层</th><th>测试</th><th>状态</th><th>操作</th></tr></thead>
+            <thead><tr><th>模型 ID</th><th>显示名</th><th>上下文</th><th>价格 in/out</th><th>类型</th><th data-tip="Auto 路由分层：强=复杂任务，弱=简单任务，空=按推理标志自动归类">分层</th><th>测试</th><th>状态</th><th>操作</th></tr></thead>
             <tbody>
               {mine.map((m) => (
                 <tr key={m.model_id} className={!m.enabled ? "row-off" : ""}>
                   <td className="mono">{m.model_id}</td>
                   <td>{m.display_name || <span className="hint">—</span>}</td>
                   <td>{m.context_window ? (+m.context_window / 1000).toFixed(0) + "k" : "—"}</td>
-                  <td className="mono small">{(+m.input_cost || 0)} / {(+m.output_cost || 0)}</td>
+                  <td className="mono small">
+                    <NumInput width={76} step={0.1} min={0} title="输入价格 $/1M tokens" value={+m.input_cost || 0} onCommit={(v) => editModel(m, { input_cost: v })} />
+                    <NumInput width={76} step={0.1} min={0} title="输出价格 $/1M tokens" value={+m.output_cost || 0} onCommit={(v) => editModel(m, { output_cost: v })} />
+                  </td>
                   <td>
-                    <select className="tier-select" value={m.tier || ""} onChange={(e) => setTier(m, e.target.value)} title="Auto 路由分层">
-                      <option value="">自动</option>
-                      <option value="strong">强</option>
-                      <option value="weak">弱</option>
-                    </select>
+                    <Select
+                      className="tier-select"
+                      value={m.kind || "chat"}
+                      onChange={(v) => setKind(m, v)}
+                      title="对话=聊天模型；嵌入=知识库语义检索用（不进入会话）"
+                      options={[
+                        { value: "chat", label: "对话" },
+                        { value: "embedding", label: "嵌入" },
+                      ]}
+                    />
+                  </td>
+                  <td>
+                    <Select
+                      className="tier-select"
+                      value={m.tier || ""}
+                      onChange={(v) => setTier(m, v)}
+                      title="Auto 路由分层：强=复杂任务，弱=简单任务，自动=按推理标志归类"
+                      options={[
+                        { value: "", label: "自动" },
+                        { value: "strong", label: "强" },
+                        { value: "weak", label: "弱" },
+                      ]}
+                    />
                   </td>
                   <td>
                     <button className="btn small" onClick={() => runTest(m)}>测试</button>
                     {testResult(m)}
                   </td>
                   <td>
-                    <label className="switch" title={m.enabled ? "点击停用" : "点击启用"}>
+                    <label className="switch" data-tip={m.enabled ? "点击停用" : "点击启用"}>
                       <input type="checkbox" checked={!!m.enabled} onChange={() => toggle(m)} />
                       <span className="slider" />
                     </label>
@@ -323,13 +387,135 @@ function ModelsTab() {
           <div className="inline-form" style={{ marginTop: 10 }}>
             <input placeholder="手动添加 model id" value={mForm.model_id} onChange={(e) => setMForm({ ...mForm, model_id: e.target.value })} />
             <input placeholder="显示名（可空）" value={mForm.display_name} onChange={(e) => setMForm({ ...mForm, display_name: e.target.value })} />
-            <input type="number" placeholder="context" value={mForm.context_window} onChange={(e) => setMForm({ ...mForm, context_window: +e.target.value })} style={{ maxWidth: 110 }} />
-            <input type="number" placeholder="$in/1M" value={mForm.input_cost} onChange={(e) => setMForm({ ...mForm, input_cost: +e.target.value })} style={{ maxWidth: 90 }} />
-            <input type="number" placeholder="$out/1M" value={mForm.output_cost} onChange={(e) => setMForm({ ...mForm, output_cost: +e.target.value })} style={{ maxWidth: 90 }} />
+            <NumInput width={100} step={32000} min={1000} title="上下文窗口" value={mForm.context_window} onCommit={(v) => setMForm({ ...mForm, context_window: v })} />
+            <NumInput width={82} step={0.1} min={0} title="输入价格 $/1M tokens" value={mForm.input_cost} onCommit={(v) => setMForm({ ...mForm, input_cost: v })} />
+            <NumInput width={82} step={0.1} min={0} title="输出价格 $/1M tokens" value={mForm.output_cost} onCommit={(v) => setMForm({ ...mForm, output_cost: v })} />
             <button className="btn primary" disabled={!mForm.model_id} onClick={() => addModel(mForm.model_id)}><Icon name="plus" size={13} />添加</button>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function KnowledgeTab() {
+  const [kbs, setKbs] = useState<KbInfo[]>([]);
+  const [docs, setDocs] = useState<Record<string, KbDoc[]>>({});
+  const [open, setOpen] = useState("");
+  const [msg, setMsg] = useState("");
+  const [depts, setDepts] = useState<{ id: string; name: string }[]>([]);
+  const [form, setForm] = useState({ name: "", scope_type: "all", scope_value: "" });
+  const refresh = () => {
+    api.admin.kb().then((r) => setKbs(r.kbs || [])).catch((e) => setMsg(e.message));
+    api.admin.departments().then((r) => setDepts(r.departments || [])).catch(() => {});
+  };
+  useEffect(() => {
+    refresh();
+    const t = setInterval(refresh, 10000); // parsing -> ready 状态自动刷新
+    return () => clearInterval(t);
+  }, []);
+  const loadDocs = (id: string) => {
+    api.admin.kbDocs(id).then((r) => setDocs((d) => ({ ...d, [id]: r.docs || [] }))).catch((e) => setMsg(e.message));
+  };
+  const toggle = (id: string) => {
+    if (open === id) { setOpen(""); return; }
+    setOpen(id);
+    if (!docs[id]) loadDocs(id);
+  };
+  const upload = async (kbId: string, files: FileList | null) => {
+    if (!files?.length) return;
+    setMsg("");
+    let ok = 0;
+    for (const f of Array.from(files)) {
+      try { await api.admin.uploadKbDoc(kbId, f); ok++; } catch (e: any) { setMsg(`${f.name}: ${e.message}`); }
+    }
+    if (ok) setMsg(`已上传 ${ok} 个文档，解析进行中`);
+    loadDocs(kbId);
+    refresh();
+  };
+  const create = () => {
+    if (!form.name) return;
+    api.admin.createKb(form.name, { type: form.scope_type, value: form.scope_value })
+      .then(() => { setMsg(`已创建 ${form.name}`); setForm({ name: "", scope_type: "all", scope_value: "" }); refresh(); })
+      .catch((e) => setMsg(e.message));
+  };
+  const scopeLabel = (k: KbInfo) =>
+    k.scope.type === "all" ? "全员" : k.scope.type === "department" ? `部门：${depts.find((d) => d.id === k.scope.value)?.name || k.scope.value}` : `角色：${k.scope.value}`;
+  return (
+    <div>
+      <div className="panel-card">
+        <h4><Icon name="book" size={14} />新建知识库</h4>
+        <div className="inline-form">
+          <input placeholder="库名（如 财务部知识库）" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <Select value={form.scope_type} onChange={(v) => setForm({ ...form, scope_type: v, scope_value: "" })} options={[
+            { value: "all", label: "全员可见" },
+            { value: "department", label: "指定部门" },
+            { value: "role", label: "指定角色" },
+          ]} />
+          {form.scope_type === "department" && (
+            <Select value={form.scope_value} onChange={(v) => setForm({ ...form, scope_value: v })} options={[{ value: "", label: "选择部门…" }, ...depts.map((d) => ({ value: d.id, label: d.name }))]} />
+          )}
+          {form.scope_type === "role" && (
+            <input placeholder="角色名（admin/member…）" value={form.scope_value} onChange={(e) => setForm({ ...form, scope_value: e.target.value })} />
+          )}
+          <button className="btn primary" disabled={!form.name || (form.scope_type !== "all" && !form.scope_value)} onClick={create}><Icon name="plus" size={13} />创建</button>
+        </div>
+        <div className="hint" style={{ marginTop: 6 }}>每个库是一个独立的 MCP 工具（search / read_doc），按作用域自动注入会话</div>
+        {msg && <div className="msg">{msg}</div>}
+      </div>
+      <div className="panel-card">
+        <div className="model-head">
+          <h4><Icon name="book" size={14} />知识库列表</h4>
+          <span className="spacer" />
+          <button className="btn" title="清空全部向量并用当前嵌入模型重建（换嵌入模型后用）" onClick={() => confirm("清空全部嵌入向量并按当前嵌入模型重建？") && api.admin.reindexKb("").then((r) => setMsg(`已清空 ${r.cleared} 条向量，后台重建中`)).catch((e) => setMsg(e.message))}><Icon name="refresh-cw" size={13} />重建索引</button>
+        </div>
+        <table>
+          <thead><tr><th>库名</th><th>可见范围</th><th>文档数</th><th>MCP 入口</th><th>操作</th></tr></thead>
+          <tbody>
+            {kbs.map((k) => (
+              <React.Fragment key={k.id}>
+                <tr className="row-click" onClick={() => toggle(k.id)}>
+                  <td><b>{k.name}</b></td>
+                  <td>{scopeLabel(k)}</td>
+                  <td>{k.doc_count}</td>
+                  <td className="mono small">{k.mcp_entry_id}</td>
+                  <td>
+                    <button className="btn small" onClick={(e) => { e.stopPropagation(); (document.getElementById(`kbfile-${k.id}`) as HTMLInputElement)?.click(); }}><Icon name="upload" size={12} />上传文档</button>{" "}
+                    <button className="btn danger small" onClick={(e) => { e.stopPropagation(); confirm(`删除知识库 ${k.name} 及全部文档？`) && api.admin.deleteKb(k.id).then(refresh).catch((er) => setMsg(er.message)); }}>删除</button>
+                    <input id={`kbfile-${k.id}`} type="file" multiple hidden onChange={(e) => { upload(k.id, e.target.files); e.target.value = ""; }} />
+                  </td>
+                </tr>
+                {open === k.id && (
+                  <tr>
+                    <td colSpan={5}>
+                      <table>
+                        <thead><tr><th>文档</th><th>大小</th><th>上传人</th><th>状态</th><th>操作</th></tr></thead>
+                        <tbody>
+                          {(docs[k.id] || []).map((d) => (
+                            <tr key={d.id}>
+                              <td>{d.title || d.filename}</td>
+                              <td className="mono small">{(d.size / 1024).toFixed(0)}k</td>
+                              <td className="mono small">{d.uploader ? d.uploader.slice(0, 10) : "admin"}</td>
+                              <td>
+                                {d.status === "ready" ? <span className="badge idle">就绪</span>
+                                  : d.status === "parsing" ? <span className="badge testing">解析中…</span>
+                                  : <span className="badge failed" data-tip={d.error}>失败</span>}
+                              </td>
+                              <td><button className="btn danger small" onClick={() => api.admin.deleteKbDoc(d.id).then(() => loadDocs(k.id)).then(refresh).catch((er) => setMsg(er.message))}>删除</button></td>
+                            </tr>
+                          ))}
+                          {!(docs[k.id] || []).length && <tr><td colSpan={5} className="hint">暂无文档，点「上传文档」添加</td></tr>}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            ))}
+            {!kbs.length && <tr><td colSpan={5} className="hint">暂无知识库</td></tr>}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -393,13 +579,13 @@ function McpTab() {
         {msg && <div className="msg">{msg}</div>}
         <div className="provider-cards">
           {servers.map((m) => (
-            <div key={m.id} className={`provider-card ${m.enabled ? "" : "off"}`} onClick={() => startEdit(m)} title="点击编辑">
+            <div key={m.id} className={`provider-card ${m.enabled ? "" : "off"}`} onClick={() => startEdit(m)} data-tip="点击编辑">
               <span className="pc-del" onClick={(e) => { e.stopPropagation(); del(m); }}>删除</span>
               <span className="pc-name">{m.name || m.id} <span className="badge">{m.transport}</span></span>
               <span className="pc-meta mono ellipsis">{m.transport === "stdio" ? `${m.command} ${(m.args || []).join(" ")}` : m.url}</span>
               <span className="pc-meta">👥 {scopeSummary(m.scopes)}</span>
               <div className="cap-actions" onClick={(e) => e.stopPropagation()}>
-                <label className="switch" title={m.enabled ? "停用" : "启用"}>
+                <label className="switch" data-tip={m.enabled ? "停用" : "启用"}>
                   <input type="checkbox" checked={m.enabled} onChange={() => toggle(m)} />
                   <span className="slider" />
                 </label>
@@ -500,10 +686,10 @@ function SkillsTab() {
               <span className="pc-del" onClick={() => del(k)}>删除</span>
               <span className="pc-name">{k.name}</span>
               <span className="pc-meta mono">{k.id}</span>
-              <span className="pc-meta ellipsis" title={k.description}>{k.description || "—"}</span>
+              <span className="pc-meta ellipsis" data-tip={k.description}>{k.description || "—"}</span>
               <span className="pc-meta">👥 {scopeSummary(k.scopes)}</span>
               <div className="cap-actions">
-                <label className="switch" title={k.enabled ? "停用" : "启用"}>
+                <label className="switch" data-tip={k.enabled ? "停用" : "启用"}>
                   <input type="checkbox" checked={k.enabled} onChange={() => toggle(k)} />
                   <span className="slider" />
                 </label>
@@ -551,25 +737,33 @@ function ExpertsTab() {
           <button className="btn primary" onClick={() => { setForm(empty); setScopes([]); setEditing(true); }}><Icon name="plus" size={13} />添加</button>
         </div>
         {msg && <div className="msg">{msg}</div>}
-        <div className="provider-cards">
-          {experts.map((e) => (
-            <div key={e.id} className={`provider-card ${e.enabled ? "" : "off"}`}>
-              <span className="pc-del" onClick={() => confirm(`删除专家 ${e.name}？`) && api.admin.deleteExpert(e.id).then(refresh).catch((er) => setMsg(er.message))}>删除</span>
-              <span className="pc-name">{e.name}</span>
-              <span className="pc-meta mono">{e.id}</span>
-              <span className="pc-meta ellipsis" title={e.description}>{e.description || "—"}</span>
-              <span className="pc-meta">技能×{e.skill_ids?.length || 0} · MCP×{e.mcp_ids?.length || 0} · 👥 {scopeSummary(e.scopes)}</span>
-              <div className="cap-actions">
-                <button className="btn small" onClick={() => { setForm({ id: e.id, name: e.name, description: e.description, enabled: e.enabled, skill_ids: e.skill_ids || [], mcp_ids: e.mcp_ids || [] }); setScopes(e.scopes || []); setEditing(true); }}>编辑</button>
-                <label className="switch" title={e.enabled ? "下架" : "上架"}>
-                  <input type="checkbox" checked={e.enabled} onChange={() => api.admin.putExpert({ ...e, enabled: !e.enabled, scopes: e.scopes || [] }).then(refresh).catch((er) => setMsg(er.message))} />
-                  <span className="slider" />
-                </label>
-              </div>
-            </div>
-          ))}
-          {!experts.length && <div className="empty-hint">暂无专家，点击右上「添加」创建（如 ppt-master）</div>}
-        </div>
+        <table>
+          <thead><tr><th>名称 / ID</th><th>类别</th><th>描述</th><th>构成</th><th>可见范围</th><th>状态</th><th style={{ width: 130 }}>操作</th></tr></thead>
+          <tbody>
+            {experts.map((e) => (
+              <tr key={e.id} className={e.enabled ? "" : "off"}>
+                <td><b>{e.name}</b><div className="mono pc-meta">{e.id}</div></td>
+                <td>{e.name.includes("·") ? e.name.split("·")[0] : "—"}</td>
+                <td className="ellipsis" style={{ maxWidth: 260 }} data-tip={e.description}>{e.description || "—"}</td>
+                <td>技能×{e.skill_ids?.length || 0} · MCP×{e.mcp_ids?.length || 0}</td>
+                <td>{scopeSummary(e.scopes)}</td>
+                <td>
+                  <label className="switch" data-tip={e.enabled ? "下架" : "上架"}>
+                    <input type="checkbox" checked={e.enabled} onChange={() => api.admin.putExpert({ ...e, enabled: !e.enabled, scopes: e.scopes || [] }).then(refresh).catch((er) => setMsg(er.message))} />
+                    <span className="slider" />
+                  </label>
+                </td>
+                <td>
+                  <div className="cap-actions">
+                    <button className="btn small" onClick={() => { setForm({ id: e.id, name: e.name, description: e.description, enabled: e.enabled, skill_ids: e.skill_ids || [], mcp_ids: e.mcp_ids || [] }); setScopes(e.scopes || []); setEditing(true); }}>编辑</button>
+                    <button className="btn small" onClick={() => confirm(`删除专家 ${e.name}？`) && api.admin.deleteExpert(e.id).then(refresh).catch((er) => setMsg(er.message))}>删除</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!experts.length && <div className="empty-hint">暂无专家，点击右上「添加」创建（如 doc-master）</div>}
       </div>
 
       {editing && (
@@ -580,7 +774,7 @@ function ExpertsTab() {
             <button className="btn" onClick={() => setEditing(false)}>收起</button>
           </div>
           <div className="grid-form">
-            <input placeholder="id (slug，如 ppt-master)" value={form.id} onChange={(e) => setForm({ ...form, id: e.target.value })} />
+            <input placeholder="id (slug，如 doc-master)" value={form.id} onChange={(e) => setForm({ ...form, id: e.target.value })} />
             <input placeholder="名称（用户可见）" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <input placeholder="一句话描述（如：一键生成专业排版的 PPT/PDF）" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
@@ -610,11 +804,25 @@ function UsageTab() {
   const [rows, setRows] = useState<any[]>([]);
   const [byModel, setByModel] = useState<any[]>([]);
   const [topUsers, setTopUsers] = useState<any[]>([]);
+  const [dims, setDims] = useState<any>({});
+  const [unpriced, setUnpriced] = useState<any[]>([]);
   const [mine, setMine] = useState<any>(null);
   const [days, setDays] = useState(7);
+  const [users, setUsers] = useState<Record<string, string>>({}); // user_id -> display name
   useEffect(() => {
-    api.admin.usage(`?days=${days}`).then((r) => { setRows(r.rows || []); setByModel(r.by_model || []); setTopUsers(r.top_users || []); }).catch(() => {});
+    api.admin.users().then((r) => {
+      const m: Record<string, string> = {};
+      for (const u of r.users || []) m[u.id] = u.display_name || u.username || "";
+      setUsers(m);
+    }).catch(() => {}); // human names are cosmetic — raw ids still fine without it
+  }, []);
+  const uname = (id?: string) => users[id || ""] || (id ? id.slice(0, 10) : "—");
+  useEffect(() => {
+    api.admin.usage(`?days=${days}`).then((r) => {
+      setRows(r.rows || []); setByModel(r.by_model || []); setTopUsers(r.top_users || []); setDims(r);
+    }).catch(() => {});
     api.usageMe().then(setMine).catch(() => {});
+    api.models().then((r) => setUnpriced((r.models || []).filter((m) => !+(m.input_cost || 0) && !+(m.output_cost || 0)))).catch(() => {});
   }, [days]);
 
   // aggregate by day for chart + totals
@@ -644,7 +852,19 @@ function UsageTab() {
           <button key={d} className={`btn ${days === d ? "primary" : ""}`} onClick={() => setDays(d)}>{d} 天</button>
         ))}
         <span className="spacer" />
-        <a className="btn" href={`/api/v1/admin/usage/export?days=${days}`} target="_blank" rel="noreferrer">导出 CSV</a>
+        <a className="btn" href={`/api/v1/admin/usage/export?days=${days}&access_token=${encodeURIComponent(auth.token)}`} target="_blank" rel="noreferrer">导出 CSV</a>
+      </div>
+
+      {!!unpriced.length && (
+        <div className="panel-card" style={{ borderLeft: "3px solid #e6a23c" }}>
+          <b>⚠ {unpriced.length} 个模型未定价</b>：{unpriced.map((m) => m.model_id).join("、")} —— 用量将继续记录 tokens，但费用恒为 $0。请到「模型」页补填价格（$/1M tokens）。
+        </div>
+      )}
+
+      <div className="panel-card" style={{ display: "flex", gap: 24 }}>
+        <span><b className="mono" style={{ fontSize: 22 }}>{dims.dau ?? "—"}</b><span className="hint"> 今日活跃</span></span>
+        <span><b className="mono" style={{ fontSize: 22 }}>{dims.wau ?? "—"}</b><span className="hint"> 7 日活跃</span></span>
+        <span><b className="mono" style={{ fontSize: 22 }}>{dims.mau ?? "—"}</b><span className="hint"> 30 日活跃</span></span>
       </div>
 
       {mine && (
@@ -660,7 +880,7 @@ function UsageTab() {
           {dayList.map((d) => (
             <div key={d.day} className={`chart-col ${d.today ? "today" : ""}`}>
               <span className="chart-val">{d.tokens > 0 ? fmt(d.tokens) : ""}</span>
-              <div className="chart-bar" style={{ height: `${Math.max(3, (d.tokens / maxTokens) * 130)}px` }} title={`${d.day} · $${d.cost.toFixed(6)}`} />
+              <div className="chart-bar" style={{ height: `${Math.max(3, (d.tokens / maxTokens) * 130)}px` }} data-tip={`${d.day} · $${d.cost.toFixed(6)}`} />
               <span className="chart-day">{d.label}</span>
             </div>
           ))}
@@ -690,18 +910,74 @@ function UsageTab() {
           <thead><tr><th>#</th><th>用户</th><th>Tokens</th><th>费用</th><th>任务数</th></tr></thead>
           <tbody>
             {topUsers.map((u, i) => (
-              <tr key={i}><td>{i + 1}</td><td className="mono small">{u.user_id?.slice(0, 10)}</td><td>{fmt(u.total_tokens)}</td><td>${(+u.cost_usd || 0).toFixed(6)}</td><td>{u.task_count}</td></tr>
+              <tr key={i} data-tip={u.user_id}><td>{i + 1}</td><td>{uname(u.user_id)}</td><td>{fmt(u.total_tokens)}</td><td>${(+u.cost_usd || 0).toFixed(6)}</td><td>{u.task_count}</td></tr>
             ))}
+            {!topUsers.length && <tr><td colSpan={5} className="hint">暂无数据</td></tr>}
           </tbody>
         </table>
       </div>
 
       <div className="panel-card">
-        <h4>明细（用户 × 日）</h4>
+        <h4><Icon name="sparkles" size={14} />专家维度</h4>
         <table>
-          <thead><tr><th>日期</th><th>用户</th><th>Tokens</th><th>费用</th><th>任务数</th></tr></thead>
+          <thead><tr><th>专家</th><th>ID</th><th>Tokens</th><th>费用</th><th>任务数</th></tr></thead>
           <tbody>
-            {rows.map((r, i) => <tr key={i}><td>{r.day}</td><td className="mono small">{r.user_id?.slice(0, 10)}</td><td>{fmt(r.total_tokens)}</td><td>${(+r.cost_usd || 0).toFixed(6)}</td><td>{r.task_count}</td></tr>)}
+            {(dims.by_expert || []).map((e: any, i: number) => (
+              <tr key={i}><td>{e.name}</td><td className="mono small">{e.expert_id}</td><td>{fmt(e.total_tokens)}</td><td>${(+e.cost_usd || 0).toFixed(6)}</td><td>{e.task_count}</td></tr>
+            ))}
+            {!(dims.by_expert || []).length && <tr><td colSpan={5} className="hint">暂无专家维度数据（仅统计新会话）</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="panel-card">
+        <h4><Icon name="user" size={14} />部门维度</h4>
+        <table>
+          <thead><tr><th>部门</th><th>Tokens</th><th>费用</th><th>人数</th><th>任务数</th></tr></thead>
+          <tbody>
+            {(dims.by_department || []).map((d: any, i: number) => (
+              <tr key={i}><td>{d.department}</td><td>{fmt(d.total_tokens)}</td><td>${(+d.cost_usd || 0).toFixed(6)}</td><td>{d.users}</td><td>{d.task_count}</td></tr>
+            ))}
+            {!(dims.by_department || []).length && <tr><td colSpan={5} className="hint">暂无数据</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="panel-card">
+        <h4><Icon name="zap" size={14} />高消耗任务（Top 20，按费用）</h4>
+        <table>
+          <thead><tr><th>任务</th><th>用户</th><th>Tokens</th><th>费用</th></tr></thead>
+          <tbody>
+            {(dims.by_task || []).map((t: any, i: number) => (
+              <tr key={t.task_id}>
+                <td><a href={`#/task/${t.task_id}`} data-tip={t.task_id}>{t.title?.slice(0, 32) || <span className="mono small">{t.task_id?.slice(0, 14)}…</span>}</a></td>
+                <td>{uname(t.user_id)}</td>
+                <td>{fmt(t.total_tokens)}</td><td>${(+t.cost_usd || 0).toFixed(6)}</td>
+              </tr>
+            ))}
+            {!(dims.by_task || []).length && <tr><td colSpan={4} className="hint">暂无数据</td></tr>}</tbody>
+        </table>
+      </div>
+
+      <div className="panel-card">
+        <h4><Icon name="plug" size={14} />工具调用 Top 20</h4>
+        <table>
+          <thead><tr><th>工具</th><th>调用次数</th></tr></thead>
+          <tbody>
+            {(dims.by_tool || []).map((t: any, i: number) => (
+              <tr key={i}><td className="mono">{t.tool}</td><td>{fmt(t.calls)}</td></tr>
+            ))}
+            {!(dims.by_tool || []).length && <tr><td colSpan={2} className="hint">暂无数据（仅统计新会话）</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="panel-card">
+        <h4>明细（用户 × 日，仅现存用户；次数=消息上报次数）</h4>
+        <table>
+          <thead><tr><th>日期</th><th>用户</th><th>Tokens</th><th>费用</th><th>消息数</th></tr></thead>
+          <tbody>
+            {rows.map((r, i) => <tr key={i} data-tip={r.user_id}><td>{r.day}</td><td>{uname(r.user_id)}</td><td>{fmt(r.total_tokens)}</td><td>${(+r.cost_usd || 0).toFixed(6)}</td><td>{r.task_count}</td></tr>)}
           </tbody>
         </table>
       </div>
@@ -709,23 +985,47 @@ function UsageTab() {
   );
 }
 
+const AUDIT_ACTIONS = ["auth.login", "task.create", "task.abort", "task.delete", "user.create", "user.update", "user.delete", "iam.dept_create", "iam.dept_update", "iam.dept_delete", "model.upsert_provider", "model.upsert_model", "model.delete_provider", "model.delete_model", "caps.mcp_upsert", "caps.mcp_delete", "caps.skill_upload", "caps.skill_update", "caps.skill_delete", "caps.expert_upsert", "caps.expert_delete"];
+
 function AuditTab() {
   const [logs, setLogs] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [offset, setOffset] = useState(0);
   const [action, setAction] = useState("");
-  useEffect(() => {
-    api.admin.audit(action ? `?action=${action}` : "").then((r) => setLogs(r.logs || [])).catch(() => {});
-  }, [action]);
+  const [actor, setActor] = useState("");
+  const [resource, setResource] = useState("");
+  const LIMIT = 50;
+  const load = () => {
+    const p = new URLSearchParams({ limit: String(LIMIT), offset: String(offset) });
+    if (action) p.set("action", action);
+    if (actor.trim()) p.set("actor", actor.trim());
+    if (resource.trim()) p.set("resource", resource.trim());
+    api.admin.audit("?" + p.toString()).then((r) => { setLogs(r.logs || []); setTotal(r.total || 0); }).catch(() => {});
+  };
+  useEffect(() => { load(); }, [action, offset]);
+  const exportQ = `action=${action}&actor=${encodeURIComponent(actor.trim())}&resource=${encodeURIComponent(resource.trim())}&limit=5000&access_token=${encodeURIComponent(auth.token)}`;
   return (
     <div className="panel-card">
       <div className="inline-form">
-        <Select value={action} onChange={setAction} options={[{ value: "", label: "全部动作" }, ...["auth.login", "task.create", "task.abort", "task.delete", "user.create", "user.update", "user.delete", "iam.dept_create", "iam.dept_update", "iam.dept_delete", "model.upsert_provider", "model.upsert_model", "model.delete_provider", "model.delete_model", "caps.mcp_upsert", "caps.mcp_delete", "caps.skill_upload", "caps.skill_update", "caps.skill_delete"].map((a) => ({ value: a, label: a }))]} />
+        <Select value={action} onChange={(v) => { setAction(v); setOffset(0); }} options={[{ value: "", label: "全部动作" }, ...AUDIT_ACTIONS.map((a) => ({ value: a, label: a }))]} />
+        <input placeholder="操作者 user id" value={actor} onChange={(e) => setActor(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (setOffset(0), load())} style={{ maxWidth: 160 }} />
+        <input placeholder="资源关键字（如 task/）" value={resource} onChange={(e) => setResource(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (setOffset(0), load())} style={{ maxWidth: 180 }} />
+        <button className="btn" onClick={() => { setOffset(0); load(); }}>查询</button>
+        <span className="spacer" />
+        <a className="btn" href={`/api/v1/admin/audit?${exportQ}`} target="_blank" rel="noreferrer">导出 CSV</a>
       </div>
       <table>
         <thead><tr><th>时间</th><th>操作者</th><th>动作</th><th>资源</th><th>IP</th></tr></thead>
         <tbody>
           {logs.map((l) => <tr key={l.id}><td>{new Date(l.ts).toLocaleString()}</td><td>{l.actor?.slice(0, 10)}</td><td><span className="mono">{l.action}</span></td><td>{l.resource}</td><td>{l.ip}</td></tr>)}
+          {!logs.length && <tr><td colSpan={5} className="hint">无匹配记录</td></tr>}
         </tbody>
       </table>
+      <div className="inline-form" style={{ marginTop: 8 }}>
+        <button className="btn small" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>上一页</button>
+        <span className="hint">{total ? `${offset + 1}–${Math.min(offset + LIMIT, total)} / 共 ${total} 条` : "0 条"}</span>
+        <button className="btn small" disabled={offset + LIMIT >= total} onClick={() => setOffset(offset + LIMIT)}>下一页</button>
+      </div>
     </div>
   );
 }

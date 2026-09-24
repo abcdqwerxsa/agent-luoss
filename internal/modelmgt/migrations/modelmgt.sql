@@ -26,3 +26,5 @@ CREATE TABLE IF NOT EXISTS modelmgt.models (
 
 -- Existing deployments: add tier column idempotently.
 ALTER TABLE modelmgt.models ADD COLUMN IF NOT EXISTS tier TEXT NOT NULL DEFAULT '';
+
+ALTER TABLE modelmgt.models ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'chat';

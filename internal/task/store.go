@@ -159,12 +159,53 @@ func (s *Store) SetStatus(ctx context.Context, id, status string) error {
 	return err
 }
 
+// SetMode records the permission mode currently in use (per-turn switches
+// update the row so recovery resumes on the last-used mode).
+func (s *Store) SetMode(ctx context.Context, id, mode string) error {
+	_, err := s.db.Exec(ctx, `UPDATE task.tasks SET mode=$2, updated_at=now() WHERE id=$1`, id, mode)
+	return err
+}
+
+// SetModel records the model currently in use (per-turn overrides update
+// the row so recovery resumes on the last-used model).
+func (s *Store) SetModel(ctx context.Context, id, provider, modelID string) error {
+	_, err := s.db.Exec(ctx, `UPDATE task.tasks SET provider=$2, model_id=$3, updated_at=now() WHERE id=$1`, id, provider, modelID)
+	return err
+}
+
 func (s *Store) SetTitleIfEmpty(ctx context.Context, id, title string) error {
 	if len(title) > 80 {
 		title = title[:80]
 	}
 	_, err := s.db.Exec(ctx, `UPDATE task.tasks SET title=$2, updated_at=now() WHERE id=$1 AND title=''`, id, title)
 	return err
+}
+
+// runningRef is a minimal row used by the turn watchdog.
+type runningRef struct {
+	ID        string
+	RuntimeID string
+	UpdatedAt int64
+}
+
+// ListRunning returns tasks in status running (small set; no extra index needed).
+func (s *Store) ListRunning(ctx context.Context) ([]*runningRef, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT id, runtime_id, (extract(epoch from updated_at)*1000)::bigint
+		FROM task.tasks WHERE status = 'running'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*runningRef
+	for rows.Next() {
+		var r runningRef
+		if err := rows.Scan(&r.ID, &r.RuntimeID, &r.UpdatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, &r)
+	}
+	return out, rows.Err()
 }
 
 func itoa(n int) string {

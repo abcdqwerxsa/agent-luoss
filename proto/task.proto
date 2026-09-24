@@ -112,6 +112,10 @@ message SendPromptRequest {
   string message = 3;
   repeated agentluoss.v1.runtime.ImageContent images = 4;
   string streaming_behavior = 5;
+  // Optional per-turn model override; provider/model_id "auto" routes via Jev.
+  agentluoss.v1.runtime.ModelRef model = 6;
+  // Optional per-turn mode/permission switch ("ask" | "craft" | "plan").
+  string mode = 7;
 }
 
 message SendPromptResponse {
@@ -178,4 +182,8 @@ message GetMessagesRequest {
 message GetMessagesResponse {
   // JSON array of AgentMessage (pi format: user/assistant/toolResult roles).
   string messages_json = 1;
+  // max seq across ALL scanned events — SSE reattach anchor: a client that
+  // opens the event stream with since=last_seq receives exactly the tail it
+  // missed (e.g. the in-flight turn after a page re-entry).
+  int64 last_seq = 2;
 }

@@ -22,15 +22,24 @@ func NewUsageAdapter(addr string) (*UsageAdapter, error) {
 	return &UsageAdapter{cl: usagepb.NewUsageClient(cc)}, nil
 }
 
-func (u *UsageAdapter) Report(ctx context.Context, taskID, userID, provider, modelID string, d usageDelta) {
+func (u *UsageAdapter) Report(ctx context.Context, taskID, userID, provider, modelID, expertID string, d usageDelta) {
 	_, err := u.cl.ReportUsage(ctx, &usagepb.ReportUsageRequest{
-		TaskId: taskID, UserId: userID, Provider: provider, ModelId: modelID,
+		TaskId: taskID, UserId: userID, Provider: provider, ModelId: modelID, ExpertId: expertID,
 		InputTokens: d.Input, OutputTokens: d.Output,
 		CacheReadTokens: d.CacheRead, CacheWriteTokens: d.CacheWrite,
 		CostUsd: d.CostUSD, Ts: nowMs(),
 	})
 	if err != nil {
 		logUsageError(taskID, err)
+	}
+}
+
+func (u *UsageAdapter) ReportTool(ctx context.Context, userID, expertID, tool string) {
+	_, err := u.cl.ReportToolCall(ctx, &usagepb.ReportToolCallRequest{
+		UserId: userID, ExpertId: expertID, Tool: tool, Ts: nowMs(),
+	})
+	if err != nil {
+		logUsageError(tool, err)
 	}
 }
 

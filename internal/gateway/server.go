@@ -12,11 +12,13 @@ import (
 
 	"agentluoss/internal/auditx"
 	"agentluoss/internal/jwtx"
+	"agentluoss/internal/metricsx"
 	artifactpb "agentluoss/proto/gen/artifact"
 	modelmgtpb "agentluoss/proto/gen/modelmgt"
 	usagepb "agentluoss/proto/gen/usage"
 	capspb "agentluoss/proto/gen/caps"
 	iampb "agentluoss/proto/gen/iam"
+	kbpb "agentluoss/proto/gen/kb"
 	taskpb "agentluoss/proto/gen/task"
 	runtimpb "agentluoss/proto/gen/runtime"
 
@@ -36,11 +38,12 @@ type App struct {
 	modelmgt  modelmgtpb.ModelMgtClient
 	usage     usagepb.UsageClient
 	caps      capspb.CapsClient
+	kb        kbpb.KbClient
 	audit     *auditx.Event
 	router    *gin.Engine
 }
 
-func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr, capsAddr string) *App {
+func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr, capsAddr, kbAddr string) *App {
 	iamConn, err := grpc.NewClient(iamAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("dial iam: %v", err)
@@ -80,6 +83,13 @@ func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr, ca
 			log.Fatalf("dial task: %v", err)
 		}
 	}
+	var kbConn *grpc.ClientConn
+	if kbAddr != "" {
+		kbConn, err = grpc.NewClient(kbAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Fatalf("dial kb: %v", err)
+		}
+	}
 	a := &App{
 		jwtSecret: jwtSecret,
 		iam:       iampb.NewIAMClient(iamConn),
@@ -88,13 +98,14 @@ func New(jwtSecret, iamAddr, taskAddr, artifactAddr, modelmgtAddr, usageAddr, ca
 		modelmgt:  modelmgtpb.NewModelMgtClient(modelmgtConn),
 		usage:     usagepb.NewUsageClient(usageConn),
 		caps:      capspb.NewCapsClient(capsConn),
+		kb:        kbpb.NewKbClient(kbConn),
 		router:    nil,
 	}
 	a.router = a.build()
 	return a
 }
 
-func (a *App) Handler() http.Handler { return a.router }
+func (a *App) Handler() http.Handler { return metricsx.HTTPMiddleware(a.router) }
 
 func (a *App) build() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
@@ -136,6 +147,10 @@ func (a *App) build() *gin.Engine {
 		a.registerExpertAdminRoutes(admin)
 		a.registerExpertUserRoutes(authed)
 	}
+	if a.kb != nil {
+		a.registerKbAdminRoutes(admin)
+		a.registerKbUserRoutes(authed)
+	}
 
 	r.GET("/healthz", func(c *gin.Context) { c.String(200, "ok") })
 
@@ -173,8 +188,9 @@ func (a *App) authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		h := c.GetHeader("Authorization")
 		token := strings.TrimPrefix(h, "Bearer ")
-		if token == "" && strings.HasSuffix(c.Request.URL.Path, "/events") {
-			// EventSource cannot send headers; SSE endpoint accepts query token
+		// EventSource cannot send headers; SSE endpoint accepts query token.
+		// Downloads (<a href>) cannot either: /export paths accept it too.
+		if token == "" && (strings.HasSuffix(c.Request.URL.Path, "/events") || strings.HasSuffix(c.Request.URL.Path, "/export")) {
 			token = c.Query("access_token")
 		}
 		if token == "" {

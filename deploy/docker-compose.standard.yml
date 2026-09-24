@@ -9,10 +9,12 @@ x-go-env: &goenv
   REDIS_ADDR: redis:6379
   JWT_SECRET: ${JWT_SECRET:-dev-secret}
   KEY_MASTER: ${KEY_MASTER:-dev-master}
+  METRICS_ADDR: ":9100"
 
 services:
   postgres:
-    image: postgres:17-alpine
+    restart: unless-stopped
+    image: ${REG:-docker.m.daocloud.io}/pgvector/pgvector:pg17
     environment:
       POSTGRES_USER: agent
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentdev}
@@ -27,7 +29,8 @@ services:
     networks: [backend]
 
   redis:
-    image: redis:7-alpine
+    restart: unless-stopped
+    image: ${REG:-docker.m.daocloud.io}/library/redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redisdata:/data
@@ -39,6 +42,7 @@ services:
     networks: [backend]
 
   iam:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["iam"]
     environment:
@@ -52,6 +56,7 @@ services:
     networks: [backend]
 
   task:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["task"]
     environment:
@@ -72,6 +77,7 @@ services:
     networks: [backend]
 
   artifact:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["artifact"]
     environment:
@@ -85,6 +91,7 @@ services:
     networks: [backend]
 
   modelmgt:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["modelmgt"]
     environment:
@@ -99,6 +106,7 @@ services:
     networks: [backend]
 
   usage:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["usage"]
     environment:
@@ -111,6 +119,7 @@ services:
     networks: [backend]
 
   caps:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["caps"]
     environment:
@@ -150,6 +159,7 @@ services:
     networks: [backend]
 
   runtime2:
+    restart: unless-stopped
     <<: *rt
     environment:
       <<: *rtenv
@@ -162,7 +172,35 @@ services:
       - skills:/data/skills
       - agent2:/data/agent
 
+  kb:
+    restart: unless-stopped
+    build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
+    command: ["kb"]
+    environment:
+      <<: *goenv
+      PORT: "9097"
+      KB_HTTP_PORT: "9098"
+      KB_ADVERTISED_URL: http://kb:9098
+      IAM_ADDR: iam:9091
+      CAPS_ADDR: caps:9096
+      MODELMGT_ADDR: modelmgt:9094
+      MINERU_URL: ${MINERU_URL:-http://mineru:8000}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    networks: [backend]
+
+  mineru:
+    # opt-in: docker compose --profile mineru up -d
+    profiles: [mineru]
+    restart: unless-stopped
+    build: { context: .., dockerfile: deploy/Dockerfile.mineru }
+    environment:
+      <<: *goenv
+    networks: [backend]
+
   gateway:
+    restart: unless-stopped
     build: { context: .., dockerfile: deploy/Dockerfile.gosvc }
     command: ["gateway"]
     environment:
@@ -174,6 +212,7 @@ services:
       MODELMGT_ADDR: modelmgt:9094
       USAGE_ADDR: usage:9095
       CAPS_ADDR: caps:9096
+      KB_ADDR: kb:9097
       WEB_DIR: /app/web
     ports:
       - "${GATEWAY_PORT:-18090}:8080"

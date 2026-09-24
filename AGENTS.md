@@ -6,10 +6,13 @@
 ## 架构速览
 
 ```
-web(React) → gateway(:8080, REST+SSE) ─gRPC→ iam/task/artifact/modelmgt/caps/usage
+web(React) → gateway(:8080, REST+SSE) ─gRPC→ iam/task/artifact/modelmgt/caps/usage/kb
 task(:9092) ─gRPC→ agent-runtime×N(Node, pi SDK, 会话池+空闲驱逐+文件恢复)
 modelmgt → 渲染 /data/config/models.json（pi 格式，API Key AES-GCM 加密存 PG）
 caps(:9096) → MCP 服务器/技能库 CRUD + 按部门/角色分配；技能文件在 /data/skills/<id>
+kb(:9097 gRPC + :9098 MCP http) → 部门知识库（Agentic RAG）；每库=caps 一条 MCP 记录（/mcp/<kbId>），
+  异步入库（md/txt/csv 内置解析，其余 MinerU /file_parse）→ markdown 感知分块 → trigram+Go 重排；
+  工具：search / read_doc；检索循环由 agent 驱动；评测 deploy/kb-eval.mjs；批量导入 deploy/kb-import.mjs
 ```
 
 - 事件流：runtime `PushEvents` → task（Redis Stream 序号 + fan-out）→ gateway SSE（Last-Event-ID 回放）
@@ -32,9 +35,23 @@ cd deploy && docker compose up -d   # 全栈（本机适配版，见下）
 - `cmd/<svc>/main.go` 入口（iam:9091 task:9092 artifact:9093 modelmgt:9094 usage:9095 caps:9096）；改环境变量看各 main.go 顶部的 envOr
 - `services/agent-runtime/` Node sidecar（`npm run build` 仅类型检查+emit，运行 `node dist/index.js`；pi-mcp-adapter 为 TS 源码包，经 jiti 运行时加载；scripts/smoke*.mjs 冒烟，smoke-caps.mjs 验 MCP/技能注入）
 - `web/` 前端（构建产物打进 Go 镜像 /app/web）
-- `deploy/` compose/Dockerfile/e2e.mjs/load.mjs/zip.mjs（e2e 用纯 JS zip 构造器上传技能）
+- `deploy/` compose/Dockerfile/e2e.mjs/load.mjs/zip.mjs（e2e 用纯 JS zip 构造器上传技能）；`deploy/catalog/` 精选第三方技能仓库（只收 MIT/Apache，见其 README）+ `import-catalog.mjs` 批量导入为专家
 - `skills/<id>/` 内置技能源码（zip 提交到 caps）。当前内置：
   - `excel-master/` Excel 解析/生成/修改专家；Python 脚本用 openpyxl+pandas，runtime 镜像已装包
+
+## Git 工作流（强制）
+
+- **禁止直接在 main 上提交**。所有开发在独立 worktree 分支上进行，主仓 main 始终保持干净可部署：
+
+```bash
+git worktree add ../agent-luoss-<短名> -b feat/<名>    # 新特性分支（hotfix/ 同理）
+cd ../agent-luoss-<短名> && # 开发、commit（英文、一事一 commit）
+git push -u origin feat/<名>
+gh pr create --base main --fill-first            # 建 PR 后必须停下
+```
+
+- **AI 不得自行合并 PR**：推送分支、创建 PR 后即停，由人在 GitHub 上评审并点击合并（CI 绿是前提）。合并后再清理 worktree/分支
+- 部署脚本/文档类小改也走分支；紧急修复可直推 main 但须当日补记录
 
 ## 开发注意事项
 
@@ -49,6 +66,9 @@ cd deploy && docker compose up -d   # 全栈（本机适配版，见下）
 - gateway 的 admin 路由组前缀为空串，注册时必须写全路径（如 `/admin/mcp`，不是 `/mcp`）
 
 ## 部署
+
+构建/生产服务器：`ssh root@100.121.15.127`（代码在 `/root/agent-luoss`，栈用 docker-compose.standard.yml，网关 `127.0.0.1:18090`）。磁盘紧张（~92%），构建后记得 `docker builder prune`。
+旧 WSL 机（已退役，仅轻负载）：`ssh root@100.86.138.10`（原 192.168.28.165 已不可达；IO 差，勿在其上构建）。
 
 `deploy/docker-compose.yml` 为**本开发机适配版**（内核缺 iptables DNAT + 内嵌 DNS）：静态 IP 172.28.0.0/24、runtime host 网络、全容器清空代理 env。正常主机用 `deploy/docker-compose.standard.yml`（服务名 DNS + 发布 8080）。
 

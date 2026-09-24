@@ -113,7 +113,8 @@ func (s *Server) Render(ctx context.Context) error {
 				mm["maxTokens"] = m.MaxTokens
 			}
 			if m.InputCost > 0 || m.OutputCost > 0 {
-				mm["cost"] = map[string]any{"input": m.InputCost, "output": m.OutputCost}
+				// pi schema requires all four cost fields when cost is present
+				mm["cost"] = map[string]any{"input": m.InputCost, "output": m.OutputCost, "cacheRead": 0, "cacheWrite": 0}
 			}
 			if m.Reasoning {
 				mm["reasoning"] = true
@@ -225,6 +226,7 @@ func (s *Server) UpsertModel(ctx context.Context, req *modelmgtpb.UpsertModelReq
 		ContextWindow: m.GetContextWindow(), MaxTokens: m.GetMaxTokens(),
 		InputCost: m.GetInputCost(), OutputCost: m.GetOutputCost(),
 		Reasoning: m.GetReasoning(), Enabled: m.GetEnabled(), Tier: m.GetTier(),
+		Kind: m.GetKind(),
 	}); err != nil {
 		return nil, errCode(err)
 	}
@@ -278,10 +280,38 @@ func (s *Server) ListModels(ctx context.Context, req *modelmgtpb.ListModelsReque
 			ProviderId: m.ProviderID, Id: m.ModelID, DisplayName: m.DisplayName,
 			ContextWindow: m.ContextWindow, MaxTokens: m.MaxTokens,
 			InputCost: m.InputCost, OutputCost: m.OutputCost,
-			Reasoning: m.Reasoning, Enabled: m.Enabled, Tier: m.Tier,
+			Reasoning: m.Reasoning, Enabled: m.Enabled, Tier: m.Tier, Kind: m.Kind,
 		})
 	}
 	return resp, nil
+}
+
+// GetEmbeddingConfig returns the first enabled embedding model with its
+// provider credentials decrypted. Internal trusted-service RPC (kb-svc).
+func (s *Server) GetEmbeddingConfig(ctx context.Context, _ *modelmgtpb.GetEmbeddingConfigRequest) (*modelmgtpb.GetEmbeddingConfigResponse, error) {
+	models, err := s.store.ListModels(ctx, true)
+	if err != nil {
+		return nil, errCode(err)
+	}
+	for _, m := range models {
+		if m.Kind != "embedding" {
+			continue
+		}
+		p, err := s.store.GetProvider(ctx, m.ProviderID)
+		if err != nil || !p.Enabled {
+			continue
+		}
+		key := ""
+		if p.APIKey != "" {
+			if k, derr := cryptx.Decrypt(s.aead, p.APIKey); derr == nil {
+				key = k
+			}
+		}
+		return &modelmgtpb.GetEmbeddingConfigResponse{
+			ProviderId: p.ID, BaseUrl: p.BaseURL, ApiKey: key, ModelId: m.ModelID,
+		}, nil
+	}
+	return nil, status.Error(codes.NotFound, "no embedding model configured")
 }
 
 func mask(s string) string {

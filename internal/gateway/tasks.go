@@ -166,9 +166,12 @@ func (a *App) deleteTask(c *gin.Context) {
 
 func (a *App) sendPrompt(c *gin.Context) {
 	var req struct {
-		Message          string   `json:"message" binding:"required"`
-		Images           []gin.H  `json:"images"`
-		StreamingBehavior string  `json:"streaming_behavior"`
+		Message           string   `json:"message" binding:"required"`
+		Images            []gin.H  `json:"images"`
+		StreamingBehavior string   `json:"streaming_behavior"`
+		Provider          string   `json:"provider"` // optional per-turn override
+		ModelID           string   `json:"model_id"`
+		Mode              string   `json:"mode"`     // optional per-turn permission switch: ask|craft|plan
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": "message required"})
@@ -183,9 +186,14 @@ func (a *App) sendPrompt(c *gin.Context) {
 		}
 		pbImages = append(pbImages, &imageContent{Data: data, MediaType: mediaType})
 	}
+	var model *taskModel
+	if req.Provider != "" || req.ModelID != "" {
+		model = &taskModel{Provider: req.Provider, ModelId: req.ModelID}
+	}
 	resp, err := a.task.SendPrompt(outCtx(c), &taskpb.SendPromptRequest{
 		TaskId: c.Param("id"), UserId: c.GetString("user_id"),
 		Message: req.Message, Images: pbImages, StreamingBehavior: req.StreamingBehavior,
+		Model: model, Mode: req.Mode,
 	})
 	if err != nil {
 		grpcStatus(c, err)
@@ -252,14 +260,23 @@ func (a *App) taskHistory(c *gin.Context) {
 			})
 		}
 	}
-	c.JSON(200, gin.H{"messages": out})
+	c.JSON(200, gin.H{"messages": out, "last_seq": resp.GetLastSeq()})
 }
 
 // taskEvents proxies the gRPC event stream as SSE with Last-Event-ID replay.
+// A `since` query param takes precedence over the header — lets a freshly
+// loaded page anchor its stream to the history it already rendered (reattach
+// to an in-flight turn after re-entry).
 func (a *App) taskEvents(c *gin.Context) {
 	since := int64(0)
-	if id := c.GetHeader("Last-Event-ID"); id != "" {
-		if n, err := strconv.ParseInt(id, 10, 64); err == nil {
+	if v := c.Query("since"); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+			since = n
+		}
+	} else if id := c.GetHeader("Last-Event-ID"); id != "" {
+		if n, err := strconv.ParseInt(id, 10, 64); err != nil {
+			since = 0
+		} else {
 			since = n
 		}
 	}

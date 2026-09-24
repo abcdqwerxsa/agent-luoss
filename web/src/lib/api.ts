@@ -4,6 +4,8 @@ export interface Scope { type: string; value: string }
 export interface McpServerInfo { id: string; name: string; transport: string; command: string; args: string[]; url: string; enabled: boolean; scopes: Scope[] }
 export interface SkillInfo { id: string; name: string; description: string; enabled: boolean; scopes: Scope[] }
 export interface ModelOpt { provider_id: string; model_id: string; display_name: string; context_window?: number; reasoning?: boolean; input_cost?: number; output_cost?: number; enabled?: boolean; tier?: string }
+export interface KbInfo { id: string; name: string; scope: Scope; doc_count: number; mcp_entry_id: string; updated_at: number }
+export interface KbDoc { id: string; kb_id: string; filename: string; title: string; size: number; uploader: string; status: string; error: string; updated_at: number }
 export interface TaskInfo {
   id: string; user_id: string; title: string; mode: string; expert_id?: string;
   provider: string; model_id: string; status: string;
@@ -61,16 +63,17 @@ export const api = {
 
   tasks: {
     list: (q = "") => req<{ tasks: TaskInfo[]; total: number }>("GET", `/api/v1/tasks${q}`),
+    del: (id: string) => req("DELETE", `/api/v1/tasks/${id}`),
     create: (t: { title: string; mode: string; provider: string; model_id: string; first_message: string; expert_id?: string }) =>
       req<{ task: TaskInfo }>("POST", "/api/v1/tasks", t),
     get: (id: string) => req<{ task: TaskInfo; context_tokens?: number; context_window?: number }>("GET", `/api/v1/tasks/${id}`),
     remove: (id: string) => req("DELETE", `/api/v1/tasks/${id}`),
     patch: (id: string, t: { title?: string; archive?: boolean }) => req("PATCH", `/api/v1/tasks/${id}`, t),
-    send: (id: string, message: string, streaming_behavior?: string, images?: { data: string; media_type: string }[]) =>
-      req("POST", `/api/v1/tasks/${id}/messages`, { message, streaming_behavior, images }),
+    send: (id: string, message: string, streaming_behavior?: string, images?: { data: string; media_type: string }[], model?: { provider: string; model_id: string }, mode?: string) =>
+      req("POST", `/api/v1/tasks/${id}/messages`, { message, streaming_behavior, images, provider: model?.provider, model_id: model?.model_id, mode }),
     steer: (id: string, message: string) => req("POST", `/api/v1/tasks/${id}/steer`, { message }),
     abort: (id: string) => req("POST", `/api/v1/tasks/${id}/abort`),
-    history: (id: string) => req<{ messages: { role: string; content: unknown; model?: string; toolCallId?: string; toolName?: string; isError?: boolean }[] }>("GET", `/api/v1/tasks/${id}/messages`),
+    history: (id: string) => req<{ messages: { role: string; content: unknown; model?: string; toolCallId?: string; toolName?: string; isError?: boolean }[]; last_seq?: number }>("GET", `/api/v1/tasks/${id}/messages`),
   },
 
   files: {
@@ -109,7 +112,7 @@ export const api = {
     deleteUser: (id: string) => req("DELETE", `/api/v1/users/${id}`),
     providers: () => req<{ providers: { id: string; name: string; base_url: string; api_type: string; has_key: boolean; enabled: boolean }[] }>("GET", "/api/v1/admin/providers"),
     putProvider: (p: { id: string; name: string; base_url: string; api_type: string; api_key?: string; enabled: boolean }) => req("PUT", "/api/v1/admin/providers", p),
-    putModel: (m: { provider_id: string; model_id: string; display_name: string; context_window?: number; input_cost?: number; output_cost?: number; reasoning?: boolean; enabled: boolean; tier?: string }) => req("PUT", "/api/v1/admin/models", m),
+    putModel: (m: { provider_id: string; model_id: string; display_name: string; context_window?: number; input_cost?: number; output_cost?: number; reasoning?: boolean; enabled: boolean; tier?: string; kind?: string }) => req("PUT", "/api/v1/admin/models", m),
     deleteModel: (provider_id: string, model_id: string) => req("DELETE", `/api/v1/admin/models?provider_id=${encodeURIComponent(provider_id)}&model_id=${encodeURIComponent(model_id)}`),
     allModels: () => req<{ models: ModelOpt[] }>("GET", "/api/v1/admin/models/all"),
     deleteProvider: (id: string) => req("DELETE", `/api/v1/admin/providers?id=${encodeURIComponent(id)}`),
@@ -119,6 +122,12 @@ export const api = {
       rows: { day: string; user_id: string; total_tokens: number; cost_usd: number; task_count: number }[];
       by_model: { provider: string; model_id: string; input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_write_tokens: number; total_tokens: number; cost_usd: number; task_count: number }[];
       top_users: { user_id: string; total_tokens: number; cost_usd: number; task_count: number }[];
+      by_expert: { expert_id: string; name: string; total_tokens: number; cost_usd: number; task_count: number }[];
+      by_department: { department: string; total_tokens: number; cost_usd: number; users: number; task_count: number }[];
+      by_task: { task_id: string; title: string; user_id: string; total_tokens: number; cost_usd: number }[];
+      by_tool: { tool: string; calls: number }[];
+      dau: number; wau: number; mau: number;
+      quotas: { user_id: string; monthly_limit_usd: number; month_used_usd: number }[];
     }>("GET", `/api/v1/admin/usage${q ? (q.startsWith("?") ? q : `?${q}`) : ""}`),
     audit: (q = "") => req<{ logs: { id: number; actor: string; action: string; resource: string; ts: number; ip: string }[]; total: number }>("GET", `/api/v1/admin/audit${q}`),
     setQuota: (user_id: string, monthly_limit_usd: number) => req("PUT", "/api/v1/admin/quota", { user_id, monthly_limit_usd }),
@@ -153,5 +162,43 @@ export const api = {
     experts: () => req<{ experts: any[] }>("GET", "/api/v1/admin/experts"),
     putExpert: (e: { id: string; name: string; description: string; enabled: boolean; skill_ids: string[]; mcp_ids: string[]; scopes: Scope[] }) => req("PUT", "/api/v1/admin/experts", e),
     deleteExpert: (id: string) => req("DELETE", `/api/v1/admin/experts/${id}`),
+    kb: () => req<{ kbs: KbInfo[] }>("GET", "/api/v1/admin/kb"),
+    createKb: (name: string, scope: Scope) => req<{ kb: KbInfo }>("POST", `/api/v1/admin/kb?name=${encodeURIComponent(name)}&scope_type=${scope.type}&scope_value=${encodeURIComponent(scope.value)}`),
+    deleteKb: (id: string) => req("DELETE", `/api/v1/admin/kb/${id}`),
+    kbDocs: (id: string) => req<{ docs: KbDoc[] }>("GET", `/api/v1/admin/kb/${id}/docs`),
+    deleteKbDoc: (id: string) => req("DELETE", `/api/v1/admin/kb/docs/${id}`),
+    reindexKb: (kbId: string) => req<{ cleared: number }>("POST", "/api/v1/admin/kb/reindex", { kb_id: kbId }),
+    async uploadKbDoc(kbId: string, file: File) {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/v1/admin/kb/${kbId}/docs`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${auth.token}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        let msg = "upload failed";
+        try { msg = (await res.json()).error || msg; } catch { /* keep */ }
+        throw new ApiError(res.status, msg);
+      }
+      return res.json();
+    },
+  },
+
+  myKbs: () => req<{ kbs: KbInfo[] }>("GET", "/api/v1/kb"),
+  async uploadMyKbDoc(kbId: string, file: File) {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(`/api/v1/kb/${kbId}/docs`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${auth.token}` },
+      body: fd,
+    });
+    if (!res.ok) {
+      let msg = "upload failed";
+      try { msg = (await res.json()).error || msg; } catch { /* keep */ }
+      throw new ApiError(res.status, msg);
+    }
+    return res.json();
   },
 };

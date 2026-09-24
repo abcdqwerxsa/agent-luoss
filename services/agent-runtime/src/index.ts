@@ -21,7 +21,12 @@ const AGENT_DIR = env("AGENT_DIR", "/data/runtime/agent");
 const MAX_SESSIONS = parseInt(env("MAX_SESSIONS", "200"), 10);
 const IDLE_TTL_MS = parseInt(env("IDLE_TTL_MS", String(30 * 60 * 1000)), 10);
 
-const MODES: Record<number, Mode> = { 1: "ask", 2: "craft", 3: "plan" };
+// proto-loader delivers enums as names ("TASK_MODE_ASK") with enums:String;
+// accept numeric values too for safety.
+const MODES: Record<string | number, Mode> = {
+  1: "ask", 2: "craft", 3: "plan",
+  TASK_MODE_ASK: "ask", TASK_MODE_CRAFT: "craft", TASK_MODE_PLAN: "plan",
+};
 
 async function main() {
   const bus = new EventBus(PROTO_DIR, TASK_ADDR, RUNTIME_ID, ADVERTISE_ADDR);
@@ -92,7 +97,7 @@ async function main() {
     },
 
     prompt: async (call: any, cb: any) => {
-      const session = pool.get(call.request.taskId);
+      let session = pool.get(call.request.taskId);
       if (!session) return cb({ code: grpc.status.NOT_FOUND, message: "session not in pool (re-create to resume)" });
       const images = (call.request.images || []).map((i: any) => ({
         type: "image" as const,
@@ -101,6 +106,51 @@ async function main() {
       const behavior = call.request.streamingBehavior || undefined;
       if (session.isStreaming && !behavior) {
         return cb({ code: grpc.status.INVALID_ARGUMENT, message: "streaming; set streaming_behavior (steer|follow_up)" });
+      }
+      // Optional per-turn permission mode switch: rebuild the session
+      // (same session file) with the new toolset + system prompt.
+      const newMode = call.request.mode;
+      if (newMode === "ask" || newMode === "craft" || newMode === "plan") {
+        if (session.isStreaming) {
+          return cb({ code: grpc.status.INVALID_ARGUMENT, message: "cannot switch mode while streaming" });
+        }
+        if (pool.modeOf(call.request.taskId) !== newMode) {
+          try {
+            session = await pool.switchMode(call.request.taskId, newMode);
+          } catch (err: any) {
+            return cb({ code: grpc.status.FAILED_PRECONDITION, message: `mode switch failed: ${err?.message ?? err}` });
+          }
+          bus.push({
+            taskId: call.request.taskId,
+            type: "mode_switched",
+            payload: JSON.stringify({ mode: newMode }),
+            timestamp: Date.now(),
+          });
+        }
+      }
+      // Optional per-turn model override: applied before this prompt via
+      // session.setModel (conversation history is preserved; pi keeps the
+      // change session-only). Rejected while streaming.
+      const ov = call.request.model;
+      if (ov && (ov.provider || ov.modelId)) {
+        if (session.isStreaming) {
+          return cb({ code: grpc.status.INVALID_ARGUMENT, message: "cannot switch model while streaming" });
+        }
+        const m = pool.modelRuntime ? pool.modelRuntime.getModel(ov.provider, ov.modelId) : null;
+        if (!m) {
+          return cb({ code: grpc.status.INVALID_ARGUMENT, message: `model not found: ${ov.provider}/${ov.modelId}` });
+        }
+        try {
+          if (m !== session.model) await session.setModel(m);
+        } catch (err: any) {
+          return cb({ code: grpc.status.FAILED_PRECONDITION, message: `set model failed: ${err?.message ?? err}` });
+        }
+        bus.push({
+          taskId: call.request.taskId,
+          type: "model_switched",
+          payload: JSON.stringify({ provider: ov.provider, modelId: ov.modelId }),
+          timestamp: Date.now(),
+        });
       }
       // fire-and-forget: events stream to task via eventbus; errors become events
       session

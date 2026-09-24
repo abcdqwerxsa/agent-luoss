@@ -45,3 +45,16 @@ CREATE INDEX IF NOT EXISTS idx_audit_actor ON usage.audit_logs(actor);
 
 CREATE INDEX IF NOT EXISTS idx_usage_events_task ON usage.usage_events(task_id);
 CREATE INDEX IF NOT EXISTS idx_usage_events_ts_user ON usage.usage_events(ts, user_id);
+
+-- enterprise analytics: expert dimension + tool-call metering
+ALTER TABLE usage.usage_events ADD COLUMN IF NOT EXISTS expert_id TEXT NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS idx_usage_events_expert ON usage.usage_events(expert_id);
+
+CREATE TABLE IF NOT EXISTS usage.tool_usage_daily (
+  day       DATE NOT NULL,
+  user_id   TEXT NOT NULL,
+  expert_id TEXT NOT NULL DEFAULT '',
+  tool      TEXT NOT NULL,
+  calls     BIGINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, user_id, expert_id, tool)
+);

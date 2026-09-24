@@ -55,11 +55,11 @@ func (s *Server) ReportUsage(ctx context.Context, req *usagepb.ReportUsageReques
 	}
 	_, err := s.db.Exec(ctx, `
 		INSERT INTO usage.usage_events
-			(task_id, user_id, provider, model_id, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd, ts)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9, now())`,
+			(task_id, user_id, provider, model_id, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost_usd, expert_id, ts)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10, now())`,
 		req.GetTaskId(), req.GetUserId(), req.GetProvider(), req.GetModelId(),
 		req.GetInputTokens(), req.GetOutputTokens(), req.GetCacheReadTokens(), req.GetCacheWriteTokens(),
-		req.GetCostUsd())
+		req.GetCostUsd(), req.GetExpertId())
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -78,6 +78,22 @@ func (s *Server) ReportUsage(ctx context.Context, req *usagepb.ReportUsageReques
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &usagepb.ReportUsageResponse{}, nil
+}
+
+func (s *Server) ReportToolCall(ctx context.Context, req *usagepb.ReportToolCallRequest) (*usagepb.ReportToolCallResponse, error) {
+	ts := time.Now()
+	if req.GetTs() > 0 {
+		ts = time.UnixMilli(req.GetTs())
+	}
+	_, err := s.db.Exec(ctx, `
+		INSERT INTO usage.tool_usage_daily (day, user_id, expert_id, tool, calls)
+		VALUES ($1,$2,$3,$4,1)
+		ON CONFLICT (day, user_id, expert_id, tool) DO UPDATE SET calls = usage.tool_usage_daily.calls + 1`,
+		ts.UTC().Format("2006-01-02"), req.GetUserId(), req.GetExpertId(), req.GetTool())
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &usagepb.ReportToolCallResponse{}, nil
 }
 
 // ---- quota ----
@@ -152,19 +168,20 @@ func (s *Server) GetUsageSummary(ctx context.Context, req *usagepb.GetUsageSumma
 	admin := user == ""
 	resp := &usagepb.GetUsageSummaryResponse{}
 
-	// per user/day rows (fast path via usage_daily)
+	// per user/day rows (fast path via usage_daily; JOIN iam hides deleted users)
 	rows, err := s.db.Query(ctx, `
-		SELECT to_char(day,'YYYY-MM-DD'), user_id, input_tokens, output_tokens, total_tokens, cost_usd, task_count
-		FROM usage.usage_daily
-		WHERE day >= $1::date AND day <= $2::date AND ($3 = '' OR user_id = $3)
-		ORDER BY day DESC LIMIT 500`, from, to, user)
+		SELECT to_char(ud.day,'YYYY-MM-DD'), ud.user_id, coalesce(nullif(u.display_name,''), u.username),
+		       ud.input_tokens, ud.output_tokens, ud.total_tokens, ud.cost_usd, ud.task_count
+		FROM usage.usage_daily ud JOIN iam.users u ON u.id = ud.user_id
+		WHERE ud.day >= $1::date AND ud.day <= $2::date AND ($3 = '' OR ud.user_id = $3)
+		ORDER BY ud.day DESC LIMIT 500`, from, to, user)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var r usagepb.UsageRow
-		if err := rows.Scan(&r.Day, &r.UserId, &r.InputTokens, &r.OutputTokens, &r.TotalTokens, &r.CostUsd, &r.TaskCount); err != nil {
+		if err := rows.Scan(&r.Day, &r.UserId, &r.Username, &r.InputTokens, &r.OutputTokens, &r.TotalTokens, &r.CostUsd, &r.TaskCount); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		resp.Rows = append(resp.Rows, &r)
@@ -199,26 +216,134 @@ func (s *Server) GetUsageSummary(ctx context.Context, req *usagepb.GetUsageSumma
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// top users (admin view only)
+	// top users (admin view only; JOIN iam filters deleted users and yields names).
+	// task_count = distinct tasks from raw events (usage_daily.task_count is
+	// per-message report count, not tasks).
 	if admin {
 		urows, err := s.db.Query(ctx, `
-			SELECT user_id, sum(total_tokens), sum(cost_usd), sum(task_count)
-			FROM usage.usage_daily
-			WHERE day >= $1::date AND day <= $2::date
-			GROUP BY user_id ORDER BY sum(cost_usd) DESC LIMIT 20`, from, to)
+			SELECT e.user_id, coalesce(nullif(u.display_name,''), u.username),
+			       sum(e.input_tokens+e.output_tokens+e.cache_read_tokens+e.cache_write_tokens),
+			       sum(e.cost_usd), count(DISTINCT e.task_id)
+			FROM usage.usage_events e
+			JOIN iam.users u ON u.id = e.user_id
+			WHERE e.ts >= $1 AND e.ts <= $2
+			GROUP BY 1,2 ORDER BY sum(e.cost_usd) DESC LIMIT 20`, from, to)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		defer urows.Close()
 		for urows.Next() {
 			var u usagepb.UserUsageRow
-			if err := urows.Scan(&u.UserId, &u.TotalTokens, &u.CostUsd, &u.TaskCount); err != nil {
+			if err := urows.Scan(&u.UserId, &u.DisplayName, &u.TotalTokens, &u.CostUsd, &u.TaskCount); err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
 			resp.TopUsers = append(resp.TopUsers, &u)
 		}
 		if err := urows.Err(); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	// by expert (raw events carry expert_id; '' excluded)
+	erows, err := s.db.Query(ctx, `
+		SELECT e.expert_id, coalesce(x.name, e.expert_id),
+		       sum(e.input_tokens+e.output_tokens+e.cache_read_tokens+e.cache_write_tokens),
+		       sum(e.cost_usd), count(DISTINCT e.task_id)
+		FROM usage.usage_events e LEFT JOIN caps.experts x ON x.id = e.expert_id
+		WHERE e.ts >= $1 AND e.ts <= $2 AND e.expert_id <> '' AND ($3 = '' OR e.user_id = $3)
+		GROUP BY 1,2 ORDER BY sum(e.cost_usd) DESC LIMIT 20`, from, to, user)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer erows.Close()
+	for erows.Next() {
+		var e usagepb.ExpertUsageRow
+		if err := erows.Scan(&e.ExpertId, &e.Name, &e.TotalTokens, &e.CostUsd, &e.TaskCount); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		resp.ByExpert = append(resp.ByExpert, &e)
+	}
+
+	// by department (usage_daily JOIN iam)
+	drows, err := s.db.Query(ctx, `
+		SELECT coalesce(d.name, '未分配'), sum(ud.total_tokens), sum(ud.cost_usd),
+		       count(DISTINCT ud.user_id), sum(ud.task_count)
+		FROM usage.usage_daily ud
+		JOIN iam.users u ON u.id = ud.user_id
+		LEFT JOIN iam.departments d ON d.id = u.department_id
+		WHERE ud.day >= $1::date AND ud.day <= $2::date AND ($3 = '' OR ud.user_id = $3)
+		GROUP BY 1 ORDER BY sum(ud.cost_usd) DESC LIMIT 20`, from, to, user)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer drows.Close()
+	for drows.Next() {
+		var d usagepb.DeptUsageRow
+		if err := drows.Scan(&d.Department, &d.TotalTokens, &d.CostUsd, &d.Users, &d.TaskCount); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		resp.ByDepartment = append(resp.ByDepartment, &d)
+	}
+
+	// highest-cost tasks
+	trows, err := s.db.Query(ctx, `
+		SELECT e.task_id, coalesce(t.title,''), t.user_id,
+		       sum(e.input_tokens+e.output_tokens+e.cache_read_tokens+e.cache_write_tokens), sum(e.cost_usd)
+		FROM usage.usage_events e JOIN task.tasks t ON t.id = e.task_id
+		WHERE e.ts >= $1 AND e.ts <= $2 AND ($3 = '' OR e.user_id = $3)
+		GROUP BY e.task_id, t.title, t.user_id ORDER BY sum(e.cost_usd) DESC LIMIT 20`, from, to, user)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer trows.Close()
+	for trows.Next() {
+		var r usagepb.TaskUsageRow
+		if err := trows.Scan(&r.TaskId, &r.Title, &r.UserId, &r.TotalTokens, &r.CostUsd); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		resp.ByTask = append(resp.ByTask, &r)
+	}
+
+	// active users (current dau/wau/mau, not window-scoped)
+	_ = s.db.QueryRow(ctx, `
+		SELECT (SELECT count(DISTINCT user_id) FROM usage.usage_daily WHERE day = current_date AND ($1 = '' OR user_id = $1)),
+		       (SELECT count(DISTINCT user_id) FROM usage.usage_daily WHERE day >= current_date - 6 AND ($1 = '' OR user_id = $1)),
+		       (SELECT count(DISTINCT user_id) FROM usage.usage_daily WHERE day >= current_date - 29 AND ($1 = '' OR user_id = $1))`,
+		user).Scan(&resp.Dau, &resp.Wau, &resp.Mau)
+
+	// by tool
+	krows, err := s.db.Query(ctx, `
+		SELECT tool, sum(calls) FROM usage.tool_usage_daily
+		WHERE day >= $1::date AND day <= $2::date AND ($3 = '' OR user_id = $3)
+		GROUP BY tool ORDER BY 2 DESC LIMIT 20`, from, to, user)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer krows.Close()
+	for krows.Next() {
+		var t usagepb.ToolUsageRow
+		if err := krows.Scan(&t.Tool, &t.Calls); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		resp.ByTool = append(resp.ByTool, &t)
+	}
+
+	// quotas: all users' limit + month spend (admin view only)
+	if admin {
+		qrows, err := s.db.Query(ctx, `
+			SELECT u.id, coalesce(q.monthly_limit_usd, 0),
+			       (SELECT coalesce(sum(ud.cost_usd), 0) FROM usage.usage_daily ud
+			        WHERE ud.user_id = u.id AND ud.day >= date_trunc('month', current_date))
+			FROM iam.users u LEFT JOIN usage.quotas q ON q.user_id = u.id
+			ORDER BY 3 DESC`)
+		if err == nil {
+			defer qrows.Close()
+			for qrows.Next() {
+				var q usagepb.UserQuotaRow
+				if err := qrows.Scan(&q.UserId, &q.MonthlyLimitUsd, &q.MonthUsedUsd); err == nil {
+					resp.Quotas = append(resp.Quotas, &q)
+				}
+			}
 		}
 	}
 	return resp, nil
@@ -289,6 +414,10 @@ func (s *Server) ListAuditLogs(ctx context.Context, req *usagepb.ListAuditLogsRe
 	if req.GetAction() != "" {
 		args = append(args, req.GetAction())
 		where += fmt.Sprintf(" AND action = $%d", len(args))
+	}
+	if req.GetResource() != "" {
+		args = append(args, "%"+req.GetResource()+"%")
+		where += fmt.Sprintf(" AND resource ILIKE $%d", len(args))
 	}
 	if req.GetFromTs() > 0 {
 		args = append(args, time.UnixMilli(req.GetFromTs()))
