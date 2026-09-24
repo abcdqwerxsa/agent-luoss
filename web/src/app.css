@@ -810,3 +810,17 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   vertical-align: 1px;
 }
 .src-chip .icon { color: var(--accent); }
+
+/* generative-ui local-interaction components */
+.gui-tabs { border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; }
+.gui-tab-bar { display: flex; gap: 2px; border-bottom: 1px solid var(--border); background: var(--surface-2); padding: 4px 4px 0; }
+.gui-tab { border: none; background: transparent; color: var(--text-2); padding: 6px 14px; border-radius: 6px 6px 0 0; font-size: 13px; }
+.gui-tab:hover { color: var(--text); }
+.gui-tab.on { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+.gui-tab-body { padding: 12px; }
+.gui-acc { border: 1px solid var(--border); border-radius: var(--radius-card); }
+.gui-acc-head { display: flex; align-items: center; gap: 6px; width: 100%; border: none; background: var(--surface-2); color: var(--text); padding: 8px 12px; text-align: left; font-size: 13px; }
+.gui-acc-head:hover { background: var(--surface-3); }
+.gui-acc-chevron { color: var(--text-3); transition: transform .15s; display: inline-block; }
+.gui-acc-chevron.open { transform: rotate(90deg); }
+.gui-acc-body { padding: 12px; border-top: 1px solid var(--border); }
