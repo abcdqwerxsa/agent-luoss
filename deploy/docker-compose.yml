@@ -247,6 +247,8 @@ services:
       - usage
       - caps
       - kb
+    ports:
+      - "18090:8080"
     networks:
       backend: { ipv4_address: 172.28.0.11 }
 
