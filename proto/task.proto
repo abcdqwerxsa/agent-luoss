@@ -182,4 +182,8 @@ message GetMessagesRequest {
 message GetMessagesResponse {
   // JSON array of AgentMessage (pi format: user/assistant/toolResult roles).
   string messages_json = 1;
+  // max seq across ALL scanned events — SSE reattach anchor: a client that
+  // opens the event stream with since=last_seq receives exactly the tail it
+  // missed (e.g. the in-flight turn after a page re-entry).
+  int64 last_seq = 2;
 }
