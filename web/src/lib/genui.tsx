@@ -151,8 +151,16 @@ const impls: Record<string, Impl> = {
   ),
   Button: ({ props = {} }) => (
     <button
+      type="button"
       className="btn small gui-btn"
-      onClick={() => window.dispatchEvent(new CustomEvent("genui:action", { detail: { message: props.message || props.label } }))}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const msg = props.message || props.label;
+        if (msg) {
+          window.dispatchEvent(new CustomEvent("genui:action", { detail: { message: msg } }));
+        }
+      }}
     >
       {props.label}
     </button>
@@ -192,6 +200,7 @@ const { registry } = defineRegistry(genuiCatalog, { components: impls as any });
 
 export function GenerativeUIBlock({ code }: { code: string }) {
   const trimmed = code.trim();
+  const lastValidSpecRef = React.useRef<any>(null);
   let spec: any = null;
   const isPatchStream = /^\s*\{\s*"op"\s*:/.test(trimmed);
 
@@ -214,6 +223,13 @@ export function GenerativeUIBlock({ code }: { code: string }) {
         spec = parsed;
       }
     }
+  }
+
+  if (spec) {
+    lastValidSpecRef.current = spec;
+  } else if (lastValidSpecRef.current) {
+    // 保持上一帧有效 spec，防止流式 JSON 临时解析失败引起的剧烈闪烁
+    spec = lastValidSpecRef.current;
   }
 
   if (!spec) {

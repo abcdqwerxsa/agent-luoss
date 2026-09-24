@@ -52,6 +52,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const userScrollingRef = useRef(false);
   const scrollTimerRef = useRef<any>(null);
+  const isProgrammaticScrollRef = useRef(false);
   const esRef = useRef<EventSource | null>(null);
 
   const loadUsage = () => api.taskUsage(taskId).then(setUsage).catch(() => {});
@@ -61,6 +62,9 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     let cancelled = false;
     api.tasks.get(taskId).then((r) => {
       setTask(r.task);
+      if (r.task?.status && r.task.status !== "running" && r.task.status !== "pending") {
+        setRunning(false);
+      }
       const cw = r.context_window || 0; if (cw) setCtxUse({ tokens: r.context_tokens || 0, window: cw });
     }).catch(() => {});
     loadUsage();
@@ -145,15 +149,25 @@ export function TaskDetail({ taskId }: { taskId: string }) {
               else if (e.type === "thinking") think += (think ? "\n" : "") + (e.thinking || "");
               else if (e.type === "toolCall") hasTools = true;
             }
+            const errMsg = msg.errorMessage || (msg.stopReason === "error" ? "模型调用异常" : "");
             cur = null;
             setBubbles((prev) => {
               const valid = prev.filter((x): x is Bubble => Boolean(x && x.role));
               return valid.map((x, i, arr) =>
                 i === arr.length - 1 && x.role === "assistant"
-                  ? { ...x, text: text || x.text, thinking: think || x.thinking, streaming: hasTools ? x.streaming : false }
+                  ? {
+                      ...x,
+                      text: text || x.text,
+                      thinking: think || x.thinking,
+                      streaming: hasTools ? x.streaming : false,
+                      error: errMsg || x.error,
+                    }
                   : x
               );
             });
+            if (!hasTools && (msg.stopReason === "stop" || msg.stopReason === "end_turn" || msg.stopReason === "error")) {
+              setTimeout(() => refreshTask(), 300);
+            }
           }
         } else if (t === "tool_execution_start") {
           const card: ToolCard = { id: p.toolCallId, tool: p.toolName, args: JSON.stringify(p.args ?? {}), output: "", done: false };
@@ -196,7 +210,13 @@ export function TaskDetail({ taskId }: { taskId: string }) {
             return [...valid, { role: "assistant", text: "", tools: [], error: errMsg, streaming: false }];
           });
         } else if (t === "auto_retry_start") {
-          setNotice(`模型暂时不可用，自动重试 (${p.attempt}/${p.maxAttempts})…`);
+          const retryNotice = p.error?.message || p.message || `模型接口触发限流或暂时不可用，正在自动重试 (${p.attempt}/${p.maxAttempts})…`;
+          setNotice(retryNotice);
+          update((b) => ({
+            ...b,
+            error: b.error || retryNotice,
+            streaming: true,
+          }));
         }
       };
       es.onerror = () => { /* EventSource auto-reconnects with Last-Event-ID */ };
@@ -221,12 +241,16 @@ export function TaskDetail({ taskId }: { taskId: string }) {
 
   useEffect(() => {
     if (auto && !userScrollingRef.current) {
+      isProgrammaticScrollRef.current = true;
       scrollRef.current?.scrollTo({ top: scrollRef.current?.scrollHeight });
     }
   }, [bubbles, notice, auto]);
 
   const refreshTask = () => api.tasks.get(taskId).then((r) => {
     setTask(r.task);
+    if (r.task?.status && r.task.status !== "running" && r.task.status !== "pending") {
+      setRunning(false);
+    }
     const cw = r.context_window || 0;
     if (cw) setCtxUse((c) => c ?? { tokens: r.context_tokens || 0, window: cw });
   }).catch(() => {});
@@ -348,7 +372,11 @@ export function TaskDetail({ taskId }: { taskId: string }) {
         : (() => { const [p, m] = effModel.split("/"); return { provider: p, model_id: m }; })()
         : undefined;
       const mode = effMode && task && effMode !== task.mode ? effMode : undefined;
-      await api.tasks.send(taskId, msg, behavior, undefined, model, mode);
+      if (behavior === "steer") {
+        await api.tasks.steer(taskId, msg);
+      } else {
+        await api.tasks.send(taskId, msg, behavior, undefined, model, mode);
+      }
       setRunning(true);
       setModelKey("");
       setModeKey("");
@@ -370,14 +398,25 @@ export function TaskDetail({ taskId }: { taskId: string }) {
   useEffect(() => {
     const onAction = (e: Event) => {
       const msg = (e as CustomEvent).detail?.message;
-      if (typeof msg === "string" && msg.trim() && !running) void sendText(msg.trim());
+      if (typeof msg === "string" && msg.trim()) {
+        if (running) {
+          void sendText(msg.trim(), "follow_up");
+        } else {
+          void sendText(msg.trim());
+        }
+      }
     };
     window.addEventListener("genui:action", onAction);
     return () => window.removeEventListener("genui:action", onAction);
-  });
+  }, [running]);
 
   const abort = async () => {
-    try { await api.tasks.abort(taskId); } catch (e: any) { setNotice(e.message); }
+    try {
+      await api.tasks.abort(taskId);
+      setRunning(false);
+      setBubbles((prev) => prev.map((b) => (b.streaming ? { ...b, streaming: false } : b)));
+      refreshTask();
+    } catch (e: any) { setNotice(e.message); }
   };
 
   const uploadFile = async (f: File) => {
@@ -440,12 +479,16 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     <div className="detail">
       <div className={`chat ${showFiles ? "" : "wide"}`} ref={scrollRef} onScroll={(e) => {
         const el = e.currentTarget;
+        if (isProgrammaticScrollRef.current) {
+          isProgrammaticScrollRef.current = false;
+          return;
+        }
         userScrollingRef.current = true;
         if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
         scrollTimerRef.current = setTimeout(() => {
           userScrollingRef.current = false;
         }, 300);
-        const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+        const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
         if (atBottom !== auto) setAuto(atBottom);
       }}>
         <div className="detail-head">
@@ -630,10 +673,11 @@ export function TaskDetail({ taskId }: { taskId: string }) {
                   );
                 })()}
                 {running ? (
-                  <>
-                    <button className="ct-send stop" onClick={abort} data-tip="中止任务"><Icon name="square" size={12} /></button>
-                    <button className="btn ghost sm" onClick={() => send("follow_up")} disabled={!input.trim()}>排队追问</button>
-                  </>
+                  <div className="ct-running-group">
+                    <button className="ct-send stop" onClick={abort} data-tip="中止当前任务"><Icon name="square" size={12} /></button>
+                    <button className="btn ghost sm" onClick={() => send("follow_up")} disabled={!input.trim()} data-tip="等当前回答结束，自动开始下一轮对话">排队追问</button>
+                    <button className="btn ghost sm warn" onClick={() => send("steer")} disabled={!input.trim()} data-tip="立即打断当前输出，按新指令继续">打断插话</button>
+                  </div>
                 ) : (
                   <button className="ct-send" onClick={() => send()} disabled={!input.trim()} data-tip="发送"><Icon name="arrow-up" size={16} /></button>
                 )}
