@@ -90,11 +90,17 @@ func (s *Server) CreateKb(ctx context.Context, req *kbpb.CreateKbRequest) (*kbpb
 	if err := s.store.CreateKB(ctx, k); err != nil {
 		return nil, errCode(err)
 	}
-	// per-KB caps MCP entry: visibility = caps scope governance, zero new code
+	// per-KB caps MCP entry: visibility = caps scope governance, zero new code.
+	// Name carries a short unique suffix: the runtime keys MCP servers by
+	// name, same-named KBs would silently overwrite each other per session.
+	short := k.ID
+	if len(short) > 7 {
+		short = short[len(short)-4:]
+	}
 	if s.caps != nil {
 		if _, err := s.caps.UpsertMcpServer(svcCtx(ctx), &capspb.UpsertMcpServerRequest{
 			Server: &capspb.McpServerDef{
-				Id: "kb-" + k.ID, Name: "知识库:" + name, Transport: "http",
+				Id: "kb-" + k.ID, Name: "知识库:" + name + "-" + short, Transport: "http",
 				Url: s.advertised + "/mcp/" + k.ID, Enabled: true,
 				Scopes: []*capspb.Scope{{Type: k.ScopeType, Value: k.ScopeValue}},
 			},

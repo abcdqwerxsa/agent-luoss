@@ -54,6 +54,7 @@ cd deploy && docker compose up -d   # 全栈（本机适配版，见下）
 ## 部署
 
 构建/生产服务器：`ssh root@100.121.15.127`（代码在 `/root/agent-luoss`，栈用 docker-compose.standard.yml，网关 `127.0.0.1:18090`）。磁盘紧张（~92%），构建后记得 `docker builder prune`。
+旧 WSL 机（已退役，仅轻负载）：`ssh root@100.86.138.10`（原 192.168.28.165 已不可达；IO 差，勿在其上构建）。
 
 `deploy/docker-compose.yml` 为**本开发机适配版**（内核缺 iptables DNAT + 内嵌 DNS）：静态 IP 172.28.0.0/24、runtime host 网络、全容器清空代理 env。正常主机用 `deploy/docker-compose.standard.yml`（服务名 DNS + 发布 8080）。
 
