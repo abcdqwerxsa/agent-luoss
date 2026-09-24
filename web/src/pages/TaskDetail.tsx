@@ -88,12 +88,13 @@ export function TaskDetail({ taskId }: { taskId: string }) {
       const p = data.payload ?? {};
       if (t === "agent_start") {
         setRunning(true); setNotice("");
-        // idempotent: auto-retry re-emits agent_start; reuse a leftover
-        // empty streaming bubble instead of stacking stuck spinners
+        // idempotent: auto-retry re-emits agent_start MID-TURN — the trailing
+        // streaming bubble may already hold tool cards/text; reuse it instead
+        // of stacking a fresh empty one (stacked pills never cleared)
         cur = { role: "assistant", text: "", tools: [], streaming: true };
         setBubbles((prev) => {
           const last = prev[prev.length - 1];
-          if (last && last.role === "assistant" && last.streaming && !last.text && !last.tools.length) {
+          if (last && last.role === "assistant" && last.streaming) {
             return prev;
           }
           return [...prev, cur!];
