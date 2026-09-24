@@ -84,6 +84,36 @@ const impls: Record<string, Impl> = {
       {props.label}
     </button>
   ),
+  // Local-interaction components: state lives in the impl (React useState),
+  // no LLM round-trip, no conversation message — in-place by design.
+  Tabs: ({ props, children }) => {
+    const [active, setActive] = React.useState(0);
+    const kids = React.Children.toArray(children);
+    const labels: string[] = props.labels || [];
+    const idx = Math.min(active, Math.max(0, kids.length - 1));
+    return (
+      <div className="gui-tabs">
+        <div className="gui-tab-bar">
+          {labels.map((l, i) => (
+            <button key={i} type="button" className={`gui-tab ${i === idx ? "on" : ""}`} onClick={() => setActive(i)}>{l}</button>
+          ))}
+        </div>
+        <div className="gui-tab-body">{kids[idx] ?? null}</div>
+      </div>
+    );
+  },
+  Accordion: ({ props, children }) => {
+    const [open, setOpen] = React.useState(!!props.defaultOpen);
+    return (
+      <div className="gui-acc">
+        <button type="button" className="gui-acc-head" onClick={() => setOpen(!open)}>
+          <span className={`gui-acc-chevron ${open ? "open" : ""}`}>▸</span>
+          {props.summary}
+        </button>
+        {open && <div className="gui-acc-body">{children}</div>}
+      </div>
+    );
+  },
   Divider: () => <hr className="gui-divider" />,
 };
 

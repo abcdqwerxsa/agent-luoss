@@ -40,9 +40,20 @@ Patch ops: `add` / `replace` / `remove`（`path` 为 JSON Pointer，`value` 为�
 
 ## Interaction loop
 
-Buttons continue the conversation: clicking sends their `message` as a user
-message. Design drill-downs with it — e.g. a metrics card plus buttons like
-"看趋势", "对比上月". Keep 1-3 buttons per interface.
+Two interaction tiers — pick the right one:
+
+- **In-place (no AI)**: Tabs / Accordion are locally interactive — clicking
+  switches views or expands sections in place, nothing is sent. Use these
+  whenever the data for all views is already in the spec (multi-angle
+  overview|detail|trend, long content organization).
+- **Conversational (AI round-trip)**: Button sends its `message` as a user
+  message and triggers the next turn. Use ONLY when new AI work is genuinely
+  needed (drill-down into new data, execute an action, generate new content).
+  When answering a button click, keep the reply COMPACT — respond with the
+  requested panel/answer, do not regenerate the whole dashboard.
+
+Keep 1-3 buttons per interface; prefer Tabs over button rows for view
+switching.
 
 ## Rules
 
@@ -56,7 +67,7 @@ message. Design drill-downs with it — e.g. a metrics card plus buttons like
 
 <!-- genui-catalog-prompt:start -->
 
-AVAILABLE COMPONENTS (12):
+AVAILABLE COMPONENTS (14):
 
 - Card: { title?: string, subtitle?: string } - 卡片容器。整个界面的根元素通常是一个 Card，其余元素作为它的 children。
 - Stack: { direction?: "row" | "column", gap?: number } - 布局容器，纵向或横向排列子元素。direction 默认 column。
@@ -68,7 +79,9 @@ AVAILABLE COMPONENTS (12):
 - Progress: { label: string, value: number, caption?: string } - 进度条。value 取 0-100。
 - Alert: { title?: string, text: string, tone?: "info" | "warning" | "danger" | "success" } - 提示/警示区块。
 - KeyValue: { items: Array<{ key: string, value: string }> } - 键值对清单，适合属性、配置、摘要信息。
-- Button: { label: string, message?: string } - 交互按钮：点击后把 message（省略则用 label）作为用户消息发回对话，触发下一步。用于 drill-down、确认、切换视角等。
+- Button: { label: string, message?: string } - 会话按钮：点击后把 message（省略则用 label）作为用户消息发回对话，触发下一轮。只用于需要 AI 进一步行动的场景（drill-down、执行操作、生成新内容）；纯展示切换（换标签页、展开折叠）必须用 Tabs/Accordion，不要用 Button。
+- Tabs: { labels: Array<string> } - 标签页（本地交互，不触发 AI）：labels 与 children 一一对应，点击标签就地切换显示对应的子元素。适合同一数据的多视角展示（如 概览|明细|趋势）。
+- Accordion: { summary: string, defaultOpen?: boolean } - 折叠面板（本地交互，不触发 AI）：summary 为标题行，点击就地展开/收起 children。适合长内容的分章节收纳（如逐项分析、附录说明）。
 - Divider: {  } - 分隔线。
 
 <!-- genui-catalog-prompt:end -->

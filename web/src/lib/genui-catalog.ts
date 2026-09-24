@@ -59,7 +59,15 @@ export const genuiCatalog = defineCatalog(schema, {
     },
     Button: {
       props: z.object({ label: z.string(), message: z.string().optional() }),
-      description: "交互按钮：点击后把 message（省略则用 label）作为用户消息发回对话，触发下一步。用于 drill-down、确认、切换视角等。",
+      description: "会话按钮：点击后把 message（省略则用 label）作为用户消息发回对话，触发下一轮。只用于需要 AI 进一步行动的场景（drill-down、执行操作、生成新内容）；纯展示切换（换标签页、展开折叠）必须用 Tabs/Accordion，不要用 Button。",
+    },
+    Tabs: {
+      props: z.object({ labels: z.array(z.string()) }),
+      description: "标签页（本地交互，不触发 AI）：labels 与 children 一一对应，点击标签就地切换显示对应的子元素。适合同一数据的多视角展示（如 概览|明细|趋势）。",
+    },
+    Accordion: {
+      props: z.object({ summary: z.string(), defaultOpen: z.boolean().optional() }),
+      description: "折叠面板（本地交互，不触发 AI）：summary 为标题行，点击就地展开/收起 children。适合长内容的分章节收纳（如逐项分析、附录说明）。",
     },
     Divider: { props: z.object({}), description: "分隔线。" },
   },
