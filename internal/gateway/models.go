@@ -31,6 +31,7 @@ func (a *App) listModels(c *gin.Context) {
 		models = append(models, gin.H{
 			"provider_id": m.GetProviderId(), "model_id": m.GetId(),
 			"display_name": m.GetDisplayName(), "context_window": m.GetContextWindow(),
+			"input_cost": m.GetInputCost(), "output_cost": m.GetOutputCost(),
 			"reasoning": m.GetReasoning(),
 		})
 	}

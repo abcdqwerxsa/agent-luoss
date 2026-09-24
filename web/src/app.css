@@ -599,6 +599,8 @@ input[type="file"]::file-selector-button {
 .pc-meta { font-size: 12px; color: var(--text-2); }
 .pc-del { position: absolute; top: 8px; right: 10px; font-size: 12px; color: var(--danger); cursor: pointer; }
 .pc-del:hover { text-decoration: underline; }
+.pc-edit { position: absolute; top: 8px; right: 48px; font-size: 12px; color: var(--text-2); cursor: pointer; }
+.pc-edit:hover { color: var(--accent); text-decoration: underline; }
 .provider-card .badge { margin-top: 2px; }
 
 .fetch-box { border: 1px dashed var(--border-strong); border-radius: var(--radius-card); padding: 10px 12px; margin: 10px 0; }

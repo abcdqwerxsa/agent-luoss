@@ -166,6 +166,7 @@ function ModelsTab() {
   const [msg, setMsg] = useState("");
   const [sel, setSel] = useState(""); // selected provider id
   const [pForm, setPForm] = useState({ id: "", name: "", base_url: "", api_type: "openai-completions", api_key: "", enabled: true });
+  const [editingP, setEditingP] = useState(false); // provider 编辑模式：保存=更新，留空 key 不改密钥
   const [mForm, setMForm] = useState({ model_id: "", display_name: "", context_window: 128000, input_cost: 0, output_cost: 0 });
   const [fetched, setFetched] = useState<{ ids: string[]; pick: Record<string, boolean> } | null>(null);
   const [fetching, setFetching] = useState(false);
@@ -254,20 +255,34 @@ function ModelsTab() {
     refresh();
   };
 
+  const editProvider = (p: any) => {
+    setPForm({ id: p.id, name: p.name || "", base_url: p.base_url || "", api_type: p.api_type || "openai-completions", api_key: "", enabled: p.enabled });
+    setEditingP(true);
+  };
+
+  const saveProvider = () => {
+    api.admin.putProvider(pForm).then(() => {
+      setMsg(editingP ? `已更新 ${pForm.id}` : "已保存");
+      setPForm({ id: "", name: "", base_url: "", api_type: "openai-completions", api_key: "", enabled: true });
+      setEditingP(false); refresh();
+    }).catch((e) => setMsg(e.message));
+  };
+
   const cur = providers.find((p) => p.id === sel);
 
   return (
     <div>
       <div className="panel-card">
-        <h4><Icon name="plug" size={14} />Provider</h4>
+        <h4><Icon name="plug" size={14} />{editingP ? `编辑 Provider：${pForm.id}` : "Provider"}</h4>
         <div className="grid-form">
-          <input placeholder="id (slug)" value={pForm.id} onChange={(e) => setPForm({ ...pForm, id: e.target.value })} />
+          <input placeholder="id (slug)" value={pForm.id} disabled={editingP} onChange={(e) => setPForm({ ...pForm, id: e.target.value })} />
           <input placeholder="显示名" value={pForm.name} onChange={(e) => setPForm({ ...pForm, name: e.target.value })} />
-          <input placeholder="base_url (如 https://gw.internal/v1)" value={pForm.base_url} onChange={(e) => setPForm({ ...pForm, base_url: e.target.value })} />
+          <input style={{ gridColumn: "span 2" }} title="base_url，如 https://gw.internal/v1" placeholder="base_url (如 https://gw.internal/v1)" value={pForm.base_url} onChange={(e) => setPForm({ ...pForm, base_url: e.target.value })} />
           <Select value={pForm.api_type} onChange={(v) => setPForm({ ...pForm, api_type: v })} options={[{ value: "openai-completions", label: "openai-completions" }, { value: "anthropic-messages", label: "anthropic-messages" }]} />
           <input placeholder="API Key（留空=不改）" type="password" value={pForm.api_key} onChange={(e) => setPForm({ ...pForm, api_key: e.target.value })} />
           <label className="check"><input type="checkbox" checked={pForm.enabled} onChange={(e) => setPForm({ ...pForm, enabled: e.target.checked })} />启用</label>
-          <button className="btn primary" disabled={!pForm.id || !pForm.base_url} onClick={() => api.admin.putProvider(pForm).then(() => { setMsg("已保存"); setPForm({ id: "", name: "", base_url: "", api_type: "openai-completions", api_key: "", enabled: true }); refresh(); }).catch((e) => setMsg(e.message))}>保存 Provider</button>
+          <button className="btn primary" disabled={!pForm.id || !pForm.base_url} onClick={saveProvider}>{editingP ? "更新 Provider" : "保存 Provider"}</button>
+          {editingP && <button className="btn" onClick={() => { setEditingP(false); setPForm({ id: "", name: "", base_url: "", api_type: "openai-completions", api_key: "", enabled: true }); }}>取消</button>}
         </div>
         <div className="provider-cards">
           {providers.map((p) => (
@@ -277,6 +292,7 @@ function ModelsTab() {
               <span className="pc-meta mono">{p.id} · {p.api_type}</span>
               <span className="pc-meta">{p.has_key ? "🔑 已配置密钥" : "⚠️ 无密钥"} · {models.filter((m) => m.provider_id === p.id).length} 模型</span>
               <span className={`badge ${p.enabled ? "idle" : "failed"}`}>{p.enabled ? "启用" : "停用"}</span>
+              <span className="pc-edit" onClick={(e) => { e.stopPropagation(); editProvider(p); }}>编辑</span>
               <span className="pc-del" onClick={(e) => { e.stopPropagation(); confirm(`删除 Provider ${p.id} 及其全部模型？`) && api.admin.deleteProvider(p.id).then(refresh).catch((er) => setMsg(er.message)); }}>删除</span>
             </button>
           ))}
