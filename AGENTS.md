@@ -46,13 +46,12 @@ cd deploy && docker compose up -d   # 全栈（本机适配版，见下）
 ```bash
 git worktree add ../agent-luoss-<短名> -b feat/<名>    # 新特性分支（hotfix/ 同理）
 cd ../agent-luoss-<短名> && # 开发、commit（英文、一事一 commit）
-git push -u origin feat/<名>                        # 推分支 → GitHub 开 PR
-git checkout main && git merge --no-ff feat/<名>     # 评审/CI 绿后合并
-# 清理：git worktree remove ../agent-luoss-<短名> && git branch -d feat/<名>
+git push -u origin feat/<名>
+gh pr create --base main --fill-first            # 建 PR 后必须停下
 ```
 
-- CI（GitHub Actions：build/vet/test + 前端与 runtime tsc）是合并门禁
-- 部署脚本/文档类小改也走分支；紧急修复直推 main 例外，但须当日补记录
+- **AI 不得自行合并 PR**：推送分支、创建 PR 后即停，由人在 GitHub 上评审并点击合并（CI 绿是前提）。合并后再清理 worktree/分支
+- 部署脚本/文档类小改也走分支；紧急修复可直推 main 但须当日补记录
 
 ## 开发注意事项
 
