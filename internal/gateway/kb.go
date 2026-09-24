@@ -77,6 +77,9 @@ func (a *App) searchKb(c *gin.Context) {
 func (a *App) registerKbUserRoutes(authed *gin.RouterGroup) {
 	authed.GET("/kb", a.listMyKbs)
 	authed.POST("/kb/:id/docs", a.uploadKbDoc) // member upload: kb-svc checks scope
+	authed.GET("/kb/:id/docs", a.listKbDocs)
+	authed.DELETE("/kb/docs/:docId", a.deleteKbDoc)
+	authed.GET("/kb/:id/search", a.searchKb)
 }
 
 func (a *App) listKbs(c *gin.Context) {

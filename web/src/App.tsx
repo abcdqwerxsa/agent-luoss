@@ -5,11 +5,12 @@ import { ThemeToggle } from "./lib/theme";
 import { Login } from "./pages/Login";
 import { Tasks } from "./pages/Tasks";
 import { Experts } from "./pages/Experts";
+import { Knowledge } from "./pages/Knowledge";
 import { TaskDetail } from "./pages/TaskDetail";
 import { Admin } from "./pages/Admin";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 
-// hash router: #/tasks, #/task/<id>, #/admin
+// hash router: #/tasks, #/task/<id>, #/experts, #/knowledge, #/admin
 function useHashRoute(): string {
   const [hash, setHash] = useState(() => location.hash || "#/tasks");
   useEffect(() => {
@@ -38,6 +39,7 @@ export function App() {
       <div className="nav-links">
         <a href="#/tasks" className={`nav-link ${route.startsWith("#/tasks") || route.startsWith("#/task/") ? "active" : ""}`}>任务</a>
         <a href="#/experts" className={`nav-link ${route.startsWith("#/experts") ? "active" : ""}`}>专家</a>
+        <a href="#/knowledge" className={`nav-link ${route.startsWith("#/knowledge") ? "active" : ""}`}>知识库</a>
         {user?.role === "admin" && <a href="#/admin" className={`nav-link ${route.startsWith("#/admin") ? "active" : ""}`}>管理</a>}
       </div>
       <span className="spacer" />
@@ -60,6 +62,7 @@ export function App() {
 
   const content = (() => {
     if (route.startsWith("#/experts")) return <Experts />;
+    if (route.startsWith("#/knowledge")) return <Knowledge />;
     if (route.startsWith("#/task/")) {
       const id = route.slice("#/task/".length);
       return <TaskDetail key={id} taskId={id} />;

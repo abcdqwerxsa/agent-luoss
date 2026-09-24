@@ -6,6 +6,7 @@ export interface SkillInfo { id: string; name: string; description: string; enab
 export interface ModelOpt { provider_id: string; model_id: string; display_name: string; context_window?: number; reasoning?: boolean; input_cost?: number; output_cost?: number; enabled?: boolean; tier?: string }
 export interface KbInfo { id: string; name: string; scope: Scope; doc_count: number; mcp_entry_id: string; updated_at: number }
 export interface KbDoc { id: string; kb_id: string; filename: string; title: string; size: number; uploader: string; status: string; error: string; updated_at: number }
+export interface KbHit { doc_id: string; title: string; section: string; score: number; snippet: string }
 export interface TaskInfo {
   id: string; user_id: string; title: string; mode: string; expert_id?: string;
   provider: string; model_id: string; status: string;
@@ -172,6 +173,28 @@ export const api = {
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch(`/api/v1/admin/kb/${kbId}/docs`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${auth.token}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        let msg = "upload failed";
+        try { msg = (await res.json()).error || msg; } catch { /* keep */ }
+        throw new ApiError(res.status, msg);
+      }
+      return res.json();
+    },
+  },
+
+  kb: {
+    list: () => req<{ kbs: KbInfo[] }>("GET", "/api/v1/kb"),
+    docs: (kbId: string) => req<{ docs: KbDoc[] }>("GET", `/api/v1/kb/${kbId}/docs`),
+    deleteDoc: (docId: string) => req("DELETE", `/api/v1/kb/docs/${docId}`),
+    search: (kbId: string, q: string, topK = 5) => req<{ hits: KbHit[] }>("GET", `/api/v1/kb/${kbId}/search?q=${encodeURIComponent(q)}&top_k=${topK}`),
+    async uploadDoc(kbId: string, file: File) {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/v1/kb/${kbId}/docs`, {
         method: "POST",
         headers: { Authorization: `Bearer ${auth.token}` },
         body: fd,
