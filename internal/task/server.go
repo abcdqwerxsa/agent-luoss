@@ -119,6 +119,12 @@ func (s *Server) synth(taskID, typ string, body any) {
 	})
 }
 
+// synthIdle emits the terminal task_status so SSE replay carries the final
+// state — a reconnecting client that missed agent_settled still converges.
+func (s *Server) synthIdle(taskID string) {
+	s.synth(taskID, "task_status", map[string]string{"status": "idle"})
+}
+
 // ---- user-facing ----
 
 func (s *Server) CreateTask(ctx context.Context, req *taskpb.CreateTaskRequest) (*taskpb.CreateTaskResponse, error) {
@@ -561,6 +567,7 @@ func (s *Server) onEvent(ctx context.Context, ev *taskpb.AgentEvent) {
 	case "agent_settled":
 		_ = s.store.SetStatus(ctx, ev.GetTaskId(), "idle")
 		s.registry.ReleaseSessionLock(ctx, ev.GetTaskId())
+		s.synthIdle(ev.GetTaskId())
 	case "message_end":
 		s.reportUsage(ctx, ev)
 	case "tool_execution_start":
@@ -570,6 +577,7 @@ func (s *Server) onEvent(ctx context.Context, ev *taskpb.AgentEvent) {
 	case "error":
 		_ = s.store.SetStatus(ctx, ev.GetTaskId(), "idle")
 		s.registry.ReleaseSessionLock(ctx, ev.GetTaskId())
+		s.synthIdle(ev.GetTaskId())
 	}
 }
 
