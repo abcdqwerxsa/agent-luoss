@@ -7,6 +7,7 @@ import { Tasks } from "./pages/Tasks";
 import { Experts } from "./pages/Experts";
 import { TaskDetail } from "./pages/TaskDetail";
 import { Admin } from "./pages/Admin";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 // hash router: #/tasks, #/task/<id>, #/admin
 function useHashRoute(): string {
@@ -57,15 +58,22 @@ export function App() {
     </nav>
   );
 
-  if (route.startsWith("#/experts")) {
-    return <>{nav}<Experts /></>;
-  }
-  if (route.startsWith("#/task/")) {
-    const id = route.slice("#/task/".length);
-    return <>{nav}<TaskDetail key={id} taskId={id} /></>;
-  }
-  if (route.startsWith("#/admin")) {
-    return <>{nav}<Admin /></>;
-  }
-  return <>{nav}<Tasks /></>;
+  const content = (() => {
+    if (route.startsWith("#/experts")) return <Experts />;
+    if (route.startsWith("#/task/")) {
+      const id = route.slice("#/task/".length);
+      return <TaskDetail key={id} taskId={id} />;
+    }
+    if (route.startsWith("#/admin")) return <Admin />;
+    return <Tasks />;
+  })();
+
+  return (
+    <ErrorBoundary title="应用运行异常">
+      {nav}
+      <ErrorBoundary title="页面加载异常，请尝试刷新">
+        {content}
+      </ErrorBoundary>
+    </ErrorBoundary>
+  );
 }
