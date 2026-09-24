@@ -444,23 +444,23 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     setQueuedMessage(null);
   };
 
-  // generative-UI action loop: buttons inside rendered json-ui blocks send
-  // their message back into the conversation as if typed by the user.
+  // generative-UI action: 点击交互式UI底部的建议按钮，仅填充到输入框并聚焦，让用户有确认和修改的余地
   useEffect(() => {
     const onAction = (e: Event) => {
       const msg = (e as CustomEvent).detail?.message;
       if (typeof msg === "string" && msg.trim()) {
         const text = msg.trim();
-        if (running) {
-          setQueuedMessage(text);
-        } else {
-          void sendText(text);
+        setInput(text);
+        const el = document.querySelector(".composer-box textarea") as HTMLTextAreaElement | null;
+        if (el) {
+          el.focus();
+          el.setSelectionRange(text.length, text.length);
         }
       }
     };
     window.addEventListener("genui:action", onAction);
     return () => window.removeEventListener("genui:action", onAction);
-  }, [running]);
+  }, []);
 
   const abort = async () => {
     try {
