@@ -71,16 +71,27 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     let lastSeq = 0; // replay dedup: reconnects re-deliver events after Last-Event-ID
     const tools = new Map<string, ToolCard>();
 
-    const append = (b: Bubble) => setBubbles((prev) => [...prev, b]);
-    const update = (fn: (b: Bubble) => Bubble) => setBubbles((prev) => prev.map((x, i) => (i === prev.length - 1 ? fn(x) : x)));
-    const ensureStreamingBubble = () => {
-      cur = { role: "assistant", text: "", tools: [], streaming: true };
+    const append = (b: Bubble) => {
+      if (!b || !b.role) return;
+      setBubbles((prev) => [...prev.filter((x): x is Bubble => Boolean(x && x.role)), b]);
+    };
+    const update = (fn: (b: Bubble) => Bubble) =>
       setBubbles((prev) => {
-        const last = prev[prev.length - 1];
+        const valid = prev.filter((x): x is Bubble => Boolean(x && x.role));
+        if (valid.length === 0) return valid;
+        return valid.map((x, i, arr) => (i === arr.length - 1 ? fn(x) : x));
+      });
+    const ensureStreamingBubble = () => {
+      const bubble: Bubble = { role: "assistant", text: "", tools: [], streaming: true };
+      cur = bubble;
+      setBubbles((prev) => {
+        const valid = prev.filter((b): b is Bubble => Boolean(b && b.role));
+        const last = valid[valid.length - 1];
         if (last && last.role === "assistant" && last.streaming) {
-          return prev;
+          cur = last;
+          return valid;
         }
-        return [...prev, cur!];
+        return [...valid, bubble];
       });
     };
 
@@ -107,7 +118,11 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           cur = null;
           // close EVERY streaming bubble — retries/reconnects may have left
           // stacked ones; only the last would otherwise clear its spinner
-          setBubbles((prev) => prev.map((b) => (b.streaming ? { ...b, streaming: false } : b)));
+          setBubbles((prev) =>
+            prev
+              .filter((b): b is Bubble => Boolean(b && b.role))
+              .map((b) => (b.streaming ? { ...b, streaming: false } : b))
+          );
           refreshTask(); loadFiles("");
         } else if (t === "context_usage") {
           setCtxUse({ tokens: +p.tokens || 0, window: +p.contextWindow || 0 });
@@ -125,49 +140,64 @@ export function TaskDetail({ taskId }: { taskId: string }) {
             // canonical snapshot heals missed deltas (reattach, retry gaps)
             let text = "", think = "", hasTools = false;
             for (const e of msg.content) {
+              if (!e) continue;
               if (e.type === "text" && e.text) text += (text ? "\n" : "") + e.text;
               else if (e.type === "thinking") think += (think ? "\n" : "") + (e.thinking || "");
               else if (e.type === "toolCall") hasTools = true;
             }
             cur = null;
-            setBubbles((prev) => prev.map((x, i) =>
-              i === prev.length - 1 && x.role === "assistant"
-                ? { ...x, text: text || x.text, thinking: think || x.thinking, streaming: hasTools ? x.streaming : false }
-                : x));
+            setBubbles((prev) => {
+              const valid = prev.filter((x): x is Bubble => Boolean(x && x.role));
+              return valid.map((x, i, arr) =>
+                i === arr.length - 1 && x.role === "assistant"
+                  ? { ...x, text: text || x.text, thinking: think || x.thinking, streaming: hasTools ? x.streaming : false }
+                  : x
+              );
+            });
           }
         } else if (t === "tool_execution_start") {
-        const card: ToolCard = { id: p.toolCallId, tool: p.toolName, args: JSON.stringify(p.args ?? {}), output: "", done: false };
-        tools.set(p.toolCallId, card);
-        setBubbles((prev) => {
-          if (prev.length && prev[prev.length - 1].role === "assistant") {
-            const cp = [...prev];
-            cp[cp.length - 1] = { ...cp[cp.length - 1], tools: [...cp[cp.length - 1].tools, card] };
-            return cp;
-          }
-          return [...prev, { role: "assistant", text: "", tools: [card], streaming: true }];
-        });
-      } else if (t === "tool_execution_end") {
-        const text = (p.result?.content ?? []).map((c: any) => c.text ?? "").join("\n").slice(0, 4000);
-        setBubbles((prev) => prev.map((b) => ({
-          ...b,
-          tools: b.tools.map((tc) => (tc.id === p.toolCallId ? { ...tc, output: text, done: true, error: p.isError } : tc)),
-        })));
-      } else if (t === "task_status") {
-        setRunning(p.status === "running");
-      } else if (t === "error") {
-        const errMsg = p.message || "发生错误";
-        setNotice(errMsg);
-        setRunning(false);
-        setBubbles((prev) => {
-          const last = prev[prev.length - 1];
-          if (last && last.role === "assistant") {
-            return prev.map((b, i) => (i === prev.length - 1 ? { ...b, error: errMsg, streaming: false } : b));
-          }
-          return [...prev, { role: "assistant", text: "", tools: [], error: errMsg, streaming: false }];
-        });
-      } else if (t === "auto_retry_start") {
-        setNotice(`模型暂时不可用，自动重试 (${p.attempt}/${p.maxAttempts})…`);
-      }
+          const card: ToolCard = { id: p.toolCallId, tool: p.toolName, args: JSON.stringify(p.args ?? {}), output: "", done: false };
+          tools.set(p.toolCallId, card);
+          setBubbles((prev) => {
+            const valid = prev.filter((b): b is Bubble => Boolean(b && b.role));
+            const last = valid[valid.length - 1];
+            if (last && last.role === "assistant") {
+              const cp = [...valid];
+              cp[cp.length - 1] = { ...last, tools: [...(last.tools || []), card] };
+              return cp;
+            }
+            const newAssistant: Bubble = { role: "assistant", text: "", tools: [card], streaming: true };
+            cur = newAssistant;
+            return [...valid, newAssistant];
+          });
+        } else if (t === "tool_execution_end") {
+          const text = (p.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n").slice(0, 4000);
+          setBubbles((prev) =>
+            prev
+              .filter((b): b is Bubble => Boolean(b && b.role))
+              .map((b) => ({
+                ...b,
+                tools: (b.tools || []).map((tc) => (tc.id === p.toolCallId ? { ...tc, output: text, done: true, error: p.isError } : tc)),
+              }))
+          );
+        } else if (t === "task_status") {
+          setRunning(p.status === "running");
+        } else if (t === "error") {
+          const errMsg = p.message || "发生错误";
+          setNotice(errMsg);
+          setRunning(false);
+          cur = null;
+          setBubbles((prev) => {
+            const valid = prev.filter((b): b is Bubble => Boolean(b && b.role));
+            const last = valid[valid.length - 1];
+            if (last && last.role === "assistant") {
+              return valid.map((b, i, arr) => (i === arr.length - 1 ? { ...b, error: errMsg, streaming: false } : b));
+            }
+            return [...valid, { role: "assistant", text: "", tools: [], error: errMsg, streaming: false }];
+          });
+        } else if (t === "auto_retry_start") {
+          setNotice(`模型暂时不可用，自动重试 (${p.attempt}/${p.maxAttempts})…`);
+        }
       };
       es.onerror = () => { /* EventSource auto-reconnects with Last-Event-ID */ };
       esRef.current = es;
@@ -211,7 +241,8 @@ export function TaskDetail({ taskId }: { taskId: string }) {
       let n = 0;
       let group: Bubble | null = null;
       const cards = new Map<string, ToolCard>();
-      for (const m of r.messages) {
+      for (const m of (r.messages || [])) {
+        if (!m || !m.role) continue;
         if (m.role === "user") {
           group = null;
           cards.clear();
@@ -227,6 +258,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
           }
           const parts = Array.isArray(m.content) ? m.content : [];
           for (const e of parts) {
+            if (!e) continue;
             if (e.type === "text" && e.text) group.text += (group.text ? "\n" : "") + e.text;
             else if (e.type === "thinking") group.thinking = (group.thinking || "") + ((group.thinking || "") ? "\n" : "") + (e.thinking || "");
             else if (e.type === "toolCall") {
@@ -238,15 +270,19 @@ export function TaskDetail({ taskId }: { taskId: string }) {
         } else if (m.role === "toolResult") {
           const card = m.toolCallId ? cards.get(m.toolCallId) : undefined;
           if (card) {
-            card.output = (Array.isArray(m.content) ? m.content : []).map((x: any) => x.text ?? "").join("\n").slice(0, 4000);
+            card.output = (Array.isArray(m.content) ? m.content : []).map((x: any) => x?.text ?? "").join("\n").slice(0, 4000);
             card.done = true;
             card.error = m.isError;
           }
         }
       }
       // any card still pending (missing result) is closed to avoid a stuck spinner
-      for (const b of bs) for (const t of b.tools) t.done = true;
-      setBubbles(bs);
+      for (const b of bs) {
+        if (b?.tools) {
+          for (const t of b.tools) if (t) t.done = true;
+        }
+      }
+      setBubbles(bs.filter((b): b is Bubble => Boolean(b && b.role)));
       setCurN(n);
       histSeqRef.current = r.last_seq || 0;
     } catch { /* ignore */ }
@@ -259,7 +295,7 @@ export function TaskDetail({ taskId }: { taskId: string }) {
     } catch { /* ignore */ }
   };
 
-  const userMsgs = bubbles.filter((b) => b.role === "user" && b.n) as { n: number; text: string }[];
+  const userMsgs = bubbles.filter((b): b is Bubble & { n: number; text: string } => Boolean(b && b.role === "user" && b.n));
   const jump = (n: number) => {
     if (n < 1 || n > userMsgs.length) return;
     setCurN(n);
@@ -298,9 +334,10 @@ export function TaskDetail({ taskId }: { taskId: string }) {
 
   const sendText = async (msg: string, behavior?: string) => {
     setBubbles((prev) => {
-      const n = (prev.filter((b) => b.role === "user").at(-1)?.n ?? 0) + 1;
+      const valid = prev.filter((b): b is Bubble => Boolean(b && b.role));
+      const n = (valid.filter((b) => b.role === "user").at(-1)?.n ?? 0) + 1;
       setCurN(n);
-      return [...prev, { role: "user", text: msg, tools: [], n }];
+      return [...valid, { role: "user", text: msg, tools: [], n }];
     });
     try {
       const curKey = task ? `${task.provider}/${task.model_id}` : "";
@@ -481,59 +518,62 @@ export function TaskDetail({ taskId }: { taskId: string }) {
               <span>{task?.expert_id ? "技能与工具已加载，输入你的需求开始" : "在下方输入消息开始任务"}</span>
             </div>
           )}
-          {bubbles.map((b, i) => (
-            <div key={i} id={b.n ? `um-${b.n}` : undefined} className={`bubble ${b.role} ${b.n && b.n === flashN ? "flash" : ""}`}>
-              <ErrorBoundary title="气泡渲染异常" fallback={<div className="bubble-error"><Icon name="triangle-alert" size={14} /><span>气泡内容渲染失败</span></div>}>
-                {b.role === "user" && (
-                  <div className="bubble-user-row">
-                    {b.n && <span className="msg-ord mono">#{b.n}</span>}
-                    <div className="bubble-user-text">{b.text}</div>
-                  </div>
-                )}
-                {b.role === "assistant" && (
-                  <>
-                    {(b.thinking || b.tools.length > 0) && (
-                      <ThinkingTrace
-                        working={!!b.streaming}
-                        active="执行中"
-                        done={b.tools.length ? `执行了 ${b.tools.length} 步` : "思考过程"}
-                        rows={b.tools.map((t) => ({
-                          primary: t.tool,
-                          secondary: t.error ? "失败" : t.done ? "完成" : "…",
-                          mono: true,
-                          detail: (
-                            <div>
-                              <pre className="toolargs">{t.args}</pre>
-                              {t.output && (t.output.match(/^[+-][^+-]/m) ? <DiffView diff={t.output} /> : <pre className="toolout">{t.output}</pre>)}
-                            </div>
-                          ),
-                        }))}
-                      >
-                        {b.thinking && <div className="trace-thinking">{b.thinking}</div>}
-                      </ThinkingTrace>
-                    )}
-                    {b.text ? (
-                      <Markdown text={b.text} />
-                    ) : b.streaming && !b.thinking && b.tools.length === 0 ? (
-                      <Loader label="生成中" />
-                    ) : null}
-                    {b.error && (
-                      <div className="bubble-error">
-                        <Icon name="triangle-alert" size={14} />
-                        <span>{b.error.includes("429") ? `模型接口限流 (429)：${b.error}。请稍后重试或切换右下角模型。` : b.error}</span>
-                      </div>
-                    )}
-                    {!b.text && !b.streaming && !b.tools.length && !b.thinking && !b.error && (
-                      <div className="bubble-empty gui-muted">（未返回内容）</div>
-                    )}
-                  </>
-                )}
-              </ErrorBoundary>
-            </div>
-          ))}
+          {bubbles.map((b, i) => {
+            if (!b || !b.role) return null;
+            return (
+              <div key={i} id={b.n ? `um-${b.n}` : undefined} className={`bubble ${b.role} ${b.n && b.n === flashN ? "flash" : ""}`}>
+                <ErrorBoundary title="气泡渲染异常" fallback={<div className="bubble-error"><Icon name="triangle-alert" size={14} /><span>气泡内容渲染失败</span></div>}>
+                  {b.role === "user" && (
+                    <div className="bubble-user-row">
+                      {b.n && <span className="msg-ord mono">#{b.n}</span>}
+                      <div className="bubble-user-text">{b.text}</div>
+                    </div>
+                  )}
+                  {b.role === "assistant" && (
+                    <>
+                      {(b.thinking || (b.tools && b.tools.length > 0)) && (
+                        <ThinkingTrace
+                          working={!!b.streaming}
+                          active="执行中"
+                          done={(b.tools && b.tools.length) ? `执行了 ${b.tools.length} 步` : "思考过程"}
+                          rows={(b.tools || []).map((t) => ({
+                            primary: t.tool,
+                            secondary: t.error ? "失败" : t.done ? "完成" : "…",
+                            mono: true,
+                            detail: (
+                              <div>
+                                <pre className="toolargs">{t.args}</pre>
+                                {t.output && (t.output.match(/^[+-][^+-]/m) ? <DiffView diff={t.output} /> : <pre className="toolout">{t.output}</pre>)}
+                              </div>
+                            ),
+                          }))}
+                        >
+                          {b.thinking && <div className="trace-thinking">{b.thinking}</div>}
+                        </ThinkingTrace>
+                      )}
+                      {b.text ? (
+                        <Markdown text={b.text} />
+                      ) : b.streaming && !b.thinking && (!b.tools || b.tools.length === 0) ? (
+                        <Loader label="生成中" />
+                      ) : null}
+                      {b.error && (
+                        <div className="bubble-error">
+                          <Icon name="triangle-alert" size={14} />
+                          <span>{b.error.includes("429") ? `模型接口限流 (429)：${b.error}。请稍后重试或切换右下角模型。` : b.error}</span>
+                        </div>
+                      )}
+                      {!b.text && !b.streaming && (!b.tools || !b.tools.length) && !b.thinking && !b.error && (
+                        <div className="bubble-empty gui-muted">（未返回内容）</div>
+                      )}
+                    </>
+                  )}
+                </ErrorBoundary>
+              </div>
+            );
+          })}
         </div>
 
-        {task?.mode === "plan" && !running && bubbles.length > 0 && bubbles.at(-1)?.role === "assistant" && planPromptAt !== bubbles.length && (
+        {task?.mode === "plan" && !running && bubbles.length > 0 && bubbles.filter(Boolean).at(-1)?.role === "assistant" && planPromptAt !== bubbles.length && (
           <PlanApproval
             onConfirm={() => { setPlanPromptAt(bubbles.length); void sendText("确认执行以上计划"); }}
             onRevise={() => setPlanPromptAt(bubbles.length)}
